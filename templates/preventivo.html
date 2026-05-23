@@ -99,47 +99,98 @@
 
 <!-- ═══ STEP 2: SEDE ═══ -->
 <div class="wizard-panel" id="panel-2">
-  <div class="card mb-3">
-    <div class="card-header">Indirizzo sede lavanderia</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-8">
-          <label class="form-label">Indirizzo *</label>
-          <div class="d-flex gap-2">
-            <input type="text" name="indirizzo" id="f_indirizzo" class="form-control" placeholder="Via Roma 1" value="{{ pratica.indirizzo if pratica else '' }}" required>
-            <button type="button" class="btn btn-outline-secondary" onclick="geocodifica()">
-              <i class="bi bi-search"></i>
-            </button>
+
+  <!-- Tab switcher -->
+  <div class="d-flex gap-2 mb-3">
+    <button type="button" class="btn btn-primary btn-sm" id="tab-indirizzo-btn" onclick="switchTab('indirizzo')">
+      <i class="bi bi-geo-alt me-1"></i> Ho già un indirizzo
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="tab-esplora-btn" onclick="switchTab('esplora')">
+      <i class="bi bi-search me-1"></i> / Esplora zona — non so ancora dove aprire
+    </button>
+  </div>
+
+  <!-- TAB: INDIRIZZO -->
+  <div id="tab-indirizzo">
+    <div class="card mb-3">
+      <div class="card-header">Indirizzo sede lavanderia</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Indirizzo *</label>
+            <div class="d-flex gap-2">
+              <input type="text" name="indirizzo" id="f_indirizzo" class="form-control" placeholder="Via Roma 1" value="{{ pratica.indirizzo if pratica else '' }}" required>
+              <button type="button" class="btn btn-outline-secondary" onclick="geocodifica()">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Città</label>
+            <input type="text" name="citta" id="f_citta" class="form-control" value="{{ pratica.citta if pratica else '' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">CAP</label>
+            <input type="text" name="cap" id="f_cap" class="form-control" value="{{ pratica.cap if pratica else '' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Provincia</label>
+            <input type="text" name="provincia" id="f_provincia" class="form-control" value="{{ pratica.provincia if pratica else '' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Superficie (mq)</label>
+            <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Traffico pedonale</label>
+            <select name="traffico_pedonale" class="form-select">
+              <option value="basso">Basso</option>
+              <option value="medio" selected>Medio</option>
+              <option value="alto">Alto</option>
+            </select>
           </div>
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Città</label>
-          <input type="text" name="citta" id="f_citta" class="form-control" value="{{ pratica.citta if pratica else '' }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">CAP</label>
-          <input type="text" name="cap" id="f_cap" class="form-control" value="{{ pratica.cap if pratica else '' }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Provincia</label>
-          <input type="text" name="provincia" class="form-control" value="{{ pratica.provincia if pratica else '' }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Superficie (mq)</label>
-          <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Traffico pedonale</label>
-          <select name="traffico_pedonale" class="form-select">
-            <option value="basso">Basso</option>
-            <option value="medio" selected>Medio</option>
-            <option value="alto">Alto</option>
-          </select>
-        </div>
+        <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
       </div>
-      <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
     </div>
   </div>
+
+  <!-- TAB: ESPLORA ZONA -->
+  <div id="tab-esplora" style="display:none">
+    <div class="card mb-3" style="border-color:#7c3aed;background:rgba(124,58,237,.04)">
+      <div class="card-header" style="border-color:#7c3aed">
+        <i class="bi bi-search me-2" style="color:#a78bfa"></i>
+        <span style="color:#a78bfa">Esplora zona — trova le zone migliori</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+          Inserisci una città, quartiere o zona. La piattaforma analizza la mappa e cerchia le aree con maggior potenziale per una lavanderia self-service.
+        </p>
+        <div class="d-flex gap-2 mb-3">
+          <input type="text" id="esplora-input" class="form-control" placeholder="es. Roma, Milano Porta Romana, Napoli Vomero..."
+            style="max-width:400px" onkeydown="if(event.key==='Enter'){event.preventDefault();esploraZona()}">
+          <button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;white-space:nowrap" onclick="esploraZona()">
+            <i class="bi bi-search me-1"></i> Analizza
+          </button>
+        </div>
+        <div id="esplora-loading" style="display:none;font-size:13px;color:#64748b">
+          <div class="spinner-border spinner-border-sm me-2" style="color:#a78bfa"></div>
+          Analisi in corso... (15-30 sec)
+        </div>
+        <!-- Mappa esplora -->
+        <div id="map-esplora" style="height:420px;border-radius:10px;border:1px solid #1e2d45;display:none"></div>
+        <!-- Risultati zona -->
+        <div id="esplora-risultati" style="display:none" class="mt-3">
+          <!-- Demografici -->
+          <div class="row g-3 mb-3" id="esplora-demo-row"></div>
+          <!-- Zone cards -->
+          <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Zone analizzate — clicca per impostare come sede</div>
+          <div class="row g-2" id="esplora-zone-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex justify-content-between">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
     <button type="button" class="btn btn-primary" onclick="goStep(3); analizzaZona()">Avanti e Analizza Zona <i class="bi bi-arrow-right ms-1"></i></button>
@@ -148,99 +199,226 @@
 
 <!-- ═══ STEP 3: ZONA ═══ -->
 <div class="wizard-panel" id="panel-3">
+  <!-- Loading overlay -->
+  <div id="loading-zona" style="display:none;text-align:center;padding:40px;background:rgba(10,14,26,.9);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;border-radius:16px;border:1px solid #1e2d45;min-width:280px">
+    <div class="spinner-border mb-3" style="color:#3b82f6;width:48px;height:48px"></div>
+    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#e2e8f0">Analisi zona in corso...</div>
+    <div style="font-size:13px;color:#64748b;margin-top:6px">Rilevamento POI, concorrenti e dati demografici</div>
+  </div>
+
   <div class="row g-3 mb-3">
-    <!-- Mappa -->
-    <div class="col-lg-7">
-      <div class="card h-100">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <span><i class="bi bi-map me-2 text-muted"></i>Mappa zona</span>
-          <div class="d-flex gap-1" style="font-size:11px">
-            <span class="badge bg-danger bg-opacity-25 text-danger">● Concorrenti</span>
-            <span class="badge bg-success bg-opacity-25 text-success">● Servizi</span>
-            <span class="badge bg-primary bg-opacity-25 text-primary">● Sede</span>
+    <!-- MAPPA grande -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <span style="font-size:15px;font-weight:700"><i class="bi bi-map me-2" style="color:#3b82f6"></i>Mappa zona interattiva</span>
+          <div class="d-flex gap-2 flex-wrap" style="font-size:12px">
+            <span style="background:rgba(239,68,68,.2);color:#ef4444;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3)">🔴 Concorrenti</span>
+            <span style="background:rgba(16,185,129,.2);color:#10b981;padding:3px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.3)">🟢 Supermercati</span>
+            <span style="background:rgba(245,158,11,.2);color:#f59e0b;padding:3px 10px;border-radius:20px;border:1px solid rgba(245,158,11,.3)">🟠 Ristoranti/Bar</span>
+            <span style="background:rgba(59,130,246,.2);color:#60a5fa;padding:3px 10px;border-radius:20px;border:1px solid rgba(59,130,246,.3)">🔵 Trasporti</span>
+            <span style="background:rgba(167,139,250,.2);color:#a78bfa;padding:3px 10px;border-radius:20px;border:1px solid rgba(167,139,250,.3)">🟣 Istruzione</span>
+            <span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:3px 10px;border-radius:20px;border:1px solid rgba(251,191,36,.3)">⭕ Zone affluenza</span>
           </div>
         </div>
         <div class="card-body p-2">
-          <div id="map"></div>
-          <div id="loading-zona" class="text-center py-4 text-muted" style="display:none">
-            <div class="spinner-border spinner-border-sm me-2"></div> Analisi zona in corso...
-          </div>
+          <div id="map" style="height:480px;border-radius:10px;border:1px solid #1e2d45"></div>
         </div>
       </div>
     </div>
-    <!-- Stats zona -->
-    <div class="col-lg-5">
-      <div class="card mb-3">
-        <div class="card-header"><i class="bi bi-people me-2 text-muted"></i>Popolazione raggiungibile</div>
-        <div class="card-body">
-          <div class="row g-2 text-center">
-            <div class="col-4">
-              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#3b82f6" id="d_pop3">—</div>
-              <div style="font-size:11px;color:#64748b">3 min a piedi</div>
-            </div>
-            <div class="col-4">
-              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#8b5cf6" id="d_pop5">—</div>
-              <div style="font-size:11px;color:#64748b">5 min a piedi</div>
-            </div>
-            <div class="col-4">
-              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#ec4899" id="d_pop10">—</div>
-              <div style="font-size:11px;color:#64748b">10 min a piedi</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="card mb-3">
-        <div class="card-header"><i class="bi bi-shop me-2 text-muted"></i>Analisi concorrenza</div>
-        <div class="card-body">
-          <div class="d-flex justify-content-between mb-2">
-            <span class="text-muted">Entro 500m</span>
-            <span id="d_conc500" style="color:#ef4444;font-weight:700">—</span>
-          </div>
-          <div class="d-flex justify-content-between">
-            <span class="text-muted">Entro 1km</span>
-            <span id="d_conc1km" style="color:#f59e0b;font-weight:700">—</span>
-          </div>
-        </div>
-      </div>
-      <div class="card mb-3">
-        <div class="card-header"><i class="bi bi-star me-2 text-muted"></i>Score zona</div>
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-3 mb-2">
-            <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800" id="d_score">—</div>
-            <div>
-              <div id="d_label" style="font-size:14px;font-weight:600">—</div>
-              <div class="score-bar mt-1" style="width:120px">
-                <div class="score-fill" id="score-fill" style="width:0%;background:#2563eb"></div>
+
+    <!-- KPI zona -->
+    <div class="col-12">
+      <div class="row g-3">
+        <!-- Popolazione -->
+        <div class="col-md-4">
+          <div class="card h-100" style="border-color:#2563eb;background:rgba(37,99,235,.05)">
+            <div class="card-body">
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-people me-1"></i>Popolazione raggiungibile</div>
+              <div class="row g-2 text-center">
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#60a5fa" id="d_pop3">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 3 min</div>
+                </div>
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#818cf8" id="d_pop5">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 5 min</div>
+                </div>
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#c084fc" id="d_pop10">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 10 min</div>
+                </div>
+              </div>
+              <!-- 1km row -->
+              <div class="mt-3 pt-3" style="border-top:1px solid #1e2d45">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span style="font-size:12px;color:#64748b">📍 Raggio 1 km</span>
+                  <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f472b6" id="d_pop1km">—</span>
+                </div>
+              </div>
               </div>
             </div>
           </div>
-          <div class="text-muted" style="font-size:12px">Attività nei 400m: <span id="d_serv" style="color:var(--text)">—</span></div>
+        </div>
+
+        <!-- Score + traffico -->
+        <div class="col-md-4">
+          <div class="card h-100" id="score-card" style="border-color:#1e2d45">
+            <div class="card-body">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-star me-1"></i>Valutazione zona</div>
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;line-height:1" id="d_score">—</div>
+                <div>
+                  <div id="d_label" style="font-size:16px;font-weight:700;color:#e2e8f0">—</div>
+                  <div style="height:8px;background:#0a0e1a;border-radius:4px;overflow:hidden;width:130px;margin-top:6px">
+                    <div id="score-fill" style="height:100%;width:0%;border-radius:4px;transition:width .8s ease"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="font-size:12px;color:#64748b">
+                Traffico pedonale: <span id="d_traffico" style="color:#e2e8f0;font-weight:600">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Concorrenza + servizi -->
+        <div class="col-md-4">
+          <div class="card h-100" style="border-color:#1e2d45">
+            <div class="card-body">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-shop me-1"></i>Analisi dettagliata</div>
+              <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background:#0a0e1a">
+                <span style="font-size:12px;color:#ef4444">🔴 Concorrenti 500m</span>
+                <span id="d_conc500" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#ef4444">—</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background:#0a0e1a">
+                <span style="font-size:12px;color:#f59e0b">🟡 Concorrenti 1km</span>
+                <span id="d_conc1km" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">—</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#0a0e1a">
+                <span style="font-size:12px;color:#10b981">🟢 Attività 400m</span>
+                <span id="d_serv" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#10b981">—</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- AI Analisi -->
+    </div>
+
+    <!-- Contatori categorie -->
+    <div class="col-12">
       <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <span><i class="bi bi-stars me-2 text-muted"></i>Analisi AI</span>
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="generaAI()">
-            <i class="bi bi-magic"></i> Genera
+        <div class="card-header"><i class="bi bi-grid me-2 text-muted"></i>Distribuzione attività nella zona</div>
+        <div class="card-body">
+          <div class="row g-3 text-center" id="contatori-grid">
+            <div class="col text-center">
+              <div style="font-size:28px">🟢</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#10b981" id="cnt_super">—</div>
+              <div style="font-size:11px;color:#64748b">Supermercati</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🟠</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b" id="cnt_risto">—</div>
+              <div style="font-size:11px;color:#64748b">Ristoranti</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">☕</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#fb923c" id="cnt_bar">—</div>
+              <div style="font-size:11px;color:#64748b">Bar/Caffè</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">💊</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#34d399" id="cnt_farm">—</div>
+              <div style="font-size:11px;color:#64748b">Farmacie</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🚌</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#60a5fa" id="cnt_trasp">—</div>
+              <div style="font-size:11px;color:#64748b">Trasporti</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🎓</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#a78bfa" id="cnt_istr">—</div>
+              <div style="font-size:11px;color:#64748b">Istruzione</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🔴</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#ef4444" id="cnt_comp">—</div>
+              <div style="font-size:11px;color:#64748b">Concorrenti</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATI DEMOGRAFICI ISTAT -->
+    <div class="col-12" id="demo-block" style="display:none">
+      <div class="card" style="border-color:#0891b2;background:rgba(8,145,178,.04)">
+        <div class="card-header" style="border-color:#0891b2">
+          <i class="bi bi-graph-up me-2" style="color:#22d3ee"></i>
+          <span style="color:#22d3ee">Dati demografici zona (ISTAT)</span>
+          <span id="demo-fonte" style="font-size:11px;color:#64748b;margin-left:8px"></span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 align-items-start">
+            <div class="col-md-2 text-center">
+              <div style="font-size:28px">👴</div>
+              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#22d3ee" id="demo_eta">—</div>
+              <div style="font-size:11px;color:#64748b">Età media anni</div>
+            </div>
+            <div class="col-md-2 text-center">
+              <div style="font-size:28px">💰</div>
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#34d399" id="demo_reddito">—</div>
+              <div style="font-size:11px;color:#64748b">Reddito medio/anno</div>
+            </div>
+            <div class="col-md-2 text-center">
+              <div style="font-size:28px">🏘️</div>
+              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#a78bfa" id="demo_densita">—</div>
+              <div style="font-size:11px;color:#64748b">Ab/km²</div>
+            </div>
+            <div class="col-md-2 text-center">
+              <div style="font-size:28px">📊</div>
+              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800" id="demo_market_score">—</div>
+              <div style="font-size:11px;color:#64748b" id="demo_market_label">Potenziale mercato</div>
+            </div>
+            <div class="col-md-4">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Valutazione potenziale</div>
+              <div id="demo_notes" style="font-size:12px;line-height:1.8"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POI List dettagliata -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-pin-map me-2 text-muted"></i>Punti di interesse vicini</div>
+        <div class="card-body p-0">
+          <div id="poi-list" class="p-3 text-muted" style="font-size:13px">L'analisi mostrerà qui i punti di interesse...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Analisi -->
+    <div class="col-lg-4">
+      <div class="card h-100" style="border-color:#7c3aed;background:rgba(124,58,237,.05)">
+        <div class="card-header d-flex align-items-center justify-content-between" style="border-color:#7c3aed">
+          <span style="color:#a78bfa"><i class="bi bi-stars me-2"></i>Analisi AI</span>
+          <button type="button" class="btn btn-sm" style="background:#7c3aed;color:white" onclick="generaAI()">
+            <i class="bi bi-magic me-1"></i> Genera
           </button>
         </div>
         <div class="card-body">
-          <div id="ai-zona-text" class="text-muted" style="font-size:13px;line-height:1.6">
-            Clicca "Genera" per ottenere l'analisi AI della zona.
+          <div id="ai-zona-text" style="font-size:13px;line-height:1.7;color:#94a3b8">
+            Clicca "Genera" per ottenere l'analisi AI della zona con raccomandazioni commerciali.
           </div>
         </div>
       </div>
     </div>
   </div>
-  <!-- POI List -->
-  <div class="card mb-3">
-    <div class="card-header"><i class="bi bi-pin-map me-2 text-muted"></i>Punti di interesse vicini</div>
-    <div class="card-body p-0">
-      <div id="poi-list" class="p-3 text-muted" style="font-size:13px">L'analisi mostrerà qui i punti di interesse...</div>
-    </div>
-  </div>
-  <div class="d-flex justify-content-between">
+
+  <div class="d-flex justify-content-between mt-2">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
     <button type="button" class="btn btn-primary" onclick="goStep(4)">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
   </div>
@@ -523,6 +701,7 @@ MACCHINE_DATA[{{ m.id }}] = {{ m.to_dict()|tojson }};
 
 let selectedMacchine = {};
 let map = null;
+let mapEsplora = null;
 
 // ── WIZARD STEPS ────────────────────────────────
 function goStep(n) {
@@ -533,6 +712,175 @@ function goStep(n) {
     else if(i+1 < n) s.classList.add('done');
   });
   if(n === 3 && !map) initMap();
+}
+
+// ── TAB SWITCHER STEP 2 ──────────────────────────
+function switchTab(tab) {
+  const isEsplora = tab === 'esplora';
+  document.getElementById('tab-indirizzo').style.display = isEsplora ? 'none' : 'block';
+  document.getElementById('tab-esplora').style.display = isEsplora ? 'block' : 'none';
+  document.getElementById('tab-indirizzo-btn').className = isEsplora ? 'btn btn-outline-secondary btn-sm' : 'btn btn-primary btn-sm';
+  document.getElementById('tab-esplora-btn').className = isEsplora ? 'btn btn-sm' : 'btn btn-outline-secondary btn-sm';
+  if(isEsplora) {
+    document.getElementById('tab-esplora-btn').style.cssText = 'background:#7c3aed;color:white';
+  } else {
+    document.getElementById('tab-esplora-btn').style.cssText = '';
+  }
+  if(isEsplora && !mapEsplora) {
+    setTimeout(() => {
+      mapEsplora = L.map('map-esplora').setView([41.9, 12.5], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapEsplora);
+    }, 100);
+  }
+}
+
+// ── ESPLORA ZONA ─────────────────────────────────
+function esploraZona() {
+  const citta = document.getElementById('esplora-input').value.trim();
+  if(!citta) return;
+  document.getElementById('esplora-loading').style.display = 'block';
+  document.getElementById('esplora-risultati').style.display = 'none';
+  document.getElementById('map-esplora').style.display = 'block';
+  if(!mapEsplora) {
+    mapEsplora = L.map('map-esplora').setView([41.9, 12.5], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapEsplora);
+  }
+
+  fetch('/api/esplora-zona?citta=' + encodeURIComponent(citta))
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('esplora-loading').style.display = 'none';
+      if(d.error) { alert(d.error); return; }
+
+      document.getElementById('esplora-risultati').style.display = 'block';
+
+      // Centra mappa
+      mapEsplora.setView([d.centro_lat, d.centro_lng], 14);
+      mapEsplora.eachLayer(l => { if(!l._url) mapEsplora.removeLayer(l); });
+
+      // Colori score
+      const getColor = s => s >= 70 ? '#10b981' : s >= 45 ? '#f59e0b' : '#ef4444';
+      const getOpacity = s => s >= 70 ? 0.35 : s >= 45 ? 0.25 : 0.15;
+
+      // Disegna cerchi per ogni zona
+      d.zone.forEach((z, i) => {
+        const col = getColor(z.score);
+        // Cerchio zona
+        L.circle([z.lat, z.lng], {
+          radius: 550,
+          color: col,
+          weight: i === 0 ? 3 : 1.5,
+          fillColor: col,
+          fillOpacity: getOpacity(z.score),
+        }).addTo(mapEsplora).bindPopup(`
+          <div style="min-width:180px">
+            <div style="font-weight:700;font-size:14px;color:${col}">${z.label} — ${z.score}/100</div>
+            <div style="font-size:12px;margin-top:4px">
+              🔴 Lavanderie: ${z.lavanderie}<br>
+              🟢 Supermercati: ${z.supermercati}<br>
+              🟠 Ristoranti/Bar: ${z.food}<br>
+              🚌 Trasporti: ${z.trasporti}
+            </div>
+            <button onclick="usaZona(${z.lat},${z.lng},'${citta}')" 
+              style="margin-top:8px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px">
+              📍 Usa questa zona
+            </button>
+          </div>`);
+
+        // Label score sul cerchio
+        L.marker([z.lat, z.lng], {icon: L.divIcon({className:'', html:`
+          <div style="background:${col};color:white;font-weight:800;font-family:'Syne',sans-serif;
+            font-size:13px;padding:4px 8px;border-radius:20px;white-space:nowrap;
+            box-shadow:0 2px 6px rgba(0,0,0,.4);${i===0?'border:2px solid white':''}">
+            ${i===0?'⭐ ':''} ${z.score}
+          </div>`, iconAnchor:[20,10]})}).addTo(mapEsplora);
+      });
+
+      // Demografici
+      const demo = d.demo;
+      document.getElementById('esplora-demo-row').innerHTML = `
+        <div class="col-md-3">
+          <div class="p-3 rounded text-center" style="background:#111827;border:1px solid #1e2d45">
+            <div style="font-size:24px">👴</div>
+            <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#22d3ee">${demo.eta_media}</div>
+            <div style="font-size:11px;color:#64748b">Età media anni</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded text-center" style="background:#111827;border:1px solid #1e2d45">
+            <div style="font-size:24px">💰</div>
+            <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#34d399">€${demo.reddito_medio.toLocaleString('it')}</div>
+            <div style="font-size:11px;color:#64748b">Reddito medio/anno</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded text-center" style="background:#111827;border:1px solid #1e2d45">
+            <div style="font-size:24px">🏘️</div>
+            <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#a78bfa">${demo.densita.toLocaleString('it')}</div>
+            <div style="font-size:11px;color:#64748b">Ab/km²</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded" style="background:#111827;border:1px solid #1e2d45;font-size:12px;color:#94a3b8">
+            <div style="font-weight:600;color:#e2e8f0;margin-bottom:4px">📊 ${demo.note || ''}</div>
+            <div style="font-size:11px;color:#64748b">Fonte: ${demo.fonte}</div>
+          </div>
+        </div>`;
+
+      // Zone cards
+      const grid = document.getElementById('esplora-zone-grid');
+      grid.innerHTML = d.zone.map((z, i) => {
+        const col = getColor(z.score);
+        return `<div class="col-md-4">
+          <div class="p-3 rounded" style="background:#111827;border:2px solid ${col};cursor:pointer;transition:.2s"
+            onclick="usaZona(${z.lat},${z.lng},'${citta}')"
+            onmouseover="this.style.background='rgba(37,99,235,.1)'" onmouseout="this.style.background='#111827'">
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:${col}">${i===0?'⭐ ':''} ${z.score}/100 — ${z.label}</div>
+            <div style="font-size:12px;color:#64748b;margin:6px 0">
+              🔴 ${z.lavanderie} lavanderie &nbsp; 🟢 ${z.supermercati} supermercati<br>
+              🟠 ${z.food} ristoranti/bar &nbsp; 🚌 ${z.trasporti} fermate
+            </div>
+            <div style="font-size:11px;color:#3b82f6">Clicca per usare questa zona →</div>
+          </div>
+        </div>`;
+      }).join('');
+    })
+    .catch(e => {
+      document.getElementById('esplora-loading').style.display = 'none';
+      alert('Errore analisi: ' + e.message);
+    });
+}
+
+function usaZona(lat, lng, citta) {
+  // Imposta le coordinate e passa al tab indirizzo
+  document.getElementById('f_lat').value = lat;
+  document.getElementById('f_lng').value = lng;
+  document.getElementById('f_citta').value = citta;
+  document.getElementById('f_indirizzo').value = citta;
+  switchTab('indirizzo');
+  document.getElementById('geo-status').innerHTML =
+    `<i class="bi bi-check-circle text-success me-1"></i>Zona selezionata da esplorazione: ${citta} (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+}
+
+// ── DATI DEMOGRAFICI ─────────────────────────────
+function caricaDemografici(citta, provincia, concorrenti) {
+  const params = new URLSearchParams({citta: citta||'', provincia: provincia||'', concorrenti: concorrenti||0});
+  fetch('/api/dati-demografici?' + params)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('demo-block').style.display = 'block';
+      document.getElementById('demo_eta').textContent = d.eta_media;
+      document.getElementById('demo_reddito').textContent = '€' + d.reddito_medio.toLocaleString('it');
+      document.getElementById('demo_densita').textContent = d.densita.toLocaleString('it');
+      document.getElementById('demo-fonte').textContent = '— fonte: ' + d.fonte;
+      const m = d.market;
+      const el = document.getElementById('demo_market_score');
+      el.textContent = m.score;
+      el.style.color = m.colore;
+      document.getElementById('demo_market_label').textContent = m.label;
+      document.getElementById('demo_market_label').style.color = m.colore;
+      document.getElementById('demo_notes').innerHTML = m.note.map(n => `<div>${n}</div>`).join('');
+    });
 }
 
 // ── CLIENTE SEARCH ────────────────────────────────
@@ -624,7 +972,8 @@ function eseguiAnalisi(lat, lng) {
     .then(r => r.json())
     .then(d => {
       document.getElementById('loading-zona').style.display = 'none';
-      // Aggiorna hidden fields
+
+      // Hidden fields
       document.getElementById('f_pop3').value = d.pop_3min;
       document.getElementById('f_pop5').value = d.pop_5min;
       document.getElementById('f_pop10').value = d.pop_10min;
@@ -634,49 +983,129 @@ function eseguiAnalisi(lat, lng) {
       document.getElementById('f_score').value = d.score;
       document.getElementById('f_label').value = d.label;
       document.getElementById('f_pois').value = JSON.stringify(d.pois);
-      // Aggiorna display
-      document.getElementById('d_pop3').textContent = d.pop_3min.toLocaleString();
-      document.getElementById('d_pop5').textContent = d.pop_5min.toLocaleString();
-      document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString();
+
+      // Display popolazione
+      document.getElementById('d_pop3').textContent = d.pop_3min.toLocaleString('it');
+      document.getElementById('d_pop5').textContent = d.pop_5min.toLocaleString('it');
+      document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString('it');
+      if(d.pop_1km) document.getElementById('d_pop1km').textContent = d.pop_1km.toLocaleString('it');
+
+      // Concorrenza
       document.getElementById('d_conc500').textContent = d.competitors_500m;
       document.getElementById('d_conc1km').textContent = d.competitors_1km;
       document.getElementById('d_serv').textContent = d.servizi_400m;
-      document.getElementById('d_score').textContent = d.score;
-      document.getElementById('d_label').textContent = d.label;
+
+      // Score
       const pct = d.score;
+      const scoreColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
+      document.getElementById('d_score').textContent = d.score;
+      document.getElementById('d_score').style.color = scoreColor;
+      document.getElementById('d_label').textContent = d.label;
+      document.getElementById('d_label').style.color = scoreColor;
       const fill = document.getElementById('score-fill');
       fill.style.width = pct + '%';
-      fill.style.background = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
-      // Mappa
+      fill.style.background = scoreColor;
+      const card = document.getElementById('score-card');
+      card.style.borderColor = scoreColor;
+      card.style.background = `rgba(${pct>=70?'16,185,129':pct>=40?'245,158,11':'239,68,68'},.05)`;
+
+      // Traffico
+      document.getElementById('d_traffico').textContent = d.traffico || '—';
+
+      // Carica dati demografici ISTAT
+      const citta = document.getElementById('f_citta').value;
+      const provincia = document.getElementById('f_provincia') ? document.getElementById('f_provincia').value : '';
+      caricaDemografici(citta, provincia, d.competitors_1km);
+
+      // Contatori categorie
+      const cnt = d.contatori || {};
+      document.getElementById('cnt_super').textContent = cnt.supermercato || 0;
+      document.getElementById('cnt_risto').textContent = cnt.ristorante || 0;
+      document.getElementById('cnt_bar').textContent = cnt.bar_cafe || 0;
+      document.getElementById('cnt_farm').textContent = cnt.farmacia || 0;
+      document.getElementById('cnt_trasp').textContent = cnt.trasporti || 0;
+      document.getElementById('cnt_istr').textContent = cnt.istruzione || 0;
+      document.getElementById('cnt_comp').textContent = cnt.competitor || 0;
+
+      // MAPPA
       if(!map) initMap();
+      // Rimuovi layers precedenti tranne tile
+      map.eachLayer(l => { if(l._url === undefined) map.removeLayer(l); });
       map.setView([lat, lng], 15);
-      // Marker sede
-      L.marker([lat, lng], {icon: L.divIcon({className:'', html:'<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>'})})
-        .addTo(map).bindPopup('<b>Sede lavanderia</b>');
-      // Cerchi isocrone
-      const colors = {[d.r3]:'rgba(59,130,246,.15)', [d.r5]:'rgba(139,92,246,.12)', [d.r10]:'rgba(236,72,153,.08)'};
-      [[d.r3,'3 min'],[d.r5,'5 min'],[d.r10,'10 min']].forEach(([r,lbl]) => {
-        L.circle([lat,lng],{radius:r,color:'transparent',fillColor:Object.values(colors).pop()||'#888',fillOpacity:.15}).addTo(map).bindPopup(lbl+' a piedi');
+
+      // Cerchi isocrone (ben visibili)
+      L.circle([lat,lng],{radius:d.r3,color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi (240m)');
+      L.circle([lat,lng],{radius:d.r5,color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi (400m)');
+      L.circle([lat,lng],{radius:d.r10,color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi (800m)');
+      L.circle([lat,lng],{radius:1000,color:'#f59e0b',weight:2,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('Raggio 1 km');
+
+      // Cerchi zone alta affluenza
+      (d.alta_affluenza || []).forEach(a => {
+        L.circle([a.lat, a.lng], {
+          radius: 60,
+          color: '#fbbf24',
+          weight: 2,
+          fillColor: '#fbbf24',
+          fillOpacity: 0.2,
+        }).addTo(map).bindPopup(`<b>⭐ Alta affluenza</b><br>${a.nome}<br>${a.tipo}`);
       });
-      // POI markers
-      const colori = {rosso:'#ef4444',verde:'#10b981',blu:'#3b82f6',arancio:'#f59e0b',viola:'#8b5cf6'};
+
+      // Marker sede (grande e visibile)
+      const sedeIcon = L.divIcon({className:'', html:`
+        <div style="position:relative">
+          <div style="background:#2563eb;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:white;font-size:12px">📍</div>
+          <div style="position:absolute;top:26px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;font-size:10px;font-weight:700;white-space:nowrap;padding:2px 6px;border-radius:4px">SEDE</div>
+        </div>`, iconSize:[24,36], iconAnchor:[12,24]});
+      L.marker([lat, lng], {icon: sedeIcon}).addTo(map).bindPopup('<b>📍 Sede lavanderia</b>').openPopup();
+
+      // Colori per tipo POI
+      const coloriMap = {
+        'rosso': '#ef4444', 'verde': '#10b981', 'verde_chiaro': '#34d399',
+        'blu': '#3b82f6', 'azzurro': '#60a5fa', 'arancio': '#f59e0b',
+        'viola': '#8b5cf6', 'giallo': '#fbbf24', 'rosso_chiaro': '#f87171'
+      };
+
+      // Icone per dimensione (alta affluenza = più grandi)
       d.pois.forEach(p => {
-        const col = colori[p.colore] || '#888';
-        L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div style="background:${col};width:10px;height:10px;border-radius:50%;border:2px solid white"></div>`})})
-          .addTo(map).bindPopup(`<b>${p.nome}</b><br>${p.tipo} (${p.dist}m)`);
+        const col = coloriMap[p.colore] || '#888';
+        const isHigh = p.affluenza === 'molto_alta' || p.affluenza === 'alta';
+        const size = isHigh ? 14 : 9;
+        const border = isHigh ? 2.5 : 1.5;
+        const icon = L.divIcon({className:'', html:`
+          <div title="${p.nome}" style="background:${col};width:${size}px;height:${size}px;border-radius:50%;border:${border}px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+          iconSize:[size,size], iconAnchor:[size/2,size/2]});
+        L.marker([p.lat,p.lng],{icon}).addTo(map).bindPopup(`
+          <div style="min-width:140px">
+            <div style="font-weight:700;margin-bottom:4px">${p.icona || ''} ${p.nome}</div>
+            <div style="color:#666;font-size:12px">${p.tipo}</div>
+            <div style="color:#999;font-size:11px;margin-top:2px">${p.dist}m dalla sede</div>
+          </div>`);
       });
-      // POI List
+
+      // POI List tabellare
       const grouped = {};
-      d.pois.forEach(p => { if(!grouped[p.tipo]) grouped[p.tipo]=[]; grouped[p.tipo].push(p); });
-      let html = '<div class="row g-2 p-2">';
-      Object.entries(grouped).forEach(([tipo, items]) => {
-        const col = colori[items[0].colore] || '#888';
-        html += `<div class="col-md-3"><div class="fw-semibold mb-1" style="font-size:12px;color:${col}">● ${tipo} (${items.length})</div>`;
-        items.slice(0,3).forEach(p => { html += `<div class="text-muted" style="font-size:11px">${p.nome} <span style="color:#64748b">${p.dist}m</span></div>`; });
+      d.pois.forEach(p => {
+        if(!grouped[p.tipo]) grouped[p.tipo]=[];
+        grouped[p.tipo].push(p);
+      });
+      const sortedTypes = Object.entries(grouped).sort((a,b) => b[1].length - a[1].length);
+      let html = '<div class="row g-0">';
+      sortedTypes.forEach(([tipo, items]) => {
+        const col = coloriMap[items[0].colore] || '#888';
+        const icona = items[0].icona || '●';
+        html += `<div class="col-md-4 col-6 p-3" style="border-bottom:1px solid #1e2d45;border-right:1px solid #1e2d45">
+          <div style="font-weight:700;font-size:13px;color:${col};margin-bottom:6px">${icona} ${tipo} <span style="color:#64748b;font-weight:400">(${items.length})</span></div>`;
+        items.slice(0,5).forEach(p => {
+          html += `<div style="font-size:11px;color:#94a3b8;padding:2px 0;display:flex;justify-content:space-between">
+            <span>${p.nome}</span>
+            <span style="color:#64748b;margin-left:8px;flex-shrink:0">${p.dist}m</span>
+          </div>`;
+        });
+        if(items.length > 5) html += `<div style="font-size:11px;color:#64748b;margin-top:2px">+${items.length-5} altri...</div>`;
         html += '</div>';
       });
       html += '</div>';
-      document.getElementById('poi-list').innerHTML = html || '<p class="p-3 text-muted">Nessun POI trovato</p>';
+      document.getElementById('poi-list').innerHTML = html || '<p class="p-3 text-muted">Nessun POI trovato in questa zona</p>';
     })
     .catch(e => {
       document.getElementById('loading-zona').style.display = 'none';
