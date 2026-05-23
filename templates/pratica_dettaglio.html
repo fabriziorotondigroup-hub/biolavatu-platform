@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% block title %}{{ pratica.numero }}{% endblock %}
+{% block page_title %}{{ pratica.numero }}{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('preventivo.modifica', id=pratica.id) }}" class="btn btn-outline-secondary btn-sm">
+  <i class="bi bi-pencil me-1"></i> Modifica
+</a>
+<a href="{{ url_for('pratiche.index') }}" class="btn btn-outline-secondary btn-sm">
+  <i class="bi bi-arrow-left me-1"></i> Indietro
+</a>
+{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Colonna sinistra -->
+  <div class="col-lg-8">
+    <!-- Header pratica -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="semaforo sem-{{ pratica.semaforo }}"></span>
+              <h4 style="margin:0;font-family:'Syne',sans-serif">{{ pratica.cliente.nome_completo if pratica.cliente else '—' }}</h4>
+            </div>
+            <div class="text-muted">{{ pratica.indirizzo }}, {{ pratica.citta }}</div>
+          </div>
+          <div class="text-end">
+            <span class="badge-stato stato-{{ pratica.stato }} d-block mb-1">{{ pratica.stato|title }}</span>
+            <small class="text-muted">{{ pratica.created.strftime('%d/%m/%Y') }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mappa -->
+    {% if pratica.lat and pratica.lng %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-map me-2 text-muted"></i>Mappa zona</div>
+      <div class="card-body p-2">
+        <div id="map" style="height:320px;border-radius:10px"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Analisi zona -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-geo-alt me-2 text-muted"></i>Analisi zona</div>
+      <div class="card-body">
+        <div class="row g-3 text-center mb-3">
+          <div class="col-4">
+            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#3b82f6">{{ pratica.pop_3min|default(0)|int|format_number }}</div>
+            <div style="font-size:11px;color:#64748b">Pop. 3 min</div>
+          </div>
+          <div class="col-4">
+            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#8b5cf6">{{ pratica.pop_5min|default(0)|int|format_number }}</div>
+            <div style="font-size:11px;color:#64748b">Pop. 5 min</div>
+          </div>
+          <div class="col-4">
+            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#ec4899">{{ pratica.pop_10min|default(0)|int|format_number }}</div>
+            <div style="font-size:11px;color:#64748b">Pop. 10 min</div>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="p-2 rounded" style="background:var(--bg3)">
+              <div class="text-muted" style="font-size:11px">Concorrenti 500m</div>
+              <div style="font-size:18px;font-weight:700;color:#ef4444">{{ pratica.concorrenti_500m or 0 }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background:var(--bg3)">
+              <div class="text-muted" style="font-size:11px">Concorrenti 1km</div>
+              <div style="font-size:18px;font-weight:700;color:#f59e0b">{{ pratica.concorrenti_1km or 0 }}</div>
+            </div>
+          </div>
+        </div>
+        {% if pratica.ai_zona %}
+        <div class="mt-3 p-3 rounded" style="background:var(--bg3);font-size:13px;line-height:1.6;color:var(--text)">
+          <div class="text-muted mb-1" style="font-size:11px;text-transform:uppercase">Analisi AI</div>
+          {{ pratica.ai_zona|replace('\n','<br>')|safe }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Macchine -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-gear me-2 text-muted"></i>Configurazione macchine</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Macchina</th><th>Qtà</th><th>Prezzo unit.</th><th class="text-end">Totale</th></tr></thead>
+          <tbody>
+            {% for m in pratica.get_macchine() %}
+            <tr>
+              <td>{{ m.nome }}</td>
+              <td>{{ m.qty }}x</td>
+              <td>€{{ "{:,.0f}".format(m.prezzo_effettivo) }}</td>
+              <td class="text-end">€{{ "{:,.0f}".format(m.prezzo_effettivo * m.qty) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center py-3">Nessuna macchina selezionata</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border)">
+              <td colspan="3" class="text-muted">CAPEX totale</td>
+              <td class="text-end fw-bold" style="color:#3b82f6">€{{ "{:,.0f}".format(pratica.capex) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Business Plan -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-calculator me-2 text-muted"></i>Business Plan — {{ pratica.scenario|title }}</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-3 text-center">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700">€{{ "{:,.0f}".format(pratica.incasso_mese) }}</div>
+            <div style="font-size:11px;color:#64748b">Incasso/mese</div>
+          </div>
+          <div class="col-3 text-center">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#ef4444">€{{ "{:,.0f}".format(pratica.costi_mese) }}</div>
+            <div style="font-size:11px;color:#64748b">Costi/mese</div>
+          </div>
+          <div class="col-3 text-center">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:{{ '#10b981' if pratica.utile_mese >= 0 else '#ef4444' }}">€{{ "{:,.0f}".format(pratica.utile_mese) }}</div>
+            <div style="font-size:11px;color:#64748b">Utile/mese</div>
+          </div>
+          <div class="col-3 text-center">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">{{ pratica.payback_mesi|int }} mesi</div>
+            <div style="font-size:11px;color:#64748b">Payback</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Colonna destra -->
+  <div class="col-lg-4">
+    <!-- Stato -->
+    <div class="card mb-3">
+      <div class="card-header">Stato pratica</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('pratiche.aggiorna_stato', id=pratica.id) }}">
+          <select name="stato" class="form-select mb-2">
+            {% for s in ['bozza','inviato','trattativa','firmato','perso'] %}
+            <option value="{{ s }}" {{ 'selected' if pratica.stato == s else '' }}>{{ s|title }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary w-100 btn-sm">Aggiorna stato</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Fattibilità -->
+    <div class="card mb-3">
+      <div class="card-header">Fattibilità</div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="semaforo sem-{{ pratica.semaforo }}"></span>
+          <span style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700">{{ pratica.fattibilita }}%</span>
+        </div>
+        <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+          <div style="width:{{ pratica.fattibilita }}%;height:100%;background:{{ '#10b981' if pratica.fattibilita >= 70 else '#f59e0b' if pratica.fattibilita >= 40 else '#ef4444' }};border-radius:4px"></div>
+        </div>
+        <form class="mt-2" id="fatt-form">
+          <input type="range" id="fatt-slider" min="0" max="100" value="{{ pratica.fattibilita }}" class="form-range">
+          <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="aggiornàFattibilita({{ pratica.id }})">Aggiorna</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Score zona -->
+    {% if pratica.score_zona %}
+    <div class="card mb-3">
+      <div class="card-header">Score zona</div>
+      <div class="card-body text-center">
+        <div style="font-family:'Syne',sans-serif;font-size:40px;font-weight:800;color:#3b82f6">{{ pratica.score_zona|int }}</div>
+        <div style="font-size:14px;font-weight:600">{{ pratica.score_label }}</div>
+        <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:8px">
+          <div style="width:{{ pratica.score_zona }}%;height:100%;background:#2563eb;border-radius:4px"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Note -->
+    {% if pratica.note_interne %}
+    <div class="card mb-3">
+      <div class="card-header">Note interne</div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--text)">{{ pratica.note_interne }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Azioni -->
+    <div class="card">
+      <div class="card-header">Azioni</div>
+      <div class="card-body d-grid gap-2">
+        <a href="{{ url_for('preventivo.modifica', id=pratica.id) }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-pencil me-1"></i> Modifica preventivo
+        </a>
+        <button class="btn btn-outline-secondary btn-sm" disabled>
+          <i class="bi bi-file-pdf me-1"></i> Genera PDF
+        </button>
+        <form method="POST" action="{{ url_for('pratiche.elimina', id=pratica.id) }}"
+          onsubmit="return confirm('Eliminare questa pratica?')">
+          <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+            <i class="bi bi-trash me-1"></i> Elimina
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if pratica.lat and pratica.lng %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([{{ pratica.lat }}, {{ pratica.lng }}], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+L.marker([{{ pratica.lat }}, {{ pratica.lng }}]).addTo(map).bindPopup('<b>Sede</b>').openPopup();
+// POI
+{% if pratica.pois_raw %}
+const pois = {{ pratica.pois_raw|safe }};
+const colori = {rosso:'#ef4444',verde:'#10b981',blu:'#3b82f6',arancio:'#f59e0b',viola:'#8b5cf6'};
+pois.forEach(p => {
+  const col = colori[p.colore] || '#888';
+  L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div style="background:${col};width:10px;height:10px;border-radius:50%;border:2px solid white"></div>`})})
+    .addTo(map).bindPopup(`<b>${p.nome}</b><br>${p.tipo}`);
+});
+{% endif %}
+</script>
+{% endif %}
+<script>
+function aggiornàFattibilita(id) {
+  const val = document.getElementById('fatt-slider').value;
+  fetch(`/pratiche/${id}/fattibilita`, {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'fattibilita='+val
+  }).then(()=>location.reload());
+}
+</script>
+{% endblock %}

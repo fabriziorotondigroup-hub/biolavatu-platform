@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Pratiche{% endblock %}
+{% block page_title %}Pratiche{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('preventivo.nuovo') }}" class="btn btn-primary btn-sm">
+  <i class="bi bi-plus-lg me-1"></i> Nuovo Preventivo
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtri -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="GET" class="d-flex gap-3 align-items-end flex-wrap">
+      <div>
+        <label class="form-label">Cerca</label>
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Cliente, numero..." style="width:220px">
+      </div>
+      <div>
+        <label class="form-label">Stato</label>
+        <select name="stato" class="form-select" style="width:160px">
+          <option value="">Tutti</option>
+          {% for s in stati %}
+          <option value="{{ s }}" {% if stato == s %}selected{% endif %}>{{ s|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Filtra</button>
+      {% if stato or q %}
+      <a href="{{ url_for('pratiche.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="bi bi-folder2-open me-2 text-muted"></i>
+    {{ pratiche|length }} pratiche
+  </div>
+  <div class="card-body p-0">
+    {% if pratiche %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th width="30"></th>
+          <th>Numero</th>
+          <th>Cliente</th>
+          <th>Città</th>
+          <th>Capex</th>
+          <th>Utile/mese</th>
+          <th>Stato</th>
+          <th>Fattibilità</th>
+          <th>Data</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pratiche %}
+        <tr>
+          <td><span class="semaforo sem-{{ p.semaforo }}"></span></td>
+          <td><a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="text-decoration-none fw-semibold">{{ p.numero }}</a></td>
+          <td>{{ p.cliente.nome_completo if p.cliente else '—' }}</td>
+          <td class="text-muted">{{ p.citta or '—' }}</td>
+          <td>€{{ "{:,.0f}".format(p.capex) }}</td>
+          <td class="{{ 'text-success' if p.utile_mese > 0 else 'text-danger' }}">
+            €{{ "{:,.0f}".format(p.utile_mese) }}
+          </td>
+          <td><span class="badge-stato stato-{{ p.stato }}">{{ p.stato|title }}</span></td>
+          <td>
+            <div class="d-flex align-items-center gap-1">
+              <div style="width:60px;height:6px;background:#1a2236;border-radius:3px;overflow:hidden">
+                <div style="width:{{ p.fattibilita }}%;height:100%;background:{{ '#10b981' if p.fattibilita >= 70 else '#f59e0b' if p.fattibilita >= 40 else '#ef4444' }};border-radius:3px"></div>
+              </div>
+              <small class="text-muted">{{ p.fattibilita }}%</small>
+            </div>
+          </td>
+          <td class="text-muted" style="font-size:12px">{{ p.created.strftime('%d/%m/%y') }}</td>
+          <td>
+            <a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="btn btn-sm btn-outline-secondary">Apri</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-search" style="font-size:40px"></i>
+      <p class="mt-2">Nessuna pratica trovata.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — BIOLavaTU</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh; background: #0a0e1a; color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  display: flex; align-items: center; justify-content: center;
+}
+.login-wrap { width: 100%; max-width: 420px; padding: 24px; }
+.logo { text-align: center; margin-bottom: 36px; }
+.logo .brand { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #3b82f6; }
+.logo .sub { font-size: 12px; color: #64748b; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+.card {
+  background: #111827; border: 1px solid #1e2d45; border-radius: 16px; padding: 32px;
+  box-shadow: 0 25px 60px rgba(0,0,0,.4);
+}
+.card h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.card .subtitle { color: #64748b; font-size: 13px; margin-bottom: 28px; }
+label { display: block; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; font-weight: 500; }
+input {
+  width: 100%; background: #1a2236; border: 1px solid #1e2d45; color: #e2e8f0;
+  border-radius: 10px; padding: 12px 14px; font-size: 14px; outline: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.mb { margin-bottom: 20px; }
+button {
+  width: 100%; background: #2563eb; color: white; border: none; border-radius: 10px;
+  padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px;
+  font-family: 'Syne', sans-serif; transition: background .2s;
+}
+button:hover { background: #3b82f6; }
+.alert { background: rgba(239,68,68,.1); color: #f87171; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="logo">
+    <div class="brand">BIOLavaTU</div>
+    <div class="sub">LaundryPro Platform</div>
+  </div>
+  <div class="card">
+    <h2>Accedi</h2>
+    <p class="subtitle">Inserisci le tue credenziali per continuare</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+    <form method="POST">
+      <div class="mb">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="nome@azienda.it" required autofocus>
+      </div>
+      <div class="mb">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit">Entra →</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

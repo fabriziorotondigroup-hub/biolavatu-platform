@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Clienti{% endblock %}
+{% block page_title %}Clienti{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCliente">
+  <i class="bi bi-plus-lg me-1"></i> Nuovo Cliente
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="GET">
+      <div class="d-flex gap-2">
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Cerca per nome, azienda, email..." style="max-width:350px">
+        <button type="submit" class="btn btn-primary btn-sm">Cerca</button>
+        {% if q %}<a href="{{ url_for('clienti.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>{% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-people me-2 text-muted"></i>{{ clienti|length }} clienti</div>
+  <div class="card-body p-0">
+    {% if clienti %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Nome / Azienda</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th>Città</th>
+          <th>Tipo</th>
+          <th>Pratiche</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clienti %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ c.nome_completo }}</div>
+            {% if c.azienda and c.nome %}<small class="text-muted">{{ c.nome }} {{ c.cognome or '' }}</small>{% endif %}
+          </td>
+          <td class="text-muted">{{ c.email or '—' }}</td>
+          <td class="text-muted">{{ c.telefono or '—' }}</td>
+          <td class="text-muted">{{ c.citta or '—' }}</td>
+          <td><span class="badge bg-secondary bg-opacity-25 text-muted" style="font-size:11px">{{ c.tipo }}</span></td>
+          <td>{{ c.pratiche|length }}</td>
+          <td>
+            <a href="{{ url_for('clienti.modifica', id=c.id) }}" class="btn btn-sm btn-outline-secondary">Modifica</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-people" style="font-size:40px"></i>
+      <p class="mt-2">Nessun cliente trovato.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal Nuovo Cliente -->
+<div class="modal fade" id="modalCliente" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-family:'Syne',sans-serif">Nuovo Cliente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('clienti.nuovo') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Nome *</label>
+              <input type="text" name="nome" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Cognome</label>
+              <input type="text" name="cognome" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Azienda</label>
+              <input type="text" name="azienda" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Telefono</label>
+              <input type="text" name="telefono" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">P.IVA</label>
+              <input type="text" name="piva" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Città</label>
+              <input type="text" name="citta" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option>Privato</option>
+                <option>Azienda</option>
+                <option>Prospect</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">Crea Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

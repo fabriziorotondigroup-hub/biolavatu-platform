@@ -1,0 +1,839 @@
+{% extends 'base.html' %}
+{% block title %}Nuovo Preventivo{% endblock %}
+{% block page_title %}{{ 'Modifica Preventivo' if pratica else 'Nuovo Preventivo' }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+.wizard-steps { display:flex; gap:0; margin-bottom:28px; }
+.step { flex:1; text-align:center; padding:12px; background:var(--bg2); border:1px solid var(--border); font-size:12px; color:var(--muted); position:relative; cursor:pointer; transition:.2s; }
+.step:first-child { border-radius:8px 0 0 8px; }
+.step:last-child { border-radius:0 8px 8px 0; }
+.step.active { background:var(--primary); border-color:var(--primary); color:white; }
+.step.done { background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.3); color:#34d399; }
+.step-num { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; display:block; }
+
+.wizard-panel { display:none; }
+.wizard-panel.active { display:block; }
+
+#map { height:400px; border-radius:12px; border:1px solid var(--border); }
+.map-overlay { position:absolute; top:10px; right:10px; z-index:1000; }
+
+.macchina-card {
+  border:2px solid var(--border); border-radius:10px; padding:14px;
+  cursor:pointer; transition:.2s; position:relative;
+  background:var(--bg2);
+}
+.macchina-card:hover { border-color:var(--primary); }
+.macchina-card.selected { border-color:var(--primary); background:rgba(37,99,235,.08); }
+.macchina-card .qty-ctrl { display:none; }
+.macchina-card.selected .qty-ctrl { display:flex; }
+.cat-badge { font-size:10px; padding:2px 8px; border-radius:20px; }
+
+.bp-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.bp-row:last-child { border:none; }
+.bp-total { background:var(--bg3); border-radius:8px; padding:16px; margin-top:12px; }
+
+.score-bar { height:8px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.score-fill { height:100%; border-radius:4px; transition:width .5s; }
+
+.poi-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Steps -->
+<div class="wizard-steps" id="steps">
+  <div class="step active" onclick="goStep(1)"><span class="step-num">1</span>Cliente</div>
+  <div class="step" onclick="goStep(2)"><span class="step-num">2</span>Sede</div>
+  <div class="step" onclick="goStep(3)"><span class="step-num">3</span>Zona</div>
+  <div class="step" onclick="goStep(4)"><span class="step-num">4</span>Macchine</div>
+  <div class="step" onclick="goStep(5)"><span class="step-num">5</span>Business Plan</div>
+  <div class="step" onclick="goStep(6)"><span class="step-num">6</span>Riepilogo</div>
+</div>
+
+<form id="preventivo-form" method="POST" action="{{ url_for('preventivo.salva') }}" enctype="multipart/form-data">
+<!-- Hidden fields -->
+<input type="hidden" name="lat" id="f_lat" value="{{ pratica.lat if pratica else '' }}">
+<input type="hidden" name="lng" id="f_lng" value="{{ pratica.lng if pratica else '' }}">
+<input type="hidden" name="pop_3min" id="f_pop3" value="{{ pratica.pop_3min if pratica else 0 }}">
+<input type="hidden" name="pop_5min" id="f_pop5" value="{{ pratica.pop_5min if pratica else 0 }}">
+<input type="hidden" name="pop_10min" id="f_pop10" value="{{ pratica.pop_10min if pratica else 0 }}">
+<input type="hidden" name="concorrenti_500m" id="f_conc500" value="{{ pratica.concorrenti_500m if pratica else 0 }}">
+<input type="hidden" name="concorrenti_1km" id="f_conc1km" value="{{ pratica.concorrenti_1km if pratica else 0 }}">
+<input type="hidden" name="servizi_400m" id="f_serv" value="{{ pratica.servizi_400m if pratica else 0 }}">
+<input type="hidden" name="score_zona" id="f_score" value="{{ pratica.score_zona if pratica else 0 }}">
+<input type="hidden" name="score_label" id="f_label" value="{{ pratica.score_label if pratica else '' }}">
+<input type="hidden" name="pois_raw" id="f_pois" value="">
+<input type="hidden" name="macchine_json" id="f_macchine" value="[]">
+<input type="hidden" name="incasso_mese" id="f_incasso" value="0">
+<input type="hidden" name="costi_mese" id="f_costi" value="0">
+<input type="hidden" name="ai_zona" id="f_ai_zona" value="">
+
+<!-- ═══ STEP 1: CLIENTE ═══ -->
+<div class="wizard-panel active" id="panel-1">
+  <div class="card mb-3">
+    <div class="card-header">Seleziona o crea cliente</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Cerca cliente esistente</label>
+        <input type="text" id="search-cliente" class="form-control" placeholder="Digita nome o azienda...">
+        <div id="cliente-risultati" class="mt-2"></div>
+      </div>
+      <input type="hidden" name="cliente_id" id="cliente_id" value="{{ pratica.cliente_id if pratica else '' }}">
+      <div id="cliente-selezionato" class="alert alert-info" style="display:none"></div>
+      <hr class="divider my-3">
+      <p class="text-muted mb-2" style="font-size:12px">Oppure crea nuovo cliente</p>
+      <div class="row g-2">
+        <div class="col-md-6"><input type="text" name="cliente_nome" class="form-control" placeholder="Nome *"></div>
+        <div class="col-md-6"><input type="text" name="cliente_azienda" class="form-control" placeholder="Azienda"></div>
+        <div class="col-md-6"><input type="email" name="cliente_email" class="form-control" placeholder="Email"></div>
+        <div class="col-md-6"><input type="text" name="cliente_tel" class="form-control" placeholder="Telefono"></div>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex justify-content-end">
+    <button type="button" class="btn btn-primary" onclick="goStep(2)">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 2: SEDE ═══ -->
+<div class="wizard-panel" id="panel-2">
+  <div class="card mb-3">
+    <div class="card-header">Indirizzo sede lavanderia</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label">Indirizzo *</label>
+          <div class="d-flex gap-2">
+            <input type="text" name="indirizzo" id="f_indirizzo" class="form-control" placeholder="Via Roma 1" value="{{ pratica.indirizzo if pratica else '' }}" required>
+            <button type="button" class="btn btn-outline-secondary" onclick="geocodifica()">
+              <i class="bi bi-search"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Città</label>
+          <input type="text" name="citta" id="f_citta" class="form-control" value="{{ pratica.citta if pratica else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">CAP</label>
+          <input type="text" name="cap" id="f_cap" class="form-control" value="{{ pratica.cap if pratica else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Provincia</label>
+          <input type="text" name="provincia" class="form-control" value="{{ pratica.provincia if pratica else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Superficie (mq)</label>
+          <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Traffico pedonale</label>
+          <select name="traffico_pedonale" class="form-select">
+            <option value="basso">Basso</option>
+            <option value="medio" selected>Medio</option>
+            <option value="alto">Alto</option>
+          </select>
+        </div>
+      </div>
+      <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
+    </div>
+  </div>
+  <div class="d-flex justify-content-between">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(3); analizzaZona()">Avanti e Analizza Zona <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 3: ZONA ═══ -->
+<div class="wizard-panel" id="panel-3">
+  <div class="row g-3 mb-3">
+    <!-- Mappa -->
+    <div class="col-lg-7">
+      <div class="card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-map me-2 text-muted"></i>Mappa zona</span>
+          <div class="d-flex gap-1" style="font-size:11px">
+            <span class="badge bg-danger bg-opacity-25 text-danger">● Concorrenti</span>
+            <span class="badge bg-success bg-opacity-25 text-success">● Servizi</span>
+            <span class="badge bg-primary bg-opacity-25 text-primary">● Sede</span>
+          </div>
+        </div>
+        <div class="card-body p-2">
+          <div id="map"></div>
+          <div id="loading-zona" class="text-center py-4 text-muted" style="display:none">
+            <div class="spinner-border spinner-border-sm me-2"></div> Analisi zona in corso...
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Stats zona -->
+    <div class="col-lg-5">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-people me-2 text-muted"></i>Popolazione raggiungibile</div>
+        <div class="card-body">
+          <div class="row g-2 text-center">
+            <div class="col-4">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#3b82f6" id="d_pop3">—</div>
+              <div style="font-size:11px;color:#64748b">3 min a piedi</div>
+            </div>
+            <div class="col-4">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#8b5cf6" id="d_pop5">—</div>
+              <div style="font-size:11px;color:#64748b">5 min a piedi</div>
+            </div>
+            <div class="col-4">
+              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#ec4899" id="d_pop10">—</div>
+              <div style="font-size:11px;color:#64748b">10 min a piedi</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-shop me-2 text-muted"></i>Analisi concorrenza</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Entro 500m</span>
+            <span id="d_conc500" style="color:#ef4444;font-weight:700">—</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Entro 1km</span>
+            <span id="d_conc1km" style="color:#f59e0b;font-weight:700">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-star me-2 text-muted"></i>Score zona</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800" id="d_score">—</div>
+            <div>
+              <div id="d_label" style="font-size:14px;font-weight:600">—</div>
+              <div class="score-bar mt-1" style="width:120px">
+                <div class="score-fill" id="score-fill" style="width:0%;background:#2563eb"></div>
+              </div>
+            </div>
+          </div>
+          <div class="text-muted" style="font-size:12px">Attività nei 400m: <span id="d_serv" style="color:var(--text)">—</span></div>
+        </div>
+      </div>
+      <!-- AI Analisi -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-stars me-2 text-muted"></i>Analisi AI</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="generaAI()">
+            <i class="bi bi-magic"></i> Genera
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="ai-zona-text" class="text-muted" style="font-size:13px;line-height:1.6">
+            Clicca "Genera" per ottenere l'analisi AI della zona.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- POI List -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-pin-map me-2 text-muted"></i>Punti di interesse vicini</div>
+    <div class="card-body p-0">
+      <div id="poi-list" class="p-3 text-muted" style="font-size:13px">L'analisi mostrerà qui i punti di interesse...</div>
+    </div>
+  </div>
+  <div class="d-flex justify-content-between">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(4)">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 4: MACCHINE ═══ -->
+<div class="wizard-panel" id="panel-4">
+  <div class="mb-3 d-flex gap-2 flex-wrap" id="cat-filters">
+    <button type="button" class="btn btn-sm btn-primary cat-btn" data-cat="">Tutte</button>
+    {% set cats = macchine|map(attribute='categoria')|unique|list %}
+    {% for cat in cats %}
+    <button type="button" class="btn btn-sm btn-outline-secondary cat-btn" data-cat="{{ cat }}">{{ cat }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3" id="macchine-grid">
+    {% for m in macchine %}
+    <div class="col-md-4 col-lg-3 mac-item" data-cat="{{ m.categoria }}">
+      <div class="macchina-card" id="mac-{{ m.id }}" onclick="toggleMacchina({{ m.id }}, {{ m.to_dict()|tojson }})">
+        {% if m.in_evidenza %}
+        <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2" style="font-size:9px">TOP</span>
+        {% endif %}
+        {% if m.foto_path %}
+        <img src="/static/uploads/{{ m.foto_path }}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;margin-bottom:8px">
+        {% endif %}
+        <div class="fw-semibold" style="font-size:13px">{{ m.nome }}</div>
+        <div class="text-muted" style="font-size:11px">{{ m.modello or '' }}</div>
+        <span class="cat-badge bg-secondary bg-opacity-20 text-muted mt-1 d-inline-block">{{ m.categoria }}</span>
+        <div class="mt-2 d-flex justify-content-between align-items-center">
+          <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#3b82f6">€{{ "{:,.0f}".format(m.prezzo_effettivo) }}</span>
+          {% if m.tariffa > 0 %}
+          <span class="text-muted" style="font-size:11px">€{{ m.tariffa }}/ciclo</span>
+          {% endif %}
+        </div>
+        {% if m.kw > 0 %}
+        <div class="text-muted" style="font-size:11px">{{ m.kw }}kW · {{ m.combustibile }}</div>
+        {% endif %}
+        <!-- Qty control -->
+        <div class="qty-ctrl align-items-center gap-2 mt-2 pt-2 border-top" style="border-color:var(--border)!important">
+          <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="event.stopPropagation();changeQty({{ m.id }},-1)">−</button>
+          <span id="qty-{{ m.id }}" style="font-weight:700;min-width:20px;text-align:center">1</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary px-2" onclick="event.stopPropagation();changeQty({{ m.id }},1)">+</button>
+          <small class="text-muted ms-auto" id="tot-{{ m.id }}">€{{ "{:,.0f}".format(m.prezzo_effettivo) }}</small>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Riepilogo selezione -->
+  <div class="card mt-3" id="riepilogo-macchine" style="display:none">
+    <div class="card-header"><i class="bi bi-cart3 me-2 text-muted"></i>Configurazione selezionata</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <tbody id="riepilogo-body"></tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border)">
+            <td colspan="2" class="text-muted" style="font-size:12px">Investimento totale (CAPEX)</td>
+            <td class="text-end fw-bold" style="font-family:'Syne',sans-serif;font-size:16px;color:#3b82f6" id="capex-tot">€0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mt-3">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(5); calcolaBP()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 5: BUSINESS PLAN ═══ -->
+<div class="wizard-panel" id="panel-5">
+  <div class="row g-3">
+    <!-- Tariffe -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-cash me-2 text-muted"></i>Tariffe servizi</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Lavaggio standard (€/ciclo)</label>
+            <input type="number" step="0.5" name="tariffa_lavaggio_std" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_std if pratica else 4.0 }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Lavaggio medio (€/ciclo)</label>
+            <input type="number" step="0.5" name="tariffa_lavaggio_med" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_med if pratica else 5.0 }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Lavaggio grande (€/ciclo)</label>
+            <input type="number" step="0.5" name="tariffa_lavaggio_grd" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_grd if pratica else 7.0 }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Asciugatura (€/ciclo)</label>
+            <input type="number" step="0.5" name="tariffa_asciugatura" class="form-control bp-input" value="{{ pratica.tariffa_asciugatura if pratica else 3.0 }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Scenario</label>
+            <select name="scenario" id="scenario" class="form-select bp-input">
+              <option value="pessimistico">Pessimistico (60%)</option>
+              <option value="realistico" selected>Realistico (100%)</option>
+              <option value="ottimistico">Ottimistico (130%)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Costi -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-lightning me-2 text-muted"></i>Costi operativi</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label">Costo energia (€/kWh)</label>
+            <input type="number" step="0.01" name="kwh_cost" class="form-control bp-input" value="{{ settings.kwh_cost if settings else 0.28 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Costo gas (€/m³)</label>
+            <input type="number" step="0.01" name="gas_mc_cost" class="form-control bp-input" value="{{ settings.gas_mc_cost if settings else 1.20 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Acqua (€/m³)</label>
+            <input type="number" step="0.01" name="acqua_mc_cost" class="form-control bp-input" value="{{ settings.acqua_mc_cost if settings else 2.50 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Scarichi (€/m³)</label>
+            <input type="number" step="0.01" name="scarico_mc_cost" class="form-control bp-input" value="{{ settings.scarico_mc_cost if settings else 1.80 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Affitto mensile (€)</label>
+            <input type="number" step="10" name="affitto_mese" class="form-control bp-input" value="{{ pratica.affitto_mese if pratica else 0 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Commercialista (€/mese)</label>
+            <input type="number" name="commercialista" class="form-control bp-input" value="{{ settings.commercialista if settings else 150 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">CCIAA (€/mese)</label>
+            <input type="number" name="cciaa" class="form-control bp-input" value="{{ settings.cciaa if settings else 50 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Assicurazione (€/mese)</label>
+            <input type="number" name="assicurazione" class="form-control bp-input" value="{{ settings.assicurazione if settings else 100 }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Manutenzione (€/mese)</label>
+            <input type="number" name="manutenzione" class="form-control bp-input" value="{{ settings.manutenzione if settings else 200 }}">
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Detergenti + Risultati -->
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-droplet me-2 text-muted"></i>Detergenti</div>
+        <div class="card-body">
+          {% set dets = [
+            (settings.det1_nome if settings else 'Detergente', settings.det1_costo_kg if settings else 2.5, settings.det1_grammi_ciclo if settings else 80),
+            (settings.det2_nome if settings else 'Ammorbidente', settings.det2_costo_kg if settings else 3.0, settings.det2_grammi_ciclo if settings else 40),
+            (settings.det3_nome if settings else 'Igienizzante', settings.det3_costo_kg if settings else 4.0, settings.det3_grammi_ciclo if settings else 20),
+          ] %}
+          {% for i, (nome, costo, grammi) in enumerate(dets, 1) %}
+          <div class="mb-3 p-2 rounded" style="background:var(--bg3)">
+            <div class="fw-semibold mb-2" style="font-size:12px">{{ nome }}</div>
+            <div class="row g-1">
+              <div class="col-6">
+                <label class="form-label" style="font-size:10px">€/kg</label>
+                <input type="number" step="0.1" name="det{{ i }}_costo_kg" class="form-control form-control-sm bp-input" value="{{ costo }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:10px">g/ciclo</label>
+                <input type="number" name="det{{ i }}_grammi_ciclo" class="form-control form-control-sm bp-input" value="{{ grammi }}">
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Risultati BP -->
+      <div class="card" style="border-color:var(--primary)">
+        <div class="card-header" style="border-color:var(--primary)"><i class="bi bi-calculator me-2"></i>Risultati</div>
+        <div class="card-body">
+          <div class="bp-row">
+            <span class="text-muted">Investimento (CAPEX)</span>
+            <span id="r_capex" style="font-weight:700">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Incasso mensile</span>
+            <span id="r_incasso" style="color:#10b981;font-weight:700">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Costi mensili</span>
+            <span id="r_costi" style="color:#ef4444;font-weight:700">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Utile mensile</span>
+            <span id="r_utile" style="font-weight:700">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Payback</span>
+            <span id="r_payback" style="color:#f59e0b;font-weight:700">—</span>
+          </div>
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="calcolaBP()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Ricalcola
+          </button>
+          <!-- Dettaglio costi -->
+          <div class="mt-3">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Dettaglio costi</div>
+            <div id="costi-dettaglio" style="font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mt-3">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 6: RIEPILOGO ═══ -->
+<div class="wizard-panel" id="panel-6">
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Fattibilità preventivo</div>
+        <div class="card-body">
+          <label class="form-label">Percentuale di fattibilità: <span id="fatt-val">50</span>%</label>
+          <input type="range" name="fattibilita" min="0" max="100" value="50" class="form-range" id="fatt-range"
+            oninput="document.getElementById('fatt-val').textContent=this.value">
+          <div class="d-flex justify-content-between mt-1" style="font-size:11px;color:var(--muted)">
+            <span>🔴 Scarsa</span><span>🟡 Media</span><span>🟢 Alta</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Note interne</div>
+        <div class="card-body">
+          <textarea name="note_interne" class="form-control" rows="3" placeholder="Note visibili solo all'agente..."></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Riepilogo numeri -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-clipboard-check me-2 text-muted"></i>Riepilogo preventivo</div>
+    <div class="card-body">
+      <div id="riepilogo-finale" class="row g-3"></div>
+    </div>
+  </div>
+
+  <!-- Upload foto -->
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-image me-2 text-muted"></i>Foto sede</div>
+    <div class="card-body">
+      <input type="file" name="foto_sede" class="form-control" accept="image/*">
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="submit" class="btn btn-success btn-lg">
+      <i class="bi bi-check-circle me-2"></i> Salva Preventivo
+    </button>
+  </div>
+</div>
+
+</form>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── DATI MACCHINE ────────────────────────────────
+const MACCHINE_DATA = {};
+{% for m in macchine %}
+MACCHINE_DATA[{{ m.id }}] = {{ m.to_dict()|tojson }};
+{% endfor %}
+
+let selectedMacchine = {};
+let map = null;
+
+// ── WIZARD STEPS ────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('.wizard-panel').forEach((p,i) => p.classList.toggle('active', i+1 === n));
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('active','done');
+    if(i+1 === n) s.classList.add('active');
+    else if(i+1 < n) s.classList.add('done');
+  });
+  if(n === 3 && !map) initMap();
+}
+
+// ── CLIENTE SEARCH ────────────────────────────────
+let searchTimer;
+document.getElementById('search-cliente').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => cercaCliente(this.value), 300);
+});
+
+function cercaCliente(q) {
+  if(q.length < 2) { document.getElementById('cliente-risultati').innerHTML=''; return; }
+  fetch('/api/clienti/cerca?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(data => {
+      const div = document.getElementById('cliente-risultati');
+      div.innerHTML = data.map(c => `
+        <div class="p-2 rounded mb-1" style="background:var(--bg3);cursor:pointer" onclick="selezionaCliente(${c.id},'${c.nome} ${c.cognome||''} ${c.azienda?'('+c.azienda+')':''}')">
+          <div class="fw-semibold">${c.azienda || c.nome+' '+c.cognome}</div>
+          <small class="text-muted">${c.email||''} ${c.telefono||''}</small>
+        </div>`).join('') || '<small class="text-muted">Nessun risultato</small>';
+    });
+}
+
+function selezionaCliente(id, nome) {
+  document.getElementById('cliente_id').value = id;
+  const el = document.getElementById('cliente-selezionato');
+  el.innerHTML = `<i class="bi bi-check-circle me-2"></i>Cliente selezionato: <strong>${nome}</strong>`;
+  el.style.display = 'block';
+  document.getElementById('cliente-risultati').innerHTML = '';
+  document.getElementById('search-cliente').value = '';
+}
+
+// ── GEOCODING ────────────────────────────────────
+function geocodifica() {
+  const addr = document.getElementById('f_indirizzo').value;
+  const citta = document.getElementById('f_citta').value;
+  if(!addr) return;
+  const q = addr + (citta ? ', ' + citta : '') + ', Italia';
+  document.getElementById('geo-status').textContent = 'Geocodifica in corso...';
+  fetch('/api/geocode?address=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(d => {
+      if(d.lat) {
+        document.getElementById('f_lat').value = d.lat;
+        document.getElementById('f_lng').value = d.lon;
+        document.getElementById('geo-status').innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>${d.display}`;
+      } else {
+        document.getElementById('geo-status').textContent = 'Indirizzo non trovato. Prova con un indirizzo più preciso.';
+      }
+    });
+}
+
+// ── MAPPA ────────────────────────────────────────
+function initMap() {
+  const lat = parseFloat(document.getElementById('f_lat').value) || 41.9;
+  const lng = parseFloat(document.getElementById('f_lng').value) || 12.5;
+  map = L.map('map').setView([lat, lng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+}
+
+// ── ANALISI ZONA ──────────────────────────────────
+function analizzaZona() {
+  const lat = parseFloat(document.getElementById('f_lat').value);
+  const lng = parseFloat(document.getElementById('f_lng').value);
+  if(!lat || !lng) {
+    // Tenta geocodifica automatica
+    const addr = document.getElementById('f_indirizzo').value;
+    const citta = document.getElementById('f_citta').value;
+    if(addr || citta) {
+      fetch('/api/geocode?address=' + encodeURIComponent((addr+' '+citta+' Italia').trim()))
+        .then(r=>r.json()).then(d=>{
+          if(d.lat){
+            document.getElementById('f_lat').value = d.lat;
+            document.getElementById('f_lng').value = d.lon;
+            eseguiAnalisi(d.lat, d.lon);
+          }
+        });
+    }
+    return;
+  }
+  eseguiAnalisi(lat, lng);
+}
+
+function eseguiAnalisi(lat, lng) {
+  document.getElementById('loading-zona').style.display = 'block';
+  fetch(`/api/zona-analisi?lat=${lat}&lng=${lng}`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('loading-zona').style.display = 'none';
+      // Aggiorna hidden fields
+      document.getElementById('f_pop3').value = d.pop_3min;
+      document.getElementById('f_pop5').value = d.pop_5min;
+      document.getElementById('f_pop10').value = d.pop_10min;
+      document.getElementById('f_conc500').value = d.competitors_500m;
+      document.getElementById('f_conc1km').value = d.competitors_1km;
+      document.getElementById('f_serv').value = d.servizi_400m;
+      document.getElementById('f_score').value = d.score;
+      document.getElementById('f_label').value = d.label;
+      document.getElementById('f_pois').value = JSON.stringify(d.pois);
+      // Aggiorna display
+      document.getElementById('d_pop3').textContent = d.pop_3min.toLocaleString();
+      document.getElementById('d_pop5').textContent = d.pop_5min.toLocaleString();
+      document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString();
+      document.getElementById('d_conc500').textContent = d.competitors_500m;
+      document.getElementById('d_conc1km').textContent = d.competitors_1km;
+      document.getElementById('d_serv').textContent = d.servizi_400m;
+      document.getElementById('d_score').textContent = d.score;
+      document.getElementById('d_label').textContent = d.label;
+      const pct = d.score;
+      const fill = document.getElementById('score-fill');
+      fill.style.width = pct + '%';
+      fill.style.background = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
+      // Mappa
+      if(!map) initMap();
+      map.setView([lat, lng], 15);
+      // Marker sede
+      L.marker([lat, lng], {icon: L.divIcon({className:'', html:'<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>'})})
+        .addTo(map).bindPopup('<b>Sede lavanderia</b>');
+      // Cerchi isocrone
+      const colors = {[d.r3]:'rgba(59,130,246,.15)', [d.r5]:'rgba(139,92,246,.12)', [d.r10]:'rgba(236,72,153,.08)'};
+      [[d.r3,'3 min'],[d.r5,'5 min'],[d.r10,'10 min']].forEach(([r,lbl]) => {
+        L.circle([lat,lng],{radius:r,color:'transparent',fillColor:Object.values(colors).pop()||'#888',fillOpacity:.15}).addTo(map).bindPopup(lbl+' a piedi');
+      });
+      // POI markers
+      const colori = {rosso:'#ef4444',verde:'#10b981',blu:'#3b82f6',arancio:'#f59e0b',viola:'#8b5cf6'};
+      d.pois.forEach(p => {
+        const col = colori[p.colore] || '#888';
+        L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div style="background:${col};width:10px;height:10px;border-radius:50%;border:2px solid white"></div>`})})
+          .addTo(map).bindPopup(`<b>${p.nome}</b><br>${p.tipo} (${p.dist}m)`);
+      });
+      // POI List
+      const grouped = {};
+      d.pois.forEach(p => { if(!grouped[p.tipo]) grouped[p.tipo]=[]; grouped[p.tipo].push(p); });
+      let html = '<div class="row g-2 p-2">';
+      Object.entries(grouped).forEach(([tipo, items]) => {
+        const col = colori[items[0].colore] || '#888';
+        html += `<div class="col-md-3"><div class="fw-semibold mb-1" style="font-size:12px;color:${col}">● ${tipo} (${items.length})</div>`;
+        items.slice(0,3).forEach(p => { html += `<div class="text-muted" style="font-size:11px">${p.nome} <span style="color:#64748b">${p.dist}m</span></div>`; });
+        html += '</div>';
+      });
+      html += '</div>';
+      document.getElementById('poi-list').innerHTML = html || '<p class="p-3 text-muted">Nessun POI trovato</p>';
+    })
+    .catch(e => {
+      document.getElementById('loading-zona').style.display = 'none';
+      console.error(e);
+    });
+}
+
+// ── AI ANALISI ────────────────────────────────────
+function generaAI() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
+  const data = {
+    indirizzo: document.getElementById('f_indirizzo').value,
+    citta: document.getElementById('f_citta').value,
+    pop_5min: document.getElementById('f_pop5').value,
+    pop_10min: document.getElementById('f_pop10').value,
+    concorrenti_500m: document.getElementById('f_conc500').value,
+    concorrenti_1km: document.getElementById('f_conc1km').value,
+    servizi_400m: document.getElementById('f_serv').value,
+    score_zona: document.getElementById('f_score').value,
+    score_label: document.getElementById('f_label').value,
+    mq: document.getElementById('f_mq').value,
+  };
+  fetch('/api/analisi-ai', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json())
+    .then(d => {
+      const testo = d.testo || d.errore || 'Errore';
+      document.getElementById('ai-zona-text').innerHTML = testo.replace(/\n/g,'<br>');
+      document.getElementById('f_ai_zona').value = testo;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-magic"></i> Rigenera';
+    });
+}
+
+// ── MACCHINE ────────────────────────────────────
+// Filtri categoria
+document.querySelectorAll('.cat-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('btn-primary'));
+    this.classList.add('btn-primary');
+    const cat = this.dataset.cat;
+    document.querySelectorAll('.mac-item').forEach(el => {
+      el.style.display = (!cat || el.dataset.cat === cat) ? '' : 'none';
+    });
+  });
+});
+
+function toggleMacchina(id, data) {
+  const card = document.getElementById('mac-'+id);
+  if(selectedMacchine[id]) {
+    delete selectedMacchine[id];
+    card.classList.remove('selected');
+  } else {
+    selectedMacchine[id] = {...data, qty: 1};
+    card.classList.add('selected');
+  }
+  aggiornaRiepilogoMacchine();
+}
+
+function changeQty(id, delta) {
+  if(!selectedMacchine[id]) return;
+  selectedMacchine[id].qty = Math.max(1, (selectedMacchine[id].qty || 1) + delta);
+  document.getElementById('qty-'+id).textContent = selectedMacchine[id].qty;
+  document.getElementById('tot-'+id).textContent = '€' + (selectedMacchine[id].prezzo_effettivo * selectedMacchine[id].qty).toLocaleString('it');
+  aggiornaRiepilogoMacchine();
+}
+
+function aggiornaRiepilogoMacchine() {
+  const items = Object.values(selectedMacchine);
+  document.getElementById('f_macchine').value = JSON.stringify(items);
+  const div = document.getElementById('riepilogo-macchine');
+  if(!items.length) { div.style.display='none'; return; }
+  div.style.display='block';
+  let tot = 0;
+  let html = '';
+  items.forEach(m => {
+    const sub = m.prezzo_effettivo * m.qty;
+    tot += sub;
+    html += `<tr><td style="padding:8px 16px">${m.nome}</td><td class="text-muted">${m.qty}x €${m.prezzo_effettivo.toLocaleString('it')}</td><td class="text-end" style="padding:8px 16px">€${sub.toLocaleString('it')}</td></tr>`;
+  });
+  document.getElementById('riepilogo-body').innerHTML = html;
+  document.getElementById('capex-tot').textContent = '€' + tot.toLocaleString('it');
+}
+
+// ── BUSINESS PLAN ────────────────────────────────
+function calcolaBP() {
+  const items = Object.values(selectedMacchine);
+  if(!items.length) return;
+  const form = document.getElementById('preventivo-form');
+  const fd = new FormData(form);
+  const data = {
+    macchine: items,
+    scenario: fd.get('scenario'),
+    mq: fd.get('mq'),
+    kwh_cost: fd.get('kwh_cost'),
+    gas_mc_cost: fd.get('gas_mc_cost'),
+    acqua_mc_cost: fd.get('acqua_mc_cost'),
+    scarico_mc_cost: fd.get('scarico_mc_cost'),
+    affitto_mese: fd.get('affitto_mese'),
+    commercialista: fd.get('commercialista'),
+    cciaa: fd.get('cciaa'),
+    assicurazione: fd.get('assicurazione'),
+    manutenzione: fd.get('manutenzione'),
+  };
+  fetch('/api/calcola-bp', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+    .then(r=>r.json())
+    .then(d => {
+      document.getElementById('r_capex').textContent = '€' + d.capex.toLocaleString('it');
+      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it');
+      document.getElementById('r_costi').textContent = '€' + d.costi_mese.toLocaleString('it');
+      const utile = d.utile_mese;
+      const uel = document.getElementById('r_utile');
+      uel.textContent = '€' + utile.toLocaleString('it');
+      uel.style.color = utile >= 0 ? '#10b981' : '#ef4444';
+      document.getElementById('r_payback').textContent = d.payback_anni + ' anni (' + d.payback_mesi + ' mesi)';
+      document.getElementById('f_incasso').value = d.incasso_mese;
+      document.getElementById('f_costi').value = d.costi_mese;
+      // Dettaglio
+      const det = d.dettaglio;
+      let dhtml = '';
+      Object.entries(det).forEach(([k,v]) => {
+        if(v > 0) dhtml += `<div class="d-flex justify-content-between text-muted"><span>${k}</span><span>€${v.toLocaleString('it')}</span></div>`;
+      });
+      document.getElementById('costi-dettaglio').innerHTML = dhtml;
+    });
+}
+
+// Ricalcola quando cambiano i valori
+document.querySelectorAll('.bp-input').forEach(el => {
+  el.addEventListener('change', () => calcolaBP());
+});
+
+// ── RIEPILOGO FINALE ────────────────────────────────
+function aggiornaRiepilogo() {
+  const incasso = parseFloat(document.getElementById('f_incasso').value) || 0;
+  const costi = parseFloat(document.getElementById('f_costi').value) || 0;
+  const utile = incasso - costi;
+  const capex = Object.values(selectedMacchine).reduce((s,m)=>s+m.prezzo_effettivo*m.qty, 0);
+  const html = `
+    <div class="col-md-3"><div class="kpi-card text-center">
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#3b82f6">€${capex.toLocaleString('it')}</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Investimento</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi-card text-center">
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#10b981">€${incasso.toLocaleString('it')}</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Incasso/mese</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi-card text-center">
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:${utile>=0?'#10b981':'#ef4444'}">€${utile.toLocaleString('it')}</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Utile/mese</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi-card text-center">
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b">${utile>0?Math.round(capex/utile/12)+' anni':'N/D'}</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Payback</div>
+    </div></div>`;
+  document.getElementById('riepilogo-finale').innerHTML = html;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}Admin{% endblock %}
+{% block page_title %}Pannello Admin{% endblock %}
+
+{% block content %}
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" style="border-color:var(--border)">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-macchine">Macchine</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-venditori">Venditori</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-settings">Impostazioni</a></li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ═══ MACCHINE ═══ -->
+<div class="tab-pane fade show active" id="tab-macchine">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 style="font-family:'Syne',sans-serif;margin:0">Catalogo macchine</h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuovaMacchina">
+      <i class="bi bi-plus-lg me-1"></i> Aggiungi
+    </button>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Modello</th><th>Prezzo</th><th>kW</th><th>Tariffa</th><th>Stato</th><th></th></tr></thead>
+        <tbody>
+          {% for m in macchine %}
+          <tr>
+            <td>
+              {% if m.foto_path %}
+              <img src="/static/uploads/{{ m.foto_path }}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">
+              {% else %}
+              <div style="width:36px;height:36px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="bi bi-image"></i></div>
+              {% endif %}
+            </td>
+            <td class="fw-semibold">{{ m.nome }}</td>
+            <td class="text-muted">{{ m.categoria }}</td>
+            <td class="text-muted">{{ m.modello or '—' }}</td>
+            <td>€{{ "{:,.0f}".format(m.prezzo) }}</td>
+            <td class="text-muted">{{ m.kw }}kW</td>
+            <td>{% if m.tariffa > 0 %}€{{ m.tariffa }}/ciclo{% else %}—{% endif %}</td>
+            <td>
+              {% if m.attiva %}<span class="badge bg-success bg-opacity-15 text-success" style="font-size:11px">Attiva</span>
+              {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted" style="font-size:11px">Disattiva</span>{% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalMod{{ m.id }}">✏️</button>
+            </td>
+          </tr>
+          <!-- Modal modifica -->
+          <div class="modal fade" id="modalMod{{ m.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Modifica: {{ m.nome }}</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.modifica_macchina', id=m.id) }}" enctype="multipart/form-data">
+                  <div class="modal-body">
+                    {% include '_macchina_form.html' with context %}
+                  </div>
+                  <div class="modal-footer">
+                    <form method="POST" action="{{ url_for('admin.elimina_macchina', id=m.id) }}" class="me-auto"
+                      onsubmit="return confirm('Eliminare?')">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
+                    </form>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VENDITORI ═══ -->
+<div class="tab-pane fade" id="tab-venditori">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 style="font-family:'Syne',sans-serif;margin:0">Venditori</h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoVenditore">
+      <i class="bi bi-plus-lg me-1"></i> Aggiungi
+    </button>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table mb-0">
+        <thead><tr><th>Nome</th><th>Email</th><th>Stato</th><th></th></tr></thead>
+        <tbody>
+          {% for v in venditori %}
+          <tr>
+            <td class="fw-semibold">{{ v.nome }}</td>
+            <td class="text-muted">{{ v.email }}</td>
+            <td>
+              {% if v.attivo %}<span class="badge bg-success bg-opacity-15 text-success">Attivo</span>
+              {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted">Disattivo</span>{% endif %}
+            </td>
+            <td class="d-flex gap-1">
+              <form method="POST" action="{{ url_for('admin.toggle_venditore', id=v.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  {{ 'Disattiva' if v.attivo else 'Attiva' }}
+                </button>
+              </form>
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalPw{{ v.id }}">🔑</button>
+            </td>
+          </tr>
+          <div class="modal fade" id="modalPw{{ v.id }}" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Reset password: {{ v.nome }}</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.reset_password', id=v.id) }}">
+                  <div class="modal-body">
+                    <label class="form-label">Nuova password</label>
+                    <input type="password" name="password" class="form-control" required>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div class="tab-pane fade" id="tab-settings">
+  <form method="POST" action="{{ url_for('admin.salva_settings') }}" enctype="multipart/form-data">
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header">Azienda</div>
+          <div class="card-body">
+            <div class="mb-3"><label class="form-label">Brand name</label>
+              <input type="text" name="brand_name" class="form-control" value="{{ settings.brand_name if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">Ragione sociale</label>
+              <input type="text" name="company_name" class="form-control" value="{{ settings.company_name if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">Indirizzo</label>
+              <input type="text" name="company_addr" class="form-control" value="{{ settings.company_addr if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">P.IVA</label>
+              <input type="text" name="company_piva" class="form-control" value="{{ settings.company_piva if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">Email</label>
+              <input type="email" name="company_email" class="form-control" value="{{ settings.company_email if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">Sito web</label>
+              <input type="text" name="company_web" class="form-control" value="{{ settings.company_web if settings else '' }}"></div>
+            <div class="mb-3"><label class="form-label">Logo</label>
+              <input type="file" name="logo" class="form-control" accept="image/*">
+              {% if settings and settings.logo_path %}
+              <img src="/static/uploads/{{ settings.logo_path }}" style="height:40px;margin-top:8px">
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card mb-3">
+          <div class="card-header">Costi default</div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-6"><label class="form-label">€/kWh</label><input type="number" step="0.01" name="kwh_cost" class="form-control" value="{{ settings.kwh_cost if settings else 0.28 }}"></div>
+              <div class="col-6"><label class="form-label">Gas €/m³</label><input type="number" step="0.01" name="gas_mc_cost" class="form-control" value="{{ settings.gas_mc_cost if settings else 1.20 }}"></div>
+              <div class="col-6"><label class="form-label">Acqua €/m³</label><input type="number" step="0.01" name="acqua_mc_cost" class="form-control" value="{{ settings.acqua_mc_cost if settings else 2.50 }}"></div>
+              <div class="col-6"><label class="form-label">Scarichi €/m³</label><input type="number" step="0.01" name="scarico_mc_cost" class="form-control" value="{{ settings.scarico_mc_cost if settings else 1.80 }}"></div>
+              <div class="col-6"><label class="form-label">Affitto €/mq/mese</label><input type="number" step="0.5" name="affitto_mq" class="form-control" value="{{ settings.affitto_mq if settings else 12 }}"></div>
+              <div class="col-6"><label class="form-label">Commercialista €/mese</label><input type="number" name="commercialista" class="form-control" value="{{ settings.commercialista if settings else 150 }}"></div>
+              <div class="col-6"><label class="form-label">CCIAA €/mese</label><input type="number" name="cciaa" class="form-control" value="{{ settings.cciaa if settings else 50 }}"></div>
+              <div class="col-6"><label class="form-label">Assicurazione €/mese</label><input type="number" name="assicurazione" class="form-control" value="{{ settings.assicurazione if settings else 100 }}"></div>
+              <div class="col-6"><label class="form-label">Manutenzione €/mese</label><input type="number" name="manutenzione" class="form-control" value="{{ settings.manutenzione if settings else 200 }}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card mb-3">
+          <div class="card-header">Detergenti default</div>
+          <div class="card-body">
+            {% for i, (field, default_nome) in enumerate([('det1','Detergente'),('det2','Ammorbidente'),('det3','Igienizzante')], 1) %}
+            <div class="mb-2 p-2 rounded" style="background:var(--bg3)">
+              <div class="row g-2">
+                <div class="col-4"><label class="form-label" style="font-size:10px">Nome</label>
+                  <input type="text" name="{{ field }}_nome" class="form-control form-control-sm" value="{{ settings|attr(field+'_nome') if settings else default_nome }}"></div>
+                <div class="col-4"><label class="form-label" style="font-size:10px">€/kg</label>
+                  <input type="number" step="0.1" name="{{ field }}_costo_kg" class="form-control form-control-sm" value="{{ settings|attr(field+'_costo_kg') if settings else 0 }}"></div>
+                <div class="col-4"><label class="form-label" style="font-size:10px">g/ciclo</label>
+                  <input type="number" name="{{ field }}_grammi_ciclo" class="form-control form-control-sm" value="{{ settings|attr(field+'_grammi_ciclo') if settings else 0 }}"></div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">Condizioni di vendita</div>
+          <div class="card-body">
+            <textarea name="condizioni_vendita" class="form-control" rows="8">{{ settings.condizioni_vendita if settings else '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary">Salva impostazioni</button>
+    </div>
+  </form>
+</div>
+
+</div>
+
+<!-- Modal nuova macchina -->
+<div class="modal fade" id="modalNuovaMacchina" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nuova macchina</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.nuova_macchina') }}" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% set m = none %}
+          {% include '_macchina_form.html' %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">Aggiungi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nuovo venditore -->
+<div class="modal fade" id="modalNuovoVenditore" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nuovo Venditore</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.nuovo_venditore') }}">
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">Nome completo</label><input type="text" name="nome" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">Crea venditore</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

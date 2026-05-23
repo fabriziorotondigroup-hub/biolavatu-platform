@@ -1,0 +1,82 @@
+<div class="row g-3">
+  <div class="col-md-8">
+    <label class="form-label">Nome *</label>
+    <input type="text" name="nome" class="form-control" value="{{ m.nome if m else '' }}" required>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Categoria</label>
+    <select name="categoria" class="form-select">
+      {% for cat in ['Lavatrici','Asciugatrici','Sistemi','Impianti','Arredamento'] %}
+      <option value="{{ cat }}" {{ 'selected' if m and m.categoria == cat else '' }}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-6">
+    <label class="form-label">Modello</label>
+    <input type="text" name="modello" class="form-control" value="{{ m.modello if m else '' }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Combustibile</label>
+    <select name="combustibile" class="form-select">
+      <option value="elettrico" {{ 'selected' if m and m.combustibile == 'elettrico' else '' }}>Elettrico</option>
+      <option value="gas" {{ 'selected' if m and m.combustibile == 'gas' else '' }}>Gas</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Capacità kg</label>
+    <input type="number" step="0.5" name="capacita_kg" class="form-control" value="{{ m.capacita_kg if m else 0 }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Prezzo €</label>
+    <input type="number" name="prezzo" class="form-control" value="{{ m.prezzo if m else 0 }}" required>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Prezzo scontato €</label>
+    <input type="number" name="prezzo_scontato" class="form-control" value="{{ m.prezzo_scontato if m else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Tariffa €/ciclo</label>
+    <input type="number" step="0.5" name="tariffa" class="form-control" value="{{ m.tariffa if m else 0 }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">kW</label>
+    <input type="number" step="0.1" name="kw" class="form-control" value="{{ m.kw if m else 0 }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">m³ gas/ciclo</label>
+    <input type="number" step="0.01" name="mc_ciclo" class="form-control" value="{{ m.mc_ciclo if m else 0 }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Cicli/giorno</label>
+    <input type="number" name="cicli_giorno" class="form-control" value="{{ m.cicli_giorno if m else 8 }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Durata ciclo (min)</label>
+    <input type="number" name="durata_ciclo" class="form-control" value="{{ m.durata_ciclo if m else 45 }}">
+  </div>
+  <div class="col-12">
+    <label class="form-label">Descrizione</label>
+    <textarea name="descrizione" class="form-control" rows="2">{{ m.descrizione if m else '' }}</textarea>
+  </div>
+  <div class="col-12">
+    <label class="form-label">Note commerciali</label>
+    <textarea name="note_commerciali" class="form-control" rows="2">{{ m.note_commerciali if m else '' }}</textarea>
+  </div>
+  <div class="col-md-6">
+    <label class="form-label">Foto</label>
+    <input type="file" name="foto" class="form-control" accept="image/*">
+    {% if m and m.foto_path %}
+    <img src="/static/uploads/{{ m.foto_path }}" style="height:50px;margin-top:6px;border-radius:6px">
+    {% endif %}
+  </div>
+  <div class="col-md-6 d-flex align-items-end gap-3">
+    <div class="form-check">
+      <input type="checkbox" name="attiva" class="form-check-input" id="att{{ m.id if m else 'new' }}" {{ 'checked' if not m or m.attiva }}>
+      <label class="form-check-label" for="att{{ m.id if m else 'new' }}">Attiva</label>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" name="in_evidenza" class="form-check-input" id="ev{{ m.id if m else 'new' }}" {{ 'checked' if m and m.in_evidenza }}>
+      <label class="form-check-label" for="ev{{ m.id if m else 'new' }}">In evidenza</label>
+    </div>
+  </div>
+</div>

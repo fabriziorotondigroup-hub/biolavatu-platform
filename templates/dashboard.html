@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('preventivo.nuovo') }}" class="btn btn-primary btn-sm">
+  <i class="bi bi-plus-lg me-1"></i> Nuovo Preventivo
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- KPI -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-value text-primary">{{ tot_pratiche }}</div>
+          <div class="kpi-label">Pratiche totali</div>
+        </div>
+        <div class="kpi-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-folder2-open"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-value" style="color:#10b981">{{ firmate }}</div>
+          <div class="kpi-label">Firmate</div>
+        </div>
+        <div class="kpi-icon" style="background:rgba(16,185,129,.1);color:#10b981"><i class="bi bi-check-circle"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-value" style="color:#f59e0b">€{{ "{:,.0f}".format(valore_pipeline) }}</div>
+          <div class="kpi-label">Valore pipeline</div>
+        </div>
+        <div class="kpi-icon" style="background:rgba(245,158,11,.1);color:#f59e0b"><i class="bi bi-graph-up"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-value" style="color:#a78bfa">{{ tot_clienti }}</div>
+          <div class="kpi-label">Clienti</div>
+        </div>
+        <div class="kpi-icon" style="background:rgba(167,139,250,.1);color:#a78bfa"><i class="bi bi-people"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ultime pratiche -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-clock-history me-2 text-muted"></i>Ultime Pratiche</span>
+    <a href="{{ url_for('pratiche.index') }}" class="btn btn-sm btn-outline-secondary">Vedi tutte</a>
+  </div>
+  <div class="card-body p-0">
+    {% if pratiche %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Numero</th>
+          <th>Cliente</th>
+          <th>Città</th>
+          <th>Capex</th>
+          <th>Stato</th>
+          <th>Fattibilità</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pratiche %}
+        <tr>
+          <td><a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="text-decoration-none fw-semibold">{{ p.numero }}</a></td>
+          <td>{{ p.cliente.nome_completo if p.cliente else '—' }}</td>
+          <td class="text-muted">{{ p.citta or '—' }}</td>
+          <td>€{{ "{:,.0f}".format(p.capex) }}</td>
+          <td><span class="badge-stato stato-{{ p.stato }}">{{ p.stato|title }}</span></td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="semaforo sem-{{ p.semaforo }}"></span>
+              <small>{{ p.fattibilita }}%</small>
+            </div>
+          </td>
+          <td><a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="btn btn-sm btn-outline-secondary">Apri</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-folder-plus" style="font-size:40px"></i>
+      <p class="mt-2">Nessuna pratica ancora.<br>
+      <a href="{{ url_for('preventivo.nuovo') }}">Crea il tuo primo preventivo →</a></p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
