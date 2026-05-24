@@ -907,7 +907,7 @@ function esploraZona() {
               🟠 Ristoranti/Bar: ${z.food}<br>
               🚌 Trasporti: ${z.trasporti}
             </div>
-            <button onclick="usaZona(${z.lat},${z.lng},'${citta}')" 
+            <button onclick="usaZona(${z.lat},${z.lng},this.dataset.c)" data-c="${citta}" 
               style="margin-top:8px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px">
               📍 Usa questa zona
             </button>
