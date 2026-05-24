@@ -68,7 +68,8 @@
 <input type="hidden" name="macchine_json" id="f_macchine" value="[]">
 <input type="hidden" name="incasso_mese" id="f_incasso" value="0">
 <input type="hidden" name="costi_mese" id="f_costi" value="0">
-<input type="hidden" name="ai_zona" id="f_ai_zona" value="">
+<textarea name="ai_zona" id="f_ai_zona" style="display:none">{{ pratica.ai_zona if pratica and pratica.ai_zona else "" }}</textarea>
+<textarea name="ai_bp" id="f_ai_bp" style="display:none">{{ pratica.ai_bp if pratica and pratica.ai_bp else "" }}</textarea>
 
 <!-- ═══ STEP 1: CLIENTE ═══ -->
 <div class="wizard-panel active" id="panel-1">
@@ -151,9 +152,47 @@
           </div>
         </div>
         <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
-      </div>
-    </div>
-  </div>
+
+        <!-- STIMA CANONE OMI -->
+        <div id="canone-block" class="mt-3" style="display:none">
+          <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:14px">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div style="font-size:13px;font-weight:600;color:#34d399">
+                <i class="bi bi-house-door me-2"></i>Stima canone commerciale (OMI — Agenzia Entrate)
+              </div>
+              <select id="canone-zona" class="form-select form-select-sm" style="width:auto;font-size:12px" onchange="aggiornaCanone()">
+                <option value="centrale">Zona centrale</option>
+                <option value="semicentrale" selected>Zona semicentrale</option>
+                <option value="periferica">Zona periferica</option>
+                <option value="suburbana">Zona suburbana</option>
+              </select>
+            </div>
+            <div class="row g-3 align-items-center">
+              <div class="col-6 col-md-3 text-center">
+                <div style="font-size:11px;color:#64748b;margin-bottom:2px">Range mensile stimato</div>
+                <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#34d399" id="canone-range">—</div>
+              </div>
+              <div class="col-6 col-md-3 text-center">
+                <div style="font-size:11px;color:#64748b;margin-bottom:2px">Valore medio</div>
+                <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:900;color:#10b981" id="canone-mid">—</div>
+                <div style="font-size:10px;color:#64748b">/mese</div>
+              </div>
+              <div class="col-6 col-md-3 text-center">
+                <div style="font-size:11px;color:#64748b;margin-bottom:2px">€/mq anno</div>
+                <div style="font-size:16px;font-weight:700;color:#6ee7b7" id="canone-mq">—</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <button type="button" class="btn btn-sm btn-success w-100" onclick="usaCanone()" id="btn-usa-canone">
+                  <i class="bi bi-check-circle me-1"></i> Usa nel business plan
+                </button>
+                <div style="font-size:10px;color:#64748b;margin-top:4px;text-align:center" id="canone-fonte"></div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#475569;margin-top:8px">
+              ⚠️ Stime orientative OMI. Il canone reale dipende da trattativa, piano, vetrina e condizioni specifiche del locale.
+            </div>
+          </div>
+        </div>
 
   <!-- TAB: ESPLORA ZONA -->
   <div id="tab-esplora" style="display:none">
@@ -351,7 +390,7 @@
       </div>
     </div>
 
-    <!-- DATI DEMOGRAFICI ISTAT -->
+    <!-- DATI DEMOGRAFICI ISTAT + STRANIERI -->
     <div class="col-12" id="demo-block" style="display:none">
       <div class="card" style="border-color:#0891b2;background:rgba(8,145,178,.04)">
         <div class="card-header" style="border-color:#0891b2">
@@ -361,30 +400,119 @@
         </div>
         <div class="card-body">
           <div class="row g-3 align-items-start">
-            <div class="col-md-2 text-center">
-              <div style="font-size:28px">👴</div>
-              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#22d3ee" id="demo_eta">—</div>
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">👴</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#22d3ee" id="demo_eta">—</div>
               <div style="font-size:11px;color:#64748b">Età media anni</div>
             </div>
-            <div class="col-md-2 text-center">
-              <div style="font-size:28px">💰</div>
-              <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#34d399" id="demo_reddito">—</div>
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">💰</div>
+              <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#34d399" id="demo_reddito">—</div>
               <div style="font-size:11px;color:#64748b">Reddito medio/anno</div>
             </div>
-            <div class="col-md-2 text-center">
-              <div style="font-size:28px">🏘️</div>
-              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#a78bfa" id="demo_densita">—</div>
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">🏘️</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#a78bfa" id="demo_densita">—</div>
               <div style="font-size:11px;color:#64748b">Ab/km²</div>
             </div>
-            <div class="col-md-2 text-center">
-              <div style="font-size:28px">📊</div>
-              <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800" id="demo_market_score">—</div>
+
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">📊</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800" id="demo_market_score">—</div>
               <div style="font-size:11px;color:#64748b" id="demo_market_label">Potenziale mercato</div>
             </div>
-            <div class="col-md-4">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Valutazione potenziale</div>
-              <div id="demo_notes" style="font-size:12px;line-height:1.8"></div>
+            <div class="col-12 col-md-2">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Valutazione</div>
+              <div id="demo_notes" style="font-size:11px;line-height:1.8"></div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGNALI REALI DI TRAFFICO -->
+    <div class="col-12" id="segnali-block" style="display:none">
+      <div class="card" style="border-color:#6366f1;background:rgba(99,102,241,.04)">
+        <div class="card-header" style="border-color:#6366f1">
+          <i class="bi bi-broadcast me-2" style="color:#818cf8"></i>
+          <span style="color:#818cf8">Segnali reali di traffico</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">Da Google Maps — stessi dati usati da Lidl, Eurospin, Decathlon per le aperture</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-3 text-center">
+              <div style="font-size:24px">⭐</div>
+              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#818cf8;line-height:1" id="sr_recensioni">—</div>
+              <div style="font-size:11px;color:#64748b">Recensioni Google nella zona</div>
+              <div id="sr_rec_badge" style="font-size:11px;margin-top:3px"></div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:24px">🛒</div>
+              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#34d399;line-height:1" id="sr_gdo_num">—</div>
+              <div style="font-size:11px;color:#64748b">Catene GDO entro 500m</div>
+              <div id="sr_gdo_badge" style="font-size:11px;margin-top:3px"></div>
+            </div>
+            <div class="col-md-6">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">GDO rilevate</div>
+              <div id="sr_gdo_lista" style="font-size:12px;color:#94a3b8">—</div>
+              <div style="font-size:11px;color:#475569;margin-top:8px;line-height:1.5">
+                💡 Se una catena ha già aperto qui, il loro ufficio sviluppo ha già analizzato flussi, reddito e potenziale della zona.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STIMA CLIENTI POTENZIALI -->
+    <div class="col-12" id="stima-block" style="display:none">
+      <div class="card" style="border-color:#f59e0b;background:rgba(245,158,11,.04)">
+        <div class="card-header" style="border-color:#f59e0b">
+          <i class="bi bi-people me-2" style="color:#fbbf24"></i>
+          <span style="color:#fbbf24">Stima clienti potenziali</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">Modello pesato • Popolazione + Densità + Traffico reale (Google) + Validazione GDO + Concorrenza</span>
+        </div>
+        <div class="card-body">
+          <!-- Numero grande -->
+          <div class="row g-3 align-items-center mb-3">
+            <div class="col-md-3 text-center">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Stima realistica</div>
+              <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:900;color:#fbbf24;line-height:1" id="stima_clienti_num">—</div>
+              <div style="font-size:13px;color:#64748b">clienti / giorno</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Pessimistico</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#ef4444" id="stima_pess">—</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Ottimistico</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#10b981" id="stima_ott">—</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Visite/mese</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#a78bfa" id="stima_mese">—</div>
+            </div>
+          </div>
+          <!-- Fattori del modello -->
+          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Fattori del modello</div>
+          <div class="row g-2" id="stima_fattori"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEATMAP CONCORRENTI -->
+    <div class="col-12" id="competitors-block" style="display:none">
+      <div class="card" style="border-color:#dc2626;background:rgba(220,38,38,.03)">
+        <div class="card-header" style="border-color:#dc2626">
+          <i class="bi bi-geo-alt me-2" style="color:#f87171"></i>
+          <span style="color:#f87171">Mappa saturazione concorrenti</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">
+            🟢 Zona libera &nbsp;|&nbsp; 🟠 Attenzione &nbsp;|&nbsp; 🔴 Zona satura
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <div id="competitors-list" style="font-size:13px;padding:12px;color:#94a3b8">
+            Nessun concorrente rilevato nel raggio di 1.5km.
           </div>
         </div>
       </div>
@@ -864,23 +992,7 @@ function usaZona(lat, lng, citta) {
 
 // ── DATI DEMOGRAFICI ─────────────────────────────
 function caricaDemografici(citta, provincia, concorrenti) {
-  const params = new URLSearchParams({citta: citta||'', provincia: provincia||'', concorrenti: concorrenti||0});
-  fetch('/api/dati-demografici?' + params)
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('demo-block').style.display = 'block';
-      document.getElementById('demo_eta').textContent = d.eta_media;
-      document.getElementById('demo_reddito').textContent = '€' + d.reddito_medio.toLocaleString('it');
-      document.getElementById('demo_densita').textContent = d.densita.toLocaleString('it');
-      document.getElementById('demo-fonte').textContent = '— fonte: ' + d.fonte;
-      const m = d.market;
-      const el = document.getElementById('demo_market_score');
-      el.textContent = m.score;
-      el.style.color = m.colore;
-      document.getElementById('demo_market_label').textContent = m.label;
-      document.getElementById('demo_market_label').style.color = m.colore;
-      document.getElementById('demo_notes').innerHTML = m.note.map(n => `<div>${n}</div>`).join('');
-    });
+  // Mantenuto per compatibilità — ora i dati arrivano da eseguiAnalisi
 }
 
 // ── CLIENTE SEARCH ────────────────────────────────
@@ -925,12 +1037,58 @@ function geocodifica() {
     .then(d => {
       if(d.lat) {
         document.getElementById('f_lat').value = d.lat;
-        document.getElementById('f_lng').value = d.lon;
-        document.getElementById('geo-status').innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>${d.display}`;
+        document.getElementById('f_lng').value = d.lng;
+        document.getElementById('geo-status').innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>${d.formatted}`;
+        // Autopopola città/provincia/cap se Google li restituisce
+        if(d.citta && !document.getElementById('f_citta').value)
+          document.getElementById('f_citta').value = d.citta;
+        if(d.provincia && document.getElementById('f_provincia'))
+          document.getElementById('f_provincia').value = d.provincia;
+        if(d.cap && document.getElementById('f_cap'))
+          document.getElementById('f_cap').value = d.cap;
+        // Carica stima canone
+        caricaCanone();
       } else {
         document.getElementById('geo-status').textContent = 'Indirizzo non trovato. Prova con un indirizzo più preciso.';
       }
     });
+}
+
+function caricaCanone() {
+  const citta = document.getElementById('f_citta').value;
+  const mq    = document.getElementById('f_mq').value || 60;
+  const zona  = document.getElementById('canone-zona') ? document.getElementById('canone-zona').value : 'semicentrale';
+  if(!citta) return;
+  fetch(`/api/canone-stimato?citta=${encodeURIComponent(citta)}&mq=${mq}&zona=${zona}`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('canone-block').style.display = 'block';
+      document.getElementById('canone-range').textContent =
+        `€${d.canone_mese_min.toLocaleString('it')} – €${d.canone_mese_max.toLocaleString('it')}`;
+      document.getElementById('canone-mid').textContent = `€${d.canone_mese_mid.toLocaleString('it')}`;
+      document.getElementById('canone-mq').textContent =
+        `€${d.canone_mq_anno_min} – €${d.canone_mq_anno_max}`;
+      document.getElementById('canone-fonte').textContent = d.fonte;
+      // Salva mid per usaCanone
+      document.getElementById('btn-usa-canone').dataset.mid = d.canone_mese_mid;
+    });
+}
+
+function aggiornaCanone() { caricaCanone(); }
+
+function usaCanone() {
+  const mid = document.getElementById('btn-usa-canone').dataset.mid;
+  if(!mid) return;
+  // Trova il campo affitto_mese nello step 5 e lo popola
+  const affittoInput = document.querySelector('input[name="affitto_mese"]');
+  if(affittoInput) {
+    affittoInput.value = mid;
+    affittoInput.dispatchEvent(new Event('input', {bubbles: true}));
+    affittoInput.dispatchEvent(new Event('change', {bubbles: true}));
+  }
+  document.getElementById('btn-usa-canone').innerHTML =
+    '<i class="bi bi-check-circle-fill me-1"></i> Inserito nel business plan';
+  document.getElementById('btn-usa-canone').classList.replace('btn-success', 'btn-outline-success');
 }
 
 // ── MAPPA ────────────────────────────────────────
@@ -948,7 +1106,6 @@ function analizzaZona() {
   const lat = parseFloat(document.getElementById('f_lat').value);
   const lng = parseFloat(document.getElementById('f_lng').value);
   if(!lat || !lng) {
-    // Tenta geocodifica automatica
     const addr = document.getElementById('f_indirizzo').value;
     const citta = document.getElementById('f_citta').value;
     if(addr || citta) {
@@ -956,8 +1113,8 @@ function analizzaZona() {
         .then(r=>r.json()).then(d=>{
           if(d.lat){
             document.getElementById('f_lat').value = d.lat;
-            document.getElementById('f_lng').value = d.lon;
-            eseguiAnalisi(d.lat, d.lon);
+            document.getElementById('f_lng').value = d.lng;
+            eseguiAnalisi(d.lat, d.lng);
           }
         });
     }
@@ -968,89 +1125,183 @@ function analizzaZona() {
 
 function eseguiAnalisi(lat, lng) {
   document.getElementById('loading-zona').style.display = 'block';
-  fetch(`/api/zona-analisi?lat=${lat}&lng=${lng}`)
+  const citta    = document.getElementById('f_citta').value || '';
+  const provincia = document.getElementById('f_provincia') ? document.getElementById('f_provincia').value : '';
+  fetch(`/api/zona-analisi?lat=${lat}&lng=${lng}&citta=${encodeURIComponent(citta)}&provincia=${encodeURIComponent(provincia)}`)
     .then(r => r.json())
     .then(d => {
       document.getElementById('loading-zona').style.display = 'none';
 
-      // Hidden fields
-      document.getElementById('f_pop3').value = d.pop_3min;
-      document.getElementById('f_pop5').value = d.pop_5min;
+      // ── Hidden fields per il form ──
+      document.getElementById('f_pop5').value  = d.pop_5min;
       document.getElementById('f_pop10').value = d.pop_10min;
-      document.getElementById('f_conc500').value = d.competitors_500m;
-      document.getElementById('f_conc1km').value = d.competitors_1km;
-      document.getElementById('f_serv').value = d.servizi_400m;
-      document.getElementById('f_score').value = d.score;
-      document.getElementById('f_label').value = d.label;
-      document.getElementById('f_pois').value = JSON.stringify(d.pois);
+      document.getElementById('f_conc500').value = d.concorrenti_500m;
+      document.getElementById('f_conc1km').value = d.concorrenti_1km;
+      document.getElementById('f_serv').value   = d.servizi_400m;
+      document.getElementById('f_score').value  = d.score;
+      document.getElementById('f_label').value  = d.score_label;
+      document.getElementById('f_pois').value   = JSON.stringify(d.pois);
 
-      // Display popolazione
-      document.getElementById('d_pop3').textContent = d.pop_3min.toLocaleString('it');
-      document.getElementById('d_pop5').textContent = d.pop_5min.toLocaleString('it');
-      document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString('it');
-      if(d.pop_1km) document.getElementById('d_pop1km').textContent = d.pop_1km.toLocaleString('it');
+      // ── Popolazione ──
+      if(document.getElementById('d_pop5'))  document.getElementById('d_pop5').textContent  = d.pop_5min.toLocaleString('it');
+      if(document.getElementById('d_pop10')) document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString('it');
 
-      // Concorrenza
-      document.getElementById('d_conc500').textContent = d.competitors_500m;
-      document.getElementById('d_conc1km').textContent = d.competitors_1km;
-      document.getElementById('d_serv').textContent = d.servizi_400m;
+      // ── Concorrenza ──
+      if(document.getElementById('d_conc500')) document.getElementById('d_conc500').textContent = d.concorrenti_500m;
+      if(document.getElementById('d_conc1km')) document.getElementById('d_conc1km').textContent = d.concorrenti_1km;
+      if(document.getElementById('d_serv'))    document.getElementById('d_serv').textContent    = d.servizi_400m;
 
-      // Score
+      // ── Score zona ──
       const pct = d.score;
       const scoreColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
-      document.getElementById('d_score').textContent = d.score;
-      document.getElementById('d_score').style.color = scoreColor;
-      document.getElementById('d_label').textContent = d.label;
-      document.getElementById('d_label').style.color = scoreColor;
+      if(document.getElementById('d_score')) { document.getElementById('d_score').textContent = pct; document.getElementById('d_score').style.color = scoreColor; }
+      if(document.getElementById('d_label')) { document.getElementById('d_label').textContent = d.score_label; document.getElementById('d_label').style.color = scoreColor; }
       const fill = document.getElementById('score-fill');
-      fill.style.width = pct + '%';
-      fill.style.background = scoreColor;
+      if(fill){ fill.style.width = pct + '%'; fill.style.background = scoreColor; }
       const card = document.getElementById('score-card');
-      card.style.borderColor = scoreColor;
-      card.style.background = `rgba(${pct>=70?'16,185,129':pct>=40?'245,158,11':'239,68,68'},.05)`;
+      if(card){ card.style.borderColor = scoreColor; card.style.background = `rgba(${pct>=70?'16,185,129':pct>=40?'245,158,11':'239,68,68'},.05)`; }
 
-      // Traffico
-      document.getElementById('d_traffico').textContent = d.traffico || '—';
-
-      // Carica dati demografici ISTAT
-      const citta = document.getElementById('f_citta').value;
-      const provincia = document.getElementById('f_provincia') ? document.getElementById('f_provincia').value : '';
-      caricaDemografici(citta, provincia, d.competitors_1km);
-
-      // Contatori categorie
+      // ── Contatori categorie ──
       const cnt = d.contatori || {};
-      document.getElementById('cnt_super').textContent = cnt.supermercato || 0;
-      document.getElementById('cnt_risto').textContent = cnt.ristorante || 0;
-      document.getElementById('cnt_bar').textContent = cnt.bar_cafe || 0;
-      document.getElementById('cnt_farm').textContent = cnt.farmacia || 0;
-      document.getElementById('cnt_trasp').textContent = cnt.trasporti || 0;
-      document.getElementById('cnt_istr').textContent = cnt.istruzione || 0;
-      document.getElementById('cnt_comp').textContent = cnt.competitor || 0;
+      if(document.getElementById('cnt_super')) document.getElementById('cnt_super').textContent = cnt.supermercato || 0;
+      if(document.getElementById('cnt_risto')) document.getElementById('cnt_risto').textContent = cnt.ristorante || 0;
+      if(document.getElementById('cnt_bar'))   document.getElementById('cnt_bar').textContent   = cnt.bar_cafe || 0;
+      if(document.getElementById('cnt_farm'))  document.getElementById('cnt_farm').textContent  = cnt.farmacia || 0;
+      if(document.getElementById('cnt_trasp')) document.getElementById('cnt_trasp').textContent = cnt.trasporti || 0;
+      if(document.getElementById('cnt_istr'))  document.getElementById('cnt_istr').textContent  = cnt.istruzione || 0;
+      if(document.getElementById('cnt_comp'))  document.getElementById('cnt_comp').textContent  = cnt.competitor || 0;
 
-      // MAPPA
+      // ── Segnali reali GDO + recensioni ──
+      const sr = d.segnali_reali || {};
+      if(sr.recensioni_zona !== undefined) {
+        document.getElementById('segnali-block').style.display = 'block';
+        const recNum = sr.recensioni_zona || 0;
+        document.getElementById('sr_recensioni').textContent = recNum.toLocaleString('it');
+        const recBadge = document.getElementById('sr_rec_badge');
+        if(recNum > 5000)      { recBadge.textContent = '🔥 Zona ad altissimo traffico'; recBadge.style.color = '#10b981'; }
+        else if(recNum > 2000) { recBadge.textContent = '✅ Zona ad alto traffico';       recBadge.style.color = '#34d399'; }
+        else if(recNum > 800)  { recBadge.textContent = '➡️ Traffico medio';              recBadge.style.color = '#f59e0b'; }
+        else if(recNum > 200)  { recBadge.textContent = '⚠️ Traffico basso';              recBadge.style.color = '#fb923c'; }
+        else                   { recBadge.textContent = '❌ Zona poco frequentata';       recBadge.style.color = '#ef4444'; }
+
+        const gdoNum = sr.gdo_500m || 0;
+        document.getElementById('sr_gdo_num').textContent = gdoNum;
+        const gdoBadge = document.getElementById('sr_gdo_badge');
+        if(gdoNum >= 2)      { gdoBadge.textContent = '✅ Zona già validata da GDO'; gdoBadge.style.color = '#10b981'; }
+        else if(gdoNum === 1){ gdoBadge.textContent = '✅ Presenza GDO confermata';  gdoBadge.style.color = '#34d399'; }
+        else                 { gdoBadge.textContent = 'Nessuna GDO vicina';          gdoBadge.style.color = '#64748b'; }
+
+        const lista = sr.gdo_lista || [];
+        document.getElementById('sr_gdo_lista').innerHTML = lista.length
+          ? lista.map(g => `<span style="background:rgba(52,211,153,.12);color:#34d399;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;font-weight:600">${g.nome} <span style="color:#64748b;font-weight:400">${g.distanza_m}m</span></span>`).join('')
+          : '<span style="color:#475569">Nessuna catena GDO rilevata entro 500m</span>';
+      }
+
+      // ── Dati demografici (ora inclusi nella risposta) ──
+      const dem = d.demografici || {};
+      if(dem.eta_media) {
+        document.getElementById('demo-block').style.display = 'block';
+        document.getElementById('demo_eta').textContent = dem.eta_media;
+        document.getElementById('demo_reddito').textContent = '€' + dem.reddito_medio.toLocaleString('it');
+        document.getElementById('demo_densita').textContent = dem.densita.toLocaleString('it');
+        document.getElementById('demo-fonte').textContent = '— fonte: ' + dem.fonte;
+        // Score
+        document.getElementById('demo_market_score').textContent = pct;
+        document.getElementById('demo_market_score').style.color = scoreColor;
+        document.getElementById('demo_market_label').textContent = d.score_label;
+        document.getElementById('demo_market_label').style.color = scoreColor;
+        document.getElementById('demo_notes').innerHTML = (d.score_note || []).map(n => `<div>${n}</div>`).join('');
+      }
+
+      // ── Stima clienti ──
+      const sc = d.stima_clienti;
+      if(sc) {
+        document.getElementById('stima-block').style.display = 'block';
+        document.getElementById('stima_clienti_num').textContent = sc.clienti_giorno;
+        document.getElementById('stima_pess').textContent = sc.scenario_pessimistico;
+        document.getElementById('stima_ott').textContent  = sc.scenario_ottimistico;
+        document.getElementById('stima_mese').textContent = sc.clienti_mese_reale.toLocaleString('it');
+        const fattDiv = document.getElementById('stima_fattori');
+        fattDiv.innerHTML = (sc.fattori || []).map(f => `
+          <div class="col-6 col-md-4">
+            <div style="background:var(--bg2);border-radius:8px;padding:8px 10px;font-size:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                <span style="color:#94a3b8">${f.icon} ${f.label}</span>
+                <span style="font-weight:700;color:${f.positivo?'#10b981':'#f87171'}">${f.peso}</span>
+              </div>
+              <div style="font-weight:600;color:#e2e8f0">${f.valore}</div>
+            </div>
+          </div>`).join('');
+      }
+
+      // ── Heatmap concorrenti ──
+      const compDet = d.competitors_detail || [];
+      if(compDet.length > 0) {
+        document.getElementById('competitors-block').style.display = 'block';
+        const satColors = { alta: '#dc2626', media: '#f59e0b', bassa: '#10b981' };
+        const satLabels = { alta: '🔴 Zona satura', media: '🟠 Attenzione', bassa: '🟢 Zona libera' };
+        document.getElementById('competitors-list').innerHTML = `
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="color:#64748b;border-bottom:1px solid #1e2d45">
+              <th style="padding:8px 12px;text-align:left">Concorrente</th>
+              <th style="padding:8px 12px">Distanza</th>
+              <th style="padding:8px 12px">Rating</th>
+              <th style="padding:8px 12px">Saturazione</th>
+              <th style="padding:8px 12px;text-align:left">Indirizzo</th>
+            </tr></thead>
+            <tbody>${compDet.map(c => `
+              <tr style="border-bottom:1px solid #1e2d45">
+                <td style="padding:8px 12px;font-weight:600;color:#e2e8f0">🏁 ${c.nome}</td>
+                <td style="padding:8px 12px;text-align:center;color:#94a3b8">${c.distanza_m}m</td>
+                <td style="padding:8px 12px;text-align:center;color:#fbbf24">${c.rating ? '⭐ ' + c.rating : '—'}</td>
+                <td style="padding:8px 12px;text-align:center">
+                  <span style="background:${satColors[c.saturazione]};color:white;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">
+                    ${satLabels[c.saturazione]}
+                  </span>
+                </td>
+                <td style="padding:8px 12px;color:#64748b">${c.vicinity}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>`;
+      }
+
+      // ── MAPPA Leaflet ──
       if(!map) initMap();
-      // Rimuovi layers precedenti tranne tile
       map.eachLayer(l => { if(l._url === undefined) map.removeLayer(l); });
       map.setView([lat, lng], 15);
 
-      // Cerchi isocrone (ben visibili)
-      L.circle([lat,lng],{radius:d.r3,color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi (240m)');
-      L.circle([lat,lng],{radius:d.r5,color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi (400m)');
-      L.circle([lat,lng],{radius:d.r10,color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi (800m)');
+      // Cerchi isocrone
+      L.circle([lat,lng],{radius:240, color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi (240m)');
+      L.circle([lat,lng],{radius:400, color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi (400m)');
+      L.circle([lat,lng],{radius:800, color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi (800m)');
       L.circle([lat,lng],{radius:1000,color:'#f59e0b',weight:2,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('Raggio 1 km');
 
-      // Cerchi zone alta affluenza
-      (d.alta_affluenza || []).forEach(a => {
-        L.circle([a.lat, a.lng], {
-          radius: 60,
-          color: '#fbbf24',
+      // Cerchi saturazione concorrenti (heatmap)
+      compDet.forEach(c => {
+        L.circle([c.lat, c.lng], {
+          radius: c.raggio_copertura,
+          color: c.cerchio_colore,
           weight: 2,
-          fillColor: '#fbbf24',
-          fillOpacity: 0.2,
-        }).addTo(map).bindPopup(`<b>⭐ Alta affluenza</b><br>${a.nome}<br>${a.tipo}`);
+          fillColor: c.cerchio_colore,
+          fillOpacity: 0.18,
+        }).addTo(map).bindPopup(`
+          <div style="min-width:160px">
+            <div style="font-weight:700;margin-bottom:4px">🏁 ${c.nome}</div>
+            <div style="font-size:12px;color:#666">Distanza: ${c.distanza_m}m</div>
+            ${c.rating ? `<div style="font-size:12px;color:#f59e0b">⭐ ${c.rating}</div>` : ''}
+            <div style="margin-top:4px;font-size:12px;font-weight:600;color:${c.cerchio_colore}">
+              ${c.saturazione === 'alta' ? '🔴 Zona satura' : c.saturazione === 'media' ? '🟠 Attenzione' : '🟢 Zona libera'}
+            </div>
+          </div>`);
       });
 
-      // Marker sede (grande e visibile)
+      // Zone alta affluenza
+      (d.alta_affluenza || []).forEach(a => {
+        L.circle([a.lat, a.lng], {radius:60,color:'#fbbf24',weight:2,fillColor:'#fbbf24',fillOpacity:0.2})
+          .addTo(map).bindPopup(`<b>⭐ Alta affluenza</b><br>${a.nome}`);
+      });
+
+      // Marker sede
       const sedeIcon = L.divIcon({className:'', html:`
         <div style="position:relative">
           <div style="background:#2563eb;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:white;font-size:12px">📍</div>
@@ -1058,47 +1309,48 @@ function eseguiAnalisi(lat, lng) {
         </div>`, iconSize:[24,36], iconAnchor:[12,24]});
       L.marker([lat, lng], {icon: sedeIcon}).addTo(map).bindPopup('<b>📍 Sede lavanderia</b>').openPopup();
 
-      // Colori per tipo POI
-      const coloriMap = {
-        'rosso': '#ef4444', 'verde': '#10b981', 'verde_chiaro': '#34d399',
-        'blu': '#3b82f6', 'azzurro': '#60a5fa', 'arancio': '#f59e0b',
-        'viola': '#8b5cf6', 'giallo': '#fbbf24', 'rosso_chiaro': '#f87171'
+      // Marker POI
+      const catColori = {
+        supermercato: '#10b981', farmacia: '#3b82f6', bar_cafe: '#f59e0b',
+        ristorante: '#ef4444', istruzione: '#8b5cf6', trasporti: '#06b6d4',
+        competitor: '#dc2626', altro: '#ec4899'
       };
-
-      // Icone per dimensione (alta affluenza = più grandi)
       d.pois.forEach(p => {
-        const col = coloriMap[p.colore] || '#888';
-        const isHigh = p.affluenza === 'molto_alta' || p.affluenza === 'alta';
-        const size = isHigh ? 14 : 9;
-        const border = isHigh ? 2.5 : 1.5;
+        const col = p.colore || catColori[p.categoria] || '#888';
+        const isComp = p.categoria === 'competitor';
+        const size = isComp ? 14 : 9;
         const icon = L.divIcon({className:'', html:`
-          <div title="${p.nome}" style="background:${col};width:${size}px;height:${size}px;border-radius:50%;border:${border}px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+          <div title="${p.nome}" style="background:${col};width:${size}px;height:${size}px;border-radius:50%;border:${isComp?2.5:1.5}px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
           iconSize:[size,size], iconAnchor:[size/2,size/2]});
-        L.marker([p.lat,p.lng],{icon}).addTo(map).bindPopup(`
-          <div style="min-width:140px">
-            <div style="font-weight:700;margin-bottom:4px">${p.icona || ''} ${p.nome}</div>
-            <div style="color:#666;font-size:12px">${p.tipo}</div>
-            <div style="color:#999;font-size:11px;margin-top:2px">${p.dist}m dalla sede</div>
-          </div>`);
+        let popupHtml = `<div style="min-width:150px"><div style="font-weight:700;margin-bottom:4px">${p.icon||''} ${p.nome}</div>
+          <div style="color:#666;font-size:12px">${p.categoria}</div>
+          <div style="color:#999;font-size:11px">${p.distanza_m}m dalla sede</div>`;
+        if(p.rating) popupHtml += `<div style="color:#f59e0b;font-size:11px">⭐ ${p.rating}</div>`;
+        if(p.vicinity) popupHtml += `<div style="color:#aaa;font-size:11px">${p.vicinity}</div>`;
+        popupHtml += '</div>';
+        L.marker([p.lat,p.lng],{icon}).addTo(map).bindPopup(popupHtml);
       });
 
-      // POI List tabellare
+      // POI List tabellare per categoria
       const grouped = {};
       d.pois.forEach(p => {
-        if(!grouped[p.tipo]) grouped[p.tipo]=[];
-        grouped[p.tipo].push(p);
+        const k = p.categoria;
+        if(!grouped[k]) grouped[k] = [];
+        grouped[k].push(p);
       });
-      const sortedTypes = Object.entries(grouped).sort((a,b) => b[1].length - a[1].length);
+      const catLabel = {supermercato:'🛒 Supermercati', farmacia:'💊 Farmacie', bar_cafe:'☕ Bar/Caffè',
+        ristorante:'🍽️ Ristoranti', istruzione:'🎓 Scuole', trasporti:'🚌 Trasporti',
+        competitor:'🏁 Concorrenti', altro:'💪 Altro'};
+      const sortedCat = Object.entries(grouped).sort((a,b) => b[1].length - a[1].length);
       let html = '<div class="row g-0">';
-      sortedTypes.forEach(([tipo, items]) => {
-        const col = coloriMap[items[0].colore] || '#888';
-        const icona = items[0].icona || '●';
+      sortedCat.forEach(([cat, items]) => {
+        const col = catColori[cat] || '#888';
         html += `<div class="col-md-4 col-6 p-3" style="border-bottom:1px solid #1e2d45;border-right:1px solid #1e2d45">
-          <div style="font-weight:700;font-size:13px;color:${col};margin-bottom:6px">${icona} ${tipo} <span style="color:#64748b;font-weight:400">(${items.length})</span></div>`;
+          <div style="font-weight:700;font-size:13px;color:${col};margin-bottom:6px">${catLabel[cat]||cat} <span style="color:#64748b;font-weight:400">(${items.length})</span></div>`;
         items.slice(0,5).forEach(p => {
           html += `<div style="font-size:11px;color:#94a3b8;padding:2px 0;display:flex;justify-content:space-between">
             <span>${p.nome}</span>
-            <span style="color:#64748b;margin-left:8px;flex-shrink:0">${p.dist}m</span>
+            <span style="color:#64748b;margin-left:8px;flex-shrink:0">${p.distanza_m}m</span>
           </div>`;
         });
         if(items.length > 5) html += `<div style="font-size:11px;color:#64748b;margin-top:2px">+${items.length-5} altri...</div>`;
@@ -1109,7 +1361,7 @@ function eseguiAnalisi(lat, lng) {
     })
     .catch(e => {
       document.getElementById('loading-zona').style.display = 'none';
-      console.error(e);
+      console.error('Errore analisi zona:', e);
     });
 }
 
@@ -1129,6 +1381,9 @@ function generaAI() {
     score_zona: document.getElementById('f_score').value,
     score_label: document.getElementById('f_label').value,
     mq: document.getElementById('f_mq').value,
+    stima_clienti: document.getElementById('stima_clienti_num') ? document.getElementById('stima_clienti_num').textContent : '',
+    recensioni_zona: document.getElementById('sr_recensioni') ? document.getElementById('sr_recensioni').textContent.replace(/\./g,'').replace(/,/g,'') : '',
+    gdo_500m: document.getElementById('sr_gdo_num') ? document.getElementById('sr_gdo_num').textContent : '',
   };
   fetch('/api/analisi-ai', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
     .then(r=>r.json())
