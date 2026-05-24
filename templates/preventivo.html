@@ -225,7 +225,7 @@
 
   <div class="d-flex justify-content-between">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="button" class="btn btn-primary" onclick="goStep(3); analizzaZona()">Avanti e Analizza Zona <i class="bi bi-arrow-right ms-1"></i></button>
+    <button type="button" class="btn btn-primary" onclick="goStep(3); setTimeout(analizzaZona, 200)">Avanti e Analizza Zona <i class="bi bi-arrow-right ms-1"></i></button>
   </div>
 </div>
 
@@ -832,9 +832,12 @@ function goStep(n) {
     else if(i+1 < n) s.classList.add('done');
   });
   if(n === 3) {
-    if(!map) initMap();
-    setTimeout(() => { if(map) map.invalidateSize(); }, 100);
+    setTimeout(() => {
+      if(!map) initMap();
+      else map.invalidateSize();
+    }, 150);
   }
+  window.scrollTo(0, 0);
 }
 
 // ── TAB SWITCHER STEP 2 ──────────────────────────
