@@ -143,14 +143,6 @@
             <label class="form-label">Superficie (mq)</label>
             <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Traffico pedonale</label>
-            <select name="traffico_pedonale" class="form-select">
-              <option value="basso">Basso</option>
-              <option value="medio" selected>Medio</option>
-              <option value="alto">Alto</option>
-            </select>
-          </div>
         </div>
         <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
 
@@ -839,7 +831,10 @@ function goStep(n) {
     if(i+1 === n) s.classList.add('active');
     else if(i+1 < n) s.classList.add('done');
   });
-  if(n === 3 && !map) initMap();
+  if(n === 3) {
+    if(!map) initMap();
+    setTimeout(() => { if(map) map.invalidateSize(); }, 100);
+  }
 }
 
 // ── TAB SWITCHER STEP 2 ──────────────────────────
@@ -1362,6 +1357,7 @@ function eseguiAnalisi(lat, lng) {
     .catch(e => {
       document.getElementById('loading-zona').style.display = 'none';
       console.error('Errore analisi zona:', e);
+      alert('Errore analisi zona: ' + e.message);
     });
 }
 
