@@ -264,7 +264,7 @@ def analisi_ai():
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
 
     prompt = f"""Sei un esperto di laundromats (lavanderie self-service) in Italia.
-    
+
 Analizza questa zona per aprire una lavanderia self-service:
 - Indirizzo: {data.get('indirizzo', 'N/D')}
 - Città: {data.get('citta', 'N/D')}
@@ -275,6 +275,9 @@ Analizza questa zona per aprire una lavanderia self-service:
 - Servizi nelle vicinanze (400m): {data.get('servizi_400m', 0)} attività
 - Score zona: {data.get('score_zona', 0)}/100 ({data.get('score_label', '')})
 - Superficie locale: {data.get('mq', 60)} mq
+- Stima clienti/giorno (modello pesato): {data.get('stima_clienti', 'N/D')}
+- Recensioni Google nella zona (proxy traffico reale): {data.get('recensioni_zona', 'N/D')}
+- Catene GDO entro 500m (Lidl/Eurospin/Conad ecc.): {data.get('gdo_500m', 'N/D')}
 
 Fornisci:
 1. Analisi della zona (3-4 righe)
