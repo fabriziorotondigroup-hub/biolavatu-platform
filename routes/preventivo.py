@@ -290,7 +290,8 @@ Sii diretto, pratico e professionale. Rispondi in italiano."""
     try:
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=800,
+            max_tokens=600,
+            timeout=25.0,
             messages=[{"role": "user", "content": prompt}]
         )
         return jsonify({'testo': message.content[0].text})
