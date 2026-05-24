@@ -18,7 +18,7 @@ class Pratica(db.Model):
     indirizzo = db.Column(db.String(300))
     citta = db.Column(db.String(100))
     cap = db.Column(db.String(10))
-    provincia = db.Column(db.String(5))
+    provincia = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
     mq = db.Column(db.Integer, default=60)
