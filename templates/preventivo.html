@@ -1128,7 +1128,9 @@ function eseguiAnalisi(lat, lng) {
   fetch(`/api/zona-analisi?lat=${lat}&lng=${lng}&citta=${encodeURIComponent(citta)}&provincia=${encodeURIComponent(provincia)}`)
     .then(r => r.json())
     .then(d => {
-      document.getElementById('loading-zona').style.display = 'none';
+      try {
+      const loadEl = document.getElementById('loading-zona');
+      if(loadEl) loadEl.style.display = 'none';
 
       // ── Hidden fields per il form ──
       document.getElementById('f_pop5').value  = d.pop_5min;
@@ -1356,9 +1358,13 @@ function eseguiAnalisi(lat, lng) {
       });
       html += '</div>';
       document.getElementById('poi-list').innerHTML = html || '<p class="p-3 text-muted">Nessun POI trovato in questa zona</p>';
+      } catch(jsErr) {
+        console.error('Errore JS in eseguiAnalisi:', jsErr);
+      }
     })
     .catch(e => {
-      document.getElementById('loading-zona').style.display = 'none';
+      const loadEl = document.getElementById('loading-zona');
+      if(loadEl) loadEl.style.display = 'none';
       console.error('Errore analisi zona:', e);
       alert('Errore analisi zona: ' + e.message);
     });
