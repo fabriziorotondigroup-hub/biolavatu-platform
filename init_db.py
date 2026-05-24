@@ -7,6 +7,16 @@ with app.app_context():
     db.create_all()
     print("[INIT] Tabelle create.", flush=True)
 
+    # Migration: allarga colonne troppo corte
+    try:
+        db.engine.execute('ALTER TABLE pratiche ALTER COLUMN provincia TYPE VARCHAR(100)')
+        db.engine.execute('ALTER TABLE pratiche ALTER COLUMN score_label TYPE VARCHAR(50)')
+        print('[INIT] Migration provincia OK.', flush=True)
+    except Exception as e:
+        print(f'[INIT] Migration skip (già ok): {e}', flush=True)
+
+
+
     from models.user import User
     from models.settings import Settings
     from models.macchina import Macchina
