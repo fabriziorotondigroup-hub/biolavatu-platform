@@ -131,4 +131,5 @@ biolavatu/
 - **Copertina** dark gradient con badge score
 - **Analisi Zona** — parti, KPI geo, competitor table
 - **Macchine + Business Plan** — tabella CAPEX, proiezione economica, AI analysis
-- **Contratto** — 11 articoli in 2 colonne, clausole AI, firme con doppia sottoscrizione ex art. 1341-1342 c.c.
+- **Contratto** — 11 articoli in 2 colonne, clausole AI, firme con doppia sottoscrizione ex art. 1341-1342 c.c. 
+
