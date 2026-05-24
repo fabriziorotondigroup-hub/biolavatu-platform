@@ -1362,8 +1362,13 @@ function generaAI() {
       document.getElementById('f_ai_zona').value = testo;
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-magic"></i> Rigenera';
+    })
+    .catch(function(e) {
+      var txt = document.getElementById('ai-zona-text');
+      if(txt) txt.innerHTML = '<span style="color:#ef4444">⚠ Timeout o errore. Riprova.</span>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-magic"></i> Riprova';
     });
-}
 
 // ── MACCHINE ────────────────────────────────────
 // Filtri categoria
