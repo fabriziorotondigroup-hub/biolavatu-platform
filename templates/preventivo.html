@@ -15,7 +15,7 @@
 .step-num { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; display:block; }
 
 .wizard-panel { display:none; }
-.wizard-panel.active { display:block; }
+.wizard-panel.active { display:block; min-height:200px; width:100%; }
 
 #map { height:400px; border-radius:12px; border:1px solid var(--border); }
 .map-overlay { position:absolute; top:10px; right:10px; z-index:1000; }
@@ -53,7 +53,7 @@
   <div class="step" onclick="goStep(6)"><span class="step-num">6</span>Riepilogo</div>
 </div>
 
-<form id="preventivo-form" method="POST" action="{{ url_for('preventivo.salva') }}" enctype="multipart/form-data">
+<form id="preventivo-form" method="POST" action="{{ url_for('preventivo.salva') }}" enctype="multipart/form-data" style="min-height:400px;width:100%">
 <!-- Hidden fields -->
 <input type="hidden" name="lat" id="f_lat" value="{{ pratica.lat if pratica else '' }}">
 <input type="hidden" name="lng" id="f_lng" value="{{ pratica.lng if pratica else '' }}">
