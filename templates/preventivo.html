@@ -1122,251 +1122,204 @@ function analizzaZona() {
 }
 
 function eseguiAnalisi(lat, lng) {
-  const lz = document.getElementById('loading-zona'); if(lz) lz.style.display = 'block';
-  const citta    = document.getElementById('f_citta').value || '';
-  const provincia = document.getElementById('f_provincia') ? document.getElementById('f_provincia').value : '';
-  fetch(`/api/zona-analisi?lat=${lat}&lng=${lng}&citta=${encodeURIComponent(citta)}&provincia=${encodeURIComponent(provincia)}`)
-    .then(r => r.json())
-    .then(d => {
+  console.log('[BIO] eseguiAnalisi start', lat, lng);
+  function sel(id) { return document.getElementById(id); }
+  function setVal(id, v) { var el=sel(id); if(el) el.value=v; }
+  function setTxt(id, v) { var el=sel(id); if(el) el.textContent=v; }
+  function setHtml(id, v) { var el=sel(id); if(el) el.innerHTML=v; }
+  function show(id) { var el=sel(id); if(el) el.style.display='block'; }
+  function hide(id) { var el=sel(id); if(el) el.style.display='none'; }
+
+  show('loading-zona');
+  var citta = (sel('f_citta')||{value:''}).value || '';
+  var provincia = (sel('f_provincia')||{value:''}).value || '';
+
+  fetch('/api/zona-analisi?lat='+lat+'&lng='+lng+'&citta='+encodeURIComponent(citta)+'&provincia='+encodeURIComponent(provincia))
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      console.log('[BIO] risposta ricevuta score:', d.score, 'pois:', (d.pois||[]).length);
       try {
-      const loadEl = document.getElementById('loading-zona');
-      if(loadEl) loadEl.style.display = 'none';
+        hide('loading-zona');
 
-      // ── Hidden fields per il form ──
-      document.getElementById('f_pop5').value  = d.pop_5min;
-      document.getElementById('f_pop10').value = d.pop_10min;
-      document.getElementById('f_conc500').value = d.concorrenti_500m;
-      document.getElementById('f_conc1km').value = d.concorrenti_1km;
-      document.getElementById('f_serv').value   = d.servizi_400m;
-      document.getElementById('f_score').value  = d.score;
-      document.getElementById('f_label').value  = d.score_label;
-      document.getElementById('f_pois').value   = JSON.stringify(d.pois);
+        // Hidden form fields
+        setVal('f_pop5', d.pop_5min);
+        setVal('f_pop10', d.pop_10min);
+        setVal('f_conc500', d.concorrenti_500m);
+        setVal('f_conc1km', d.concorrenti_1km);
+        setVal('f_serv', d.servizi_400m);
+        setVal('f_score', d.score);
+        setVal('f_label', d.score_label);
+        setVal('f_pois', JSON.stringify(d.pois||[]));
 
-      // ── Popolazione ──
-      if(document.getElementById('d_pop5'))  document.getElementById('d_pop5').textContent  = d.pop_5min.toLocaleString('it');
-      if(document.getElementById('d_pop10')) document.getElementById('d_pop10').textContent = d.pop_10min.toLocaleString('it');
+        console.log('[BIO] form fields set OK');
 
-      // ── Concorrenza ──
-      if(document.getElementById('d_conc500')) document.getElementById('d_conc500').textContent = d.concorrenti_500m;
-      if(document.getElementById('d_conc1km')) document.getElementById('d_conc1km').textContent = d.concorrenti_1km;
-      if(document.getElementById('d_serv'))    document.getElementById('d_serv').textContent    = d.servizi_400m;
+        // Popolazione
+        setTxt('d_pop5', (d.pop_5min||0).toLocaleString('it'));
+        setTxt('d_pop10', (d.pop_10min||0).toLocaleString('it'));
 
-      // ── Score zona ──
-      const pct = d.score;
-      const scoreColor = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
-      if(document.getElementById('d_score')) { document.getElementById('d_score').textContent = pct; document.getElementById('d_score').style.color = scoreColor; }
-      if(document.getElementById('d_label')) { document.getElementById('d_label').textContent = d.score_label; document.getElementById('d_label').style.color = scoreColor; }
-      const fill = document.getElementById('score-fill');
-      if(fill){ fill.style.width = pct + '%'; fill.style.background = scoreColor; }
-      const card = document.getElementById('score-card');
-      if(card){ card.style.borderColor = scoreColor; card.style.background = `rgba(${pct>=70?'16,185,129':pct>=40?'245,158,11':'239,68,68'},.05)`; }
+        // Concorrenza
+        setTxt('d_conc500', d.concorrenti_500m||0);
+        setTxt('d_conc1km', d.concorrenti_1km||0);
+        setTxt('d_serv', d.servizi_400m||0);
 
-      // ── Contatori categorie ──
-      const cnt = d.contatori || {};
-      if(document.getElementById('cnt_super')) document.getElementById('cnt_super').textContent = cnt.supermercato || 0;
-      if(document.getElementById('cnt_risto')) document.getElementById('cnt_risto').textContent = cnt.ristorante || 0;
-      if(document.getElementById('cnt_bar'))   document.getElementById('cnt_bar').textContent   = cnt.bar_cafe || 0;
-      if(document.getElementById('cnt_farm'))  document.getElementById('cnt_farm').textContent  = cnt.farmacia || 0;
-      if(document.getElementById('cnt_trasp')) document.getElementById('cnt_trasp').textContent = cnt.trasporti || 0;
-      if(document.getElementById('cnt_istr'))  document.getElementById('cnt_istr').textContent  = cnt.istruzione || 0;
-      if(document.getElementById('cnt_comp'))  document.getElementById('cnt_comp').textContent  = cnt.competitor || 0;
-
-      // ── Segnali reali GDO + recensioni ──
-      const sr = d.segnali_reali || {};
-      if(sr.recensioni_zona !== undefined) {
-        document.getElementById('segnali-block').style.display = 'block';
-        const recNum = sr.recensioni_zona || 0;
-        document.getElementById('sr_recensioni').textContent = recNum.toLocaleString('it');
-        const recBadge = document.getElementById('sr_rec_badge');
-        if(recNum > 5000)      { recBadge.textContent = '🔥 Zona ad altissimo traffico'; recBadge.style.color = '#10b981'; }
-        else if(recNum > 2000) { recBadge.textContent = '✅ Zona ad alto traffico';       recBadge.style.color = '#34d399'; }
-        else if(recNum > 800)  { recBadge.textContent = '➡️ Traffico medio';              recBadge.style.color = '#f59e0b'; }
-        else if(recNum > 200)  { recBadge.textContent = '⚠️ Traffico basso';              recBadge.style.color = '#fb923c'; }
-        else                   { recBadge.textContent = '❌ Zona poco frequentata';       recBadge.style.color = '#ef4444'; }
-
-        const gdoNum = sr.gdo_500m || 0;
-        document.getElementById('sr_gdo_num').textContent = gdoNum;
-        const gdoBadge = document.getElementById('sr_gdo_badge');
-        if(gdoNum >= 2)      { gdoBadge.textContent = '✅ Zona già validata da GDO'; gdoBadge.style.color = '#10b981'; }
-        else if(gdoNum === 1){ gdoBadge.textContent = '✅ Presenza GDO confermata';  gdoBadge.style.color = '#34d399'; }
-        else                 { gdoBadge.textContent = 'Nessuna GDO vicina';          gdoBadge.style.color = '#64748b'; }
-
-        const lista = sr.gdo_lista || [];
-        document.getElementById('sr_gdo_lista').innerHTML = lista.length
-          ? lista.map(g => `<span style="background:rgba(52,211,153,.12);color:#34d399;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;font-weight:600">${g.nome} <span style="color:#64748b;font-weight:400">${g.distanza_m}m</span></span>`).join('')
-          : '<span style="color:#475569">Nessuna catena GDO rilevata entro 500m</span>';
-      }
-
-      // ── Dati demografici (ora inclusi nella risposta) ──
-      const dem = d.demografici || {};
-      if(dem.eta_media) {
-        document.getElementById('demo-block').style.display = 'block';
-        document.getElementById('demo_eta').textContent = dem.eta_media;
-        document.getElementById('demo_reddito').textContent = '€' + dem.reddito_medio.toLocaleString('it');
-        document.getElementById('demo_densita').textContent = dem.densita.toLocaleString('it');
-        document.getElementById('demo-fonte').textContent = '— fonte: ' + dem.fonte;
         // Score
-        document.getElementById('demo_market_score').textContent = pct;
-        document.getElementById('demo_market_score').style.color = scoreColor;
-        document.getElementById('demo_market_label').textContent = d.score_label;
-        document.getElementById('demo_market_label').style.color = scoreColor;
-        document.getElementById('demo_notes').innerHTML = (d.score_note || []).map(n => `<div>${n}</div>`).join('');
-      }
+        var pct = d.score || 0;
+        var scoreColor = pct>=70?'#10b981':pct>=40?'#f59e0b':'#ef4444';
+        setTxt('d_score', pct);
+        var ds = sel('d_score'); if(ds) ds.style.color = scoreColor;
+        setTxt('d_label', d.score_label||'');
+        var dl = sel('d_label'); if(dl) dl.style.color = scoreColor;
+        var fill = sel('score-fill');
+        if(fill){ fill.style.width=pct+'%'; fill.style.background=scoreColor; }
+        var card = sel('score-card');
+        if(card){ card.style.borderColor=scoreColor; }
 
-      // ── Stima clienti ──
-      const sc = d.stima_clienti;
-      if(sc) {
-        document.getElementById('stima-block').style.display = 'block';
-        document.getElementById('stima_clienti_num').textContent = sc.clienti_giorno;
-        document.getElementById('stima_pess').textContent = sc.scenario_pessimistico;
-        document.getElementById('stima_ott').textContent  = sc.scenario_ottimistico;
-        document.getElementById('stima_mese').textContent = sc.clienti_mese_reale.toLocaleString('it');
-        const fattDiv = document.getElementById('stima_fattori');
-        fattDiv.innerHTML = (sc.fattori || []).map(f => `
-          <div class="col-6 col-md-4">
-            <div style="background:var(--bg2);border-radius:8px;padding:8px 10px;font-size:12px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-                <span style="color:#94a3b8">${f.icon} ${f.label}</span>
-                <span style="font-weight:700;color:${f.positivo?'#10b981':'#f87171'}">${f.peso}</span>
-              </div>
-              <div style="font-weight:600;color:#e2e8f0">${f.valore}</div>
-            </div>
-          </div>`).join('');
-      }
+        console.log('[BIO] score set OK');
 
-      // ── Heatmap concorrenti ──
-      const compDet = d.competitors_detail || [];
-      if(compDet.length > 0) {
-        document.getElementById('competitors-block').style.display = 'block';
-        const satColors = { alta: '#dc2626', media: '#f59e0b', bassa: '#10b981' };
-        const satLabels = { alta: '🔴 Zona satura', media: '🟠 Attenzione', bassa: '🟢 Zona libera' };
-        document.getElementById('competitors-list').innerHTML = `
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="color:#64748b;border-bottom:1px solid #1e2d45">
-              <th style="padding:8px 12px;text-align:left">Concorrente</th>
-              <th style="padding:8px 12px">Distanza</th>
-              <th style="padding:8px 12px">Rating</th>
-              <th style="padding:8px 12px">Saturazione</th>
-              <th style="padding:8px 12px;text-align:left">Indirizzo</th>
-            </tr></thead>
-            <tbody>${compDet.map(c => `
-              <tr style="border-bottom:1px solid #1e2d45">
-                <td style="padding:8px 12px;font-weight:600;color:#e2e8f0">🏁 ${c.nome}</td>
-                <td style="padding:8px 12px;text-align:center;color:#94a3b8">${c.distanza_m}m</td>
-                <td style="padding:8px 12px;text-align:center;color:#fbbf24">${c.rating ? '⭐ ' + c.rating : '—'}</td>
-                <td style="padding:8px 12px;text-align:center">
-                  <span style="background:${satColors[c.saturazione]};color:white;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">
-                    ${satLabels[c.saturazione]}
-                  </span>
-                </td>
-                <td style="padding:8px 12px;color:#64748b">${c.vicinity}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>`;
-      }
+        // Contatori
+        var cnt = d.contatori || {};
+        setTxt('cnt_super', cnt.supermercato||0);
+        setTxt('cnt_risto', cnt.ristorante||0);
+        setTxt('cnt_bar', cnt.bar_cafe||0);
+        setTxt('cnt_farm', cnt.farmacia||0);
+        setTxt('cnt_trasp', cnt.trasporti||0);
+        setTxt('cnt_istr', cnt.istruzione||0);
+        setTxt('cnt_comp', cnt.competitor||0);
 
-      // ── MAPPA Leaflet ──
-      if(!map) initMap();
-      map.eachLayer(l => { if(l._url === undefined) map.removeLayer(l); });
-      map.setView([lat, lng], 15);
+        console.log('[BIO] contatori set OK');
 
-      // Cerchi isocrone
-      L.circle([lat,lng],{radius:240, color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi (240m)');
-      L.circle([lat,lng],{radius:400, color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi (400m)');
-      L.circle([lat,lng],{radius:800, color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi (800m)');
-      L.circle([lat,lng],{radius:1000,color:'#f59e0b',weight:2,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('Raggio 1 km');
+        // Segnali reali
+        var sr = d.segnali_reali || {};
+        if(sr.recensioni_zona !== undefined) {
+          show('segnali-block');
+          var recNum = sr.recensioni_zona||0;
+          setTxt('sr_recensioni', recNum.toLocaleString('it'));
+          var recBadge = sel('sr_rec_badge');
+          if(recBadge){
+            if(recNum>5000){recBadge.textContent='🔥 Zona ad altissimo traffico';recBadge.style.color='#10b981';}
+            else if(recNum>2000){recBadge.textContent='✅ Zona ad alto traffico';recBadge.style.color='#34d399';}
+            else if(recNum>800){recBadge.textContent='➡️ Traffico medio';recBadge.style.color='#f59e0b';}
+            else{recBadge.textContent='⚠️ Traffico basso';recBadge.style.color='#fb923c';}
+          }
+          var gdoNum = sr.gdo_500m||0;
+          setTxt('sr_gdo_num', gdoNum);
+          var gdoBadge = sel('sr_gdo_badge');
+          if(gdoBadge){
+            if(gdoNum>=2){gdoBadge.textContent='✅ Zona già validata da GDO';gdoBadge.style.color='#10b981';}
+            else if(gdoNum===1){gdoBadge.textContent='✅ Presenza GDO confermata';gdoBadge.style.color='#34d399';}
+            else{gdoBadge.textContent='Nessuna GDO vicina';gdoBadge.style.color='#64748b';}
+          }
+          var lista = sr.gdo_lista||[];
+          setHtml('sr_gdo_lista', lista.length
+            ? lista.map(function(g){return '<span style="background:rgba(52,211,153,.12);color:#34d399;padding:2px 8px;border-radius:10px;margin:2px;display:inline-block;font-weight:600">'+g.nome+' <span style="color:#64748b;font-weight:400">'+g.distanza_m+'m</span></span>';}).join('')
+            : '<span style="color:#475569">Nessuna catena GDO rilevata entro 500m</span>');
+        }
 
-      // Cerchi saturazione concorrenti (heatmap)
-      compDet.forEach(c => {
-        L.circle([c.lat, c.lng], {
-          radius: c.raggio_copertura,
-          color: c.cerchio_colore,
-          weight: 2,
-          fillColor: c.cerchio_colore,
-          fillOpacity: 0.18,
-        }).addTo(map).bindPopup(`
-          <div style="min-width:160px">
-            <div style="font-weight:700;margin-bottom:4px">🏁 ${c.nome}</div>
-            <div style="font-size:12px;color:#666">Distanza: ${c.distanza_m}m</div>
-            ${c.rating ? `<div style="font-size:12px;color:#f59e0b">⭐ ${c.rating}</div>` : ''}
-            <div style="margin-top:4px;font-size:12px;font-weight:600;color:${c.cerchio_colore}">
-              ${c.saturazione === 'alta' ? '🔴 Zona satura' : c.saturazione === 'media' ? '🟠 Attenzione' : '🟢 Zona libera'}
-            </div>
-          </div>`);
-      });
+        console.log('[BIO] segnali set OK');
 
-      // Zone alta affluenza
-      (d.alta_affluenza || []).forEach(a => {
-        L.circle([a.lat, a.lng], {radius:60,color:'#fbbf24',weight:2,fillColor:'#fbbf24',fillOpacity:0.2})
-          .addTo(map).bindPopup(`<b>⭐ Alta affluenza</b><br>${a.nome}`);
-      });
+        // Dati demografici
+        var dem = d.demografici || {};
+        if(dem.eta_media) {
+          show('demo-block');
+          setTxt('demo_eta', dem.eta_media);
+          setTxt('demo_reddito', '€'+(dem.reddito_medio||0).toLocaleString('it'));
+          setTxt('demo_densita', (dem.densita||0).toLocaleString('it'));
+          var df = sel('demo-fonte'); if(df) df.textContent = '— fonte: '+(dem.fonte||'');
+          setTxt('demo_market_score', pct);
+          var dms = sel('demo_market_score'); if(dms) dms.style.color=scoreColor;
+          setTxt('demo_market_label', d.score_label||'');
+          var dml = sel('demo_market_label'); if(dml) dml.style.color=scoreColor;
+          setHtml('demo_notes', (d.score_note||[]).map(function(n){return '<div>'+n+'</div>';}).join(''));
+        }
 
-      // Marker sede
-      const sedeIcon = L.divIcon({className:'', html:`
-        <div style="position:relative">
-          <div style="background:#2563eb;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:white;font-size:12px">📍</div>
-          <div style="position:absolute;top:26px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;font-size:10px;font-weight:700;white-space:nowrap;padding:2px 6px;border-radius:4px">SEDE</div>
-        </div>`, iconSize:[24,36], iconAnchor:[12,24]});
-      L.marker([lat, lng], {icon: sedeIcon}).addTo(map).bindPopup('<b>📍 Sede lavanderia</b>').openPopup();
+        console.log('[BIO] demo set OK');
 
-      // Marker POI
-      const catColori = {
-        supermercato: '#10b981', farmacia: '#3b82f6', bar_cafe: '#f59e0b',
-        ristorante: '#ef4444', istruzione: '#8b5cf6', trasporti: '#06b6d4',
-        competitor: '#dc2626', altro: '#ec4899'
-      };
-      d.pois.forEach(p => {
-        const col = p.colore || catColori[p.categoria] || '#888';
-        const isComp = p.categoria === 'competitor';
-        const size = isComp ? 14 : 9;
-        const icon = L.divIcon({className:'', html:`
-          <div title="${p.nome}" style="background:${col};width:${size}px;height:${size}px;border-radius:50%;border:${isComp?2.5:1.5}px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-          iconSize:[size,size], iconAnchor:[size/2,size/2]});
-        let popupHtml = `<div style="min-width:150px"><div style="font-weight:700;margin-bottom:4px">${p.icon||''} ${p.nome}</div>
-          <div style="color:#666;font-size:12px">${p.categoria}</div>
-          <div style="color:#999;font-size:11px">${p.distanza_m}m dalla sede</div>`;
-        if(p.rating) popupHtml += `<div style="color:#f59e0b;font-size:11px">⭐ ${p.rating}</div>`;
-        if(p.vicinity) popupHtml += `<div style="color:#aaa;font-size:11px">${p.vicinity}</div>`;
-        popupHtml += '</div>';
-        L.marker([p.lat,p.lng],{icon}).addTo(map).bindPopup(popupHtml);
-      });
+        // Stima clienti
+        var sc = d.stima_clienti;
+        if(sc) {
+          show('stima-block');
+          setTxt('stima_clienti_num', sc.clienti_giorno||0);
+          setTxt('stima_pess', sc.scenario_pessimistico||0);
+          setTxt('stima_ott', sc.scenario_ottimistico||0);
+          setTxt('stima_mese', (sc.clienti_mese_reale||0).toLocaleString('it'));
+          var fattDiv = sel('stima_fattori');
+          if(fattDiv) fattDiv.innerHTML = (sc.fattori||[]).map(function(f){
+            return '<div class="col-6 col-md-4"><div style="background:var(--bg2);border-radius:8px;padding:8px 10px;font-size:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="color:#94a3b8">'+f.icon+' '+f.label+'</span><span style="font-weight:700;color:'+(f.positivo?'#10b981':'#f87171')+'">'+f.peso+'</span></div><div style="font-weight:600;color:#e2e8f0">'+f.valore+'</div></div></div>';
+          }).join('');
+        }
 
-      // POI List tabellare per categoria
-      const grouped = {};
-      d.pois.forEach(p => {
-        const k = p.categoria;
-        if(!grouped[k]) grouped[k] = [];
-        grouped[k].push(p);
-      });
-      const catLabel = {supermercato:'🛒 Supermercati', farmacia:'💊 Farmacie', bar_cafe:'☕ Bar/Caffè',
-        ristorante:'🍽️ Ristoranti', istruzione:'🎓 Scuole', trasporti:'🚌 Trasporti',
-        competitor:'🏁 Concorrenti', altro:'💪 Altro'};
-      const sortedCat = Object.entries(grouped).sort((a,b) => b[1].length - a[1].length);
-      let html = '<div class="row g-0">';
-      sortedCat.forEach(([cat, items]) => {
-        const col = catColori[cat] || '#888';
-        html += `<div class="col-md-4 col-6 p-3" style="border-bottom:1px solid #1e2d45;border-right:1px solid #1e2d45">
-          <div style="font-weight:700;font-size:13px;color:${col};margin-bottom:6px">${catLabel[cat]||cat} <span style="color:#64748b;font-weight:400">(${items.length})</span></div>`;
-        items.slice(0,5).forEach(p => {
-          html += `<div style="font-size:11px;color:#94a3b8;padding:2px 0;display:flex;justify-content:space-between">
-            <span>${p.nome}</span>
-            <span style="color:#64748b;margin-left:8px;flex-shrink:0">${p.distanza_m}m</span>
-          </div>`;
+        console.log('[BIO] stima set OK');
+
+        // Heatmap concorrenti
+        var compDet = d.competitors_detail||[];
+        if(compDet.length>0) {
+          show('competitors-block');
+          var satColors={alta:'#dc2626',media:'#f59e0b',bassa:'#10b981'};
+          var satLabels={alta:'🔴 Zona satura',media:'🟠 Attenzione',bassa:'🟢 Zona libera'};
+          setHtml('competitors-list', '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#64748b;border-bottom:1px solid #1e2d45"><th style="padding:8px 12px;text-align:left">Concorrente</th><th style="padding:8px 12px">Distanza</th><th style="padding:8px 12px">Rating</th><th style="padding:8px 12px">Saturazione</th><th style="padding:8px 12px;text-align:left">Indirizzo</th></tr></thead><tbody>'+compDet.map(function(c){return '<tr style="border-bottom:1px solid #1e2d45"><td style="padding:8px 12px;font-weight:600;color:#e2e8f0">🏁 '+c.nome+'</td><td style="padding:8px 12px;text-align:center;color:#94a3b8">'+c.distanza_m+'m</td><td style="padding:8px 12px;text-align:center;color:#fbbf24">'+(c.rating?'⭐ '+c.rating:'—')+'</td><td style="padding:8px 12px;text-align:center"><span style="background:'+satColors[c.saturazione]+';color:white;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">'+satLabels[c.saturazione]+'</span></td><td style="padding:8px 12px;color:#64748b">'+c.vicinity+'</td></tr>';}).join('')+'</tbody></table>');
+        }
+
+        // Mappa Leaflet
+        try {
+          if(!map) initMap();
+          map.eachLayer(function(l){ if(!l._url) map.removeLayer(l); });
+          map.setView([lat, lng], 15);
+          map.invalidateSize();
+
+          L.circle([lat,lng],{radius:240,color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi');
+          L.circle([lat,lng],{radius:400,color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi');
+          L.circle([lat,lng],{radius:800,color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi');
+          L.circle([lat,lng],{radius:1000,color:'#f59e0b',weight:2,dashArray:'8,4',fillOpacity:0}).addTo(map).bindPopup('1 km');
+
+          compDet.forEach(function(c){
+            L.circle([c.lat,c.lng],{radius:c.raggio_copertura,color:c.cerchio_colore,weight:2,fillColor:c.cerchio_colore,fillOpacity:0.18}).addTo(map)
+              .bindPopup('<b>🏁 '+c.nome+'</b><br>'+c.distanza_m+'m<br><b style="color:'+c.cerchio_colore+'">'+(c.saturazione==='alta'?'🔴 Zona satura':c.saturazione==='media'?'🟠 Attenzione':'🟢 Zona libera')+'</b>');
+          });
+
+          (d.alta_affluenza||[]).forEach(function(a){
+            L.circle([a.lat,a.lng],{radius:60,color:'#fbbf24',weight:2,fillColor:'#fbbf24',fillOpacity:0.2}).addTo(map).bindPopup('<b>⭐ '+a.nome+'</b>');
+          });
+
+          var sedeIcon = L.divIcon({className:'',html:'<div style="background:#2563eb;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',iconSize:[20,20],iconAnchor:[10,10]});
+          L.marker([lat,lng],{icon:sedeIcon}).addTo(map).bindPopup('<b>📍 Sede</b>').openPopup();
+
+          var catColori={supermercato:'#10b981',farmacia:'#3b82f6',bar_cafe:'#f59e0b',ristorante:'#ef4444',istruzione:'#8b5cf6',trasporti:'#06b6d4',competitor:'#dc2626',altro:'#ec4899'};
+          (d.pois||[]).forEach(function(p){
+            var col=catColori[p.categoria]||'#888';
+            var isC=p.categoria==='competitor';
+            var sz=isC?14:9;
+            var icon=L.divIcon({className:'',html:'<div style="background:'+col+';width:'+sz+'px;height:'+sz+'px;border-radius:50%;border:'+(isC?2.5:1.5)+'px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+            L.marker([p.lat,p.lng],{icon:icon}).addTo(map).bindPopup('<b>'+(p.icon||'')+'</b> '+p.nome+'<br><small>'+p.distanza_m+'m</small>');
+          });
+          console.log('[BIO] mappa OK');
+        } catch(mapErr) { console.warn('[BIO] mappa errore (non bloccante):', mapErr.message); }
+
+        // POI list
+        var grouped={};
+        (d.pois||[]).forEach(function(p){ if(!grouped[p.categoria]) grouped[p.categoria]=[]; grouped[p.categoria].push(p); });
+        var catLabel={supermercato:'🛒 Supermercati',farmacia:'💊 Farmacie',bar_cafe:'☕ Bar/Caffè',ristorante:'🍽️ Ristoranti',istruzione:'🎓 Scuole',trasporti:'🚌 Trasporti',competitor:'🏁 Concorrenti',altro:'💪 Altro'};
+        var html='<div class="row g-0">';
+        Object.entries(grouped).sort(function(a,b){return b[1].length-a[1].length;}).forEach(function(entry){
+          var cat=entry[0], items=entry[1];
+          var col=catColori[cat]||'#888';
+          html+='<div class="col-md-4 col-6 p-3" style="border-bottom:1px solid #1e2d45;border-right:1px solid #1e2d45"><div style="font-weight:700;font-size:13px;color:'+col+';margin-bottom:6px">'+(catLabel[cat]||cat)+' <span style="color:#64748b;font-weight:400">('+items.length+')</span></div>';
+          items.slice(0,5).forEach(function(p){ html+='<div style="font-size:11px;color:#94a3b8;padding:2px 0;display:flex;justify-content:space-between"><span>'+p.nome+'</span><span style="color:#64748b;margin-left:8px;flex-shrink:0">'+p.distanza_m+'m</span></div>'; });
+          if(items.length>5) html+='<div style="font-size:11px;color:#64748b;margin-top:2px">+'+( items.length-5)+' altri...</div>';
+          html+='</div>';
         });
-        if(items.length > 5) html += `<div style="font-size:11px;color:#64748b;margin-top:2px">+${items.length-5} altri...</div>`;
-        html += '</div>';
-      });
-      html += '</div>';
-      document.getElementById('poi-list').innerHTML = html || '<p class="p-3 text-muted">Nessun POI trovato in questa zona</p>';
+        html+='</div>';
+        setHtml('poi-list', html||'<p class="p-3 text-muted">Nessun POI trovato</p>');
+
+        console.log('[BIO] TUTTO COMPLETATO ✅');
+
       } catch(jsErr) {
-        console.error('Errore JS in eseguiAnalisi:', jsErr);
+        console.error('[BIO] ERRORE JS:', jsErr.message, jsErr.stack);
+        hide('loading-zona');
       }
     })
-    .catch(e => {
-      const loadEl = document.getElementById('loading-zona');
-      if(loadEl) loadEl.style.display = 'none';
-      console.error('Errore analisi zona:', e);
-      alert('Errore analisi zona: ' + e.message);
+    .catch(function(e) {
+      hide('loading-zona');
+      console.error('[BIO] ERRORE FETCH:', e.message);
     });
 }
 
