@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 .wizard-steps { display:flex; gap:0; margin-bottom:28px; }
 .step { flex:1; text-align:center; padding:12px; background:var(--bg2); border:1px solid var(--border); font-size:12px; color:var(--muted); position:relative; cursor:pointer; transition:.2s; }
@@ -819,7 +820,6 @@
 
 </form>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ── DATI MACCHINE ────────────────────────────────
 const MACCHINE_DATA = {};
