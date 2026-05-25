@@ -182,7 +182,8 @@
         <div class="card mb-3">
           <div class="card-header">Detergenti default</div>
           <div class="card-body">
-            {% for i, (field, default_nome) in enumerate([('det1','Detergente'),('det2','Ammorbidente'),('det3','Igienizzante')], 1) %}
+          {% for field_item in [('det1','Detergente'),('det2','Ammorbidente'),('det3','Igienizzante')] %}
+          {% set field = field_item[0] %}{% set default_nome = field_item[1] %}{% set i = loop.index %}
             <div class="mb-2 p-2 rounded" style="background:var(--bg3)">
               <div class="row g-2">
                 <div class="col-4"><label class="form-label" style="font-size:10px">Nome</label>
