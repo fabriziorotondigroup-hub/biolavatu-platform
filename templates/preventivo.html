@@ -1369,6 +1369,7 @@ function generaAI() {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-magic"></i> Riprova';
     });
+}
 
 // ── MACCHINE ────────────────────────────────────
 // Filtri categoria
@@ -1484,11 +1485,11 @@ function aggiornaRiepilogo() {
       <div style="font-size:11px;color:#64748b;text-transform:uppercase">Incasso/mese</div>
     </div></div>
     <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:${utile>=0?'#10b981':'#ef4444'}">€${utile.toLocaleString('it')}</div>
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:${utile>=0?"#10b981":"#ef4444"}">€${utile.toLocaleString('it')}</div>
       <div style="font-size:11px;color:#64748b;text-transform:uppercase">Utile/mese</div>
     </div></div>
     <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b">${utile>0?Math.round(capex/utile/12)+' anni':'N/D'}</div>
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b">${utile>0?Math.round(capex/utile/12)+" anni":"N/D"}</div>
       <div style="font-size:11px;color:#64748b;text-transform:uppercase">Payback</div>
     </div></div>`;
   document.getElementById('riepilogo-finale').innerHTML = html;
