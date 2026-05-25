@@ -347,6 +347,15 @@ def esplora_zona():
             })
 
     zone.sort(key=lambda z: z['score'], reverse=True)
-    return jsonify({'zone': zone, 'demografici': {
-        'eta_media': eta_media, 'reddito_medio': reddito_medio, 'densita': int(densita),
-    }})
+    return jsonify({
+        'zone': zone,
+        'centro_lat': lat,
+        'centro_lng': lng,
+        'demo': {
+            'eta_media': eta_media,
+            'reddito_medio': reddito_medio,
+            'densita': int(densita),
+            'note': '',
+            'fonte': 'ISTAT Censimento 2021',
+        }
+    })
