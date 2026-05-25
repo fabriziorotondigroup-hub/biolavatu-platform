@@ -14,6 +14,13 @@
   --sidebar-w: 240px;
 }
 body { background: var(--bg); color: var(--text); }
+.form-label { color: #cbd5e1 !important; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.card-header { color: #e2e8f0 !important; font-weight: 600; font-size: 13px; background: #0f172a !important; border-color: #1e2d45 !important; }
+.card { background: #111827 !important; border-color: #1e2d45 !important; }
+.form-control, .form-select { background: #0f172a !important; border-color: #2d3f5e !important; color: #e2e8f0 !important; font-size: 14px; }
+.form-control:focus, .form-select:focus { background: #0f172a !important; border-color: #3b82f6 !important; color: #e2e8f0 !important; box-shadow: 0 0 0 2px rgba(59,130,246,.25); }
+.table { color: #e2e8f0 !important; }
+.table .text-muted { color: #94a3b8 !important; }
 .wizard-steps { display:flex; gap:0; margin-bottom:28px; }
 .step { flex:1; text-align:center; padding:12px; background:var(--bg2); border:1px solid var(--border); font-size:12px; color:var(--muted); position:relative; cursor:pointer; transition:.2s; }
 .step:first-child { border-radius:8px 0 0 8px; }
@@ -848,6 +855,9 @@ function goStep(n) {
       else map.invalidateSize();
     }, 150);
   }
+  if(n === 5) {
+    setTimeout(() => calcolaBP(), 100);
+  }
   window.scrollTo(0, 0);
 }
 
@@ -1431,12 +1441,12 @@ function aggiornaRiepilogoMacchine() {
 // ── BUSINESS PLAN ────────────────────────────────
 function calcolaBP() {
   const items = Object.values(selectedMacchine);
-  if(!items.length) return;
+  // Non bloccare se non ci sono macchine: mostra €0
   const form = document.getElementById('preventivo-form');
   const fd = new FormData(form);
   const data = {
     macchine: items,
-    scenario: fd.get('scenario'),
+    scenario: fd.get('scenario') || 'realistico',
     mq: fd.get('mq'),
     kwh_cost: fd.get('kwh_cost'),
     gas_mc_cost: fd.get('gas_mc_cost'),
@@ -1481,25 +1491,62 @@ function aggiornaRiepilogo() {
   const incasso = parseFloat(document.getElementById('f_incasso').value) || 0;
   const costi = parseFloat(document.getElementById('f_costi').value) || 0;
   const utile = incasso - costi;
-  const capex = Object.values(selectedMacchine).reduce((s,m)=>s+m.prezzo_effettivo*m.qty, 0);
-  const html = `
-    <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#3b82f6">€${capex.toLocaleString('it')}</div>
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Investimento</div>
+  const macchineItems = Object.values(selectedMacchine);
+  const capex = macchineItems.reduce((s,m)=>s+m.prezzo_effettivo*m.qty, 0);
+  const iva = capex * 0.22;
+  const capexIva = capex + iva;
+
+  let macchineHtml = '';
+  if(macchineItems.length) {
+    macchineHtml = `
+    <div class="col-12 mb-3">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;overflow:hidden">
+        <div style="padding:10px 16px;border-bottom:1px solid #1e2d45;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">📋 Configurazione macchine</div>
+        <table style="width:100%;border-collapse:collapse">
+          ${macchineItems.map(m=>`
+            <tr style="border-bottom:1px solid #1e2d45">
+              <td style="padding:8px 16px;color:#e2e8f0;font-size:13px">${m.nome}</td>
+              <td style="padding:8px 12px;color:#94a3b8;font-size:12px;text-align:center;width:40px">${m.qty}×</td>
+              <td style="padding:8px 12px;color:#94a3b8;font-size:12px;text-align:right">€${m.prezzo_effettivo.toLocaleString('it')}</td>
+              <td style="padding:8px 16px;color:#e2e8f0;font-weight:700;text-align:right;width:120px">€${(m.prezzo_effettivo*m.qty).toLocaleString('it')}</td>
+            </tr>`).join('')}
+          <tr style="background:#0f172a;border-top:1px solid #2d3f5e">
+            <td colspan="3" style="padding:10px 16px;color:#94a3b8;font-size:12px">Imponibile</td>
+            <td style="padding:10px 16px;color:#e2e8f0;font-weight:700;text-align:right">€${capex.toLocaleString('it')}</td>
+          </tr>
+          <tr style="background:#0f172a">
+            <td colspan="3" style="padding:6px 16px;color:#94a3b8;font-size:12px">IVA 22%</td>
+            <td style="padding:6px 16px;color:#f59e0b;font-weight:700;text-align:right">€${Math.round(iva).toLocaleString('it')}</td>
+          </tr>
+          <tr style="background:#0f172a;border-top:2px solid #2563eb">
+            <td colspan="3" style="padding:12px 16px;color:#e2e8f0;font-weight:800;font-size:14px">TOTALE IVA INCLUSA</td>
+            <td style="padding:12px 16px;color:#3b82f6;font-weight:800;font-size:16px;text-align:right">€${Math.round(capexIva).toLocaleString('it')}</td>
+          </tr>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  const kpiHtml = `
+    <div class="col-md-3"><div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Investimento + IVA</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#3b82f6">€${Math.round(capexIva).toLocaleString('it')}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px">Imponibile €${capex.toLocaleString('it')}</div>
     </div></div>
-    <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#10b981">€${incasso.toLocaleString('it')}</div>
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Incasso/mese</div>
+    <div class="col-md-3"><div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Incasso/mese</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#10b981">€${incasso.toLocaleString('it')}</div>
     </div></div>
-    <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:${utile>=0?"#10b981":"#ef4444"}">€${utile.toLocaleString('it')}</div>
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Utile/mese</div>
+    <div class="col-md-3"><div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Utile/mese</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:${utile>=0?"#10b981":"#ef4444"}">€${utile.toLocaleString('it')}</div>
     </div></div>
-    <div class="col-md-3"><div class="kpi-card text-center">
-      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b">${utile>0?Math.round(capex/utile/12)+" anni":"N/D"}</div>
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase">Payback</div>
+    <div class="col-md-3"><div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">Payback</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#f59e0b">${utile>0?Math.round(capexIva/utile/12)+" anni":"N/D"}</div>
     </div></div>`;
-  document.getElementById('riepilogo-finale').innerHTML = html;
+
+  document.getElementById('riepilogo-finale').innerHTML = macchineHtml + kpiHtml;
 }
 </script>
 {% endblock %}
