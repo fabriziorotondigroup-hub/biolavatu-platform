@@ -883,11 +883,19 @@ function esploraZona() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapEsplora);
   }
 
-  fetch('/api/esplora-zona?citta=' + encodeURIComponent(citta))
+  // Step 1: geocodifica la città → step 2: esplora zona con lat/lng
+  fetch('/api/geocode?indirizzo=' + encodeURIComponent(citta))
+    .then(r => r.json())
+    .then(geo => {
+      if(!geo.lat || !geo.lng) throw new Error('Città non trovata: ' + citta);
+      return fetch('/api/esplora-zona?lat=' + geo.lat + '&lng=' + geo.lng
+                   + '&citta=' + encodeURIComponent(geo.citta || citta)
+                   + '&provincia=' + encodeURIComponent(geo.provincia || ''));
+    })
     .then(r => r.json())
     .then(d => {
+      if(d.error) throw new Error(d.error);
       document.getElementById('esplora-loading').style.display = 'none';
-      if(d.error) { alert(d.error); return; }
 
       document.getElementById('esplora-risultati').style.display = 'block';
 
@@ -913,10 +921,9 @@ function esploraZona() {
           <div style="min-width:180px">
             <div style="font-weight:700;font-size:14px;color:${col}">${z.label} — ${z.score}/100</div>
             <div style="font-size:12px;margin-top:4px">
-              🔴 Lavanderie: ${z.lavanderie}<br>
-              🟢 Supermercati: ${z.supermercati}<br>
-              🟠 Ristoranti/Bar: ${z.food}<br>
-              🚌 Trasporti: ${z.trasporti}
+              🔴 Lavanderie: ${z.concorrenti}<br>
+              🟢 GDO vicine: ${z.gdo}<br>
+              📊 Recensioni zona: ${z.recensioni}
             </div>
             <button onclick="usaZona(${z.lat},${z.lng},this.dataset.c)" data-c="${citta}" 
               style="margin-top:8px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px">
@@ -974,8 +981,8 @@ function esploraZona() {
             onmouseover="this.style.background='rgba(37,99,235,.1)'" onmouseout="this.style.background='#111827'">
             <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:${col}">${i===0?'⭐ ':''} ${z.score}/100 — ${z.label}</div>
             <div style="font-size:12px;color:#64748b;margin:6px 0">
-              🔴 ${z.lavanderie} lavanderie &nbsp; 🟢 ${z.supermercati} supermercati<br>
-              🟠 ${z.food} ristoranti/bar &nbsp; 🚌 ${z.trasporti} fermate
+              🔴 ${z.concorrenti} lavanderie &nbsp; 🟢 ${z.gdo} GDO<br>
+              📊 ${z.recensioni} recensioni zona
             </div>
             <div style="font-size:11px;color:#3b82f6">Clicca per usare questa zona →</div>
           </div>

@@ -280,8 +280,8 @@ def analisi_ai():
 Analizza questa zona per aprire una lavanderia self-service:
 - Indirizzo: {data.get('indirizzo', 'N/D')}
 - Città: {data.get('citta', 'N/D')}
-- Popolazione nel raggio 5 min a piedi: {data.get('pop_5min', 0):,} abitanti
-- Popolazione nel raggio 10 min a piedi: {data.get('pop_10min', 0):,} abitanti
+- Popolazione nel raggio 5 min a piedi: {int(data.get('pop_5min', 0) or 0):,} abitanti
+- Popolazione nel raggio 10 min a piedi: {int(data.get('pop_10min', 0) or 0):,} abitanti
 - Concorrenti entro 500m: {data.get('concorrenti_500m', 0)}
 - Concorrenti entro 1km: {data.get('concorrenti_1km', 0)}
 - Servizi nelle vicinanze (400m): {data.get('servizi_400m', 0)} attività
