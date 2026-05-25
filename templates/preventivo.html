@@ -15,8 +15,6 @@
 }
 body { background: var(--bg); color: var(--text); }
 .form-label { color: #cbd5e1 !important; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
-.card-header { color: #e2e8f0 !important; font-weight: 600; font-size: 13px; background: #0f172a !important; border-color: #1e2d45 !important; }
-.card { background: #111827 !important; border-color: #1e2d45 !important; }
 .form-control, .form-select { background: #0f172a !important; border-color: #2d3f5e !important; color: #e2e8f0 !important; font-size: 14px; }
 .form-control:focus, .form-select:focus { background: #0f172a !important; border-color: #3b82f6 !important; color: #e2e8f0 !important; box-shadow: 0 0 0 2px rgba(59,130,246,.25); }
 .table { color: #e2e8f0 !important; }
@@ -718,17 +716,17 @@ body { background: var(--bg); color: var(--text); }
             (settings.det2_nome if settings else 'Ammorbidente', settings.det2_costo_kg if settings else 3.0, settings.det2_grammi_ciclo if settings else 40),
             (settings.det3_nome if settings else 'Igienizzante', settings.det3_costo_kg if settings else 4.0, settings.det3_grammi_ciclo if settings else 20),
           ] %}
-          {% for i, (nome, costo, grammi) in enumerate(dets, 1) %}
+          {% for det in dets %}{% set i = loop.index %}
           <div class="mb-3 p-2 rounded" style="background:var(--bg3)">
-            <div class="fw-semibold mb-2" style="font-size:12px">{{ nome }}</div>
+            <div class="fw-semibold mb-2" style="font-size:12px">{{ det[0] }}</div>
             <div class="row g-1">
               <div class="col-6">
                 <label class="form-label" style="font-size:10px">€/kg</label>
-                <input type="number" step="0.1" name="det{{ i }}_costo_kg" class="form-control form-control-sm bp-input" value="{{ costo }}">
+                <input type="number" step="0.1" name="det{{ i }}_costo_kg" class="form-control form-control-sm bp-input" value="{{ det[1] }}">
               </div>
               <div class="col-6">
                 <label class="form-label" style="font-size:10px">g/ciclo</label>
-                <input type="number" name="det{{ i }}_grammi_ciclo" class="form-control form-control-sm bp-input" value="{{ grammi }}">
+                <input type="number" name="det{{ i }}_grammi_ciclo" class="form-control form-control-sm bp-input" value="{{ det[2] }}">
               </div>
             </div>
           </div>
