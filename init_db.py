@@ -9,8 +9,10 @@ with app.app_context():
 
     # Migration: allarga colonne troppo corte
     try:
-        db.engine.execute('ALTER TABLE pratiche ALTER COLUMN provincia TYPE VARCHAR(100)')
-        db.engine.execute('ALTER TABLE pratiche ALTER COLUMN score_label TYPE VARCHAR(50)')
+        with db.engine.connect() as conn:
+            conn.execute(db.text('ALTER TABLE pratiche ALTER COLUMN provincia TYPE VARCHAR(100)'))
+            conn.execute(db.text('ALTER TABLE pratiche ALTER COLUMN score_label TYPE VARCHAR(50)'))
+            conn.commit()
         print('[INIT] Migration provincia OK.', flush=True)
     except Exception as e:
         print(f'[INIT] Migration skip (già ok): {e}', flush=True)
