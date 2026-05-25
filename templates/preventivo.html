@@ -574,7 +574,7 @@ body { background: var(--bg); color: var(--text); }
   <div class="row g-3" id="macchine-grid">
     {% for m in macchine %}
     <div class="col-md-4 col-lg-3 mac-item" data-cat="{{ m.categoria }}">
-      <div class="macchina-card" id="mac-{{ m.id }}" onclick="toggleMacchina({{ m.id }}, {{ m.to_dict()|tojson }})">
+      <div class="macchina-card" id="mac-{{ m.id }}" onclick="toggleMacchina({{ m.id }})">
         {% if m.in_evidenza %}
         <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2" style="font-size:9px">TOP</span>
         {% endif %}
@@ -1399,7 +1399,9 @@ document.querySelectorAll('.cat-btn').forEach(btn => {
   });
 });
 
-function toggleMacchina(id, data) {
+function toggleMacchina(id) {
+  const data = MACCHINE_DATA[id];
+  if(!data) return;
   const card = document.getElementById('mac-'+id);
   if(selectedMacchine[id]) {
     delete selectedMacchine[id];
