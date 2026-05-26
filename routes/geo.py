@@ -125,6 +125,7 @@ def zona_analisi():
     if not lat or not lng:
         return jsonify({'error': 'Coordinate mancanti'}), 400
 
+    r3  = walking_radius(3)   # 240m
     r5  = walking_radius(5)   # 400m
     r10 = walking_radius(10)  # 800m
     r15 = walking_radius(15)  # 1200m
@@ -138,7 +139,39 @@ def zona_analisi():
     raw_scuole       = gmaps_nearby(lat, lng, r5,  'school')
     raw_trasporti    = gmaps_nearby(lat, lng, r5,  'transit_station')
     raw_palestre     = gmaps_nearby(lat, lng, r5,  'gym')
-    raw_lavanderie   = gmaps_nearby(lat, lng, r15, 'laundry')
+
+    # ── CONCORRENTI: 3 chiamate separate per tipo ─────────────────────────────
+    # 1) Self-service / coin laundry (competitor diretto)
+    raw_self_service = gmaps_nearby(lat, lng, r15, 'laundry', keyword='self service lavanderia automatica gettoni')
+    # 2) Lavanderia tradizionale / tintoria / stireria (competitor parziale)
+    raw_tradizionale = gmaps_nearby(lat, lng, r15, 'laundry', keyword='tintoria lavasecco stireria')
+    # 3) Lavanderia industriale / professionale (non competitor diretto)
+    raw_industriale  = gmaps_nearby(lat, lng, r15, 'laundry', keyword='lavanderia industriale professionale biancheria')
+
+    # Classificazione per nome: se una lavanderia appare in più ricerche, vince il tipo più specifico
+    def classifica_lavanderia(nome: str) -> str:
+        n = nome.lower()
+        if any(k in n for k in ('self', 'gettoni', 'automatica', 'coin', 'lavomatic', 'speed queen', 'lava e asciuga')):
+            return 'self_service'
+        if any(k in n for k in ('tintoria', 'lavasecco', 'stireria', 'pulitura', 'pulito')):
+            return 'tradizionale'
+        if any(k in n for k in ('industriale', 'professionale', 'biancheria', 'alberghiera', 'hotel', 'noleggio')):
+            return 'industriale'
+        return 'self_service'  # default: trattala come competitor diretto
+
+    # Unisci tutti i risultati lavanderie deduplicando per place_id
+    lavanderie_viste = set()
+    raw_lavanderie_classified = []
+    for tipo, raw in [('self_service', raw_self_service),
+                      ('tradizionale', raw_tradizionale),
+                      ('industriale',  raw_industriale)]:
+        for p in raw:
+            pid = p.get('place_id', p.get('name', ''))
+            if pid not in lavanderie_viste:
+                lavanderie_viste.add(pid)
+                # Riclassifica per nome per maggiore precisione
+                tipo_reale = classifica_lavanderia(p.get('name', ''))
+                raw_lavanderie_classified.append((p, tipo_reale))
 
     # ── POI + SEGNALI REALI ───────────────────────────────────────────────────
     pois = []
@@ -199,13 +232,29 @@ def zona_analisi():
     gdo_500m = len(gdo_unici)
 
     # ── CONCORRENTI + HEATMAP ─────────────────────────────────────────────────
-    for p in raw_lavanderie:
-        poi = place_to_poi(p, lat, lng, 'competitor', '#dc2626', '🏁')
+    concorrenti_per_tipo = {'self_service': 0, 'tradizionale': 0, 'industriale': 0}
+
+    # Icone e colori per tipo
+    TIPO_CONFIG = {
+        'self_service': {'icon': '🪙', 'colore': '#dc2626', 'label': 'Self-service'},
+        'tradizionale': {'icon': '👔', 'colore': '#f59e0b', 'label': 'Tradizionale/Tintoria'},
+        'industriale':  {'icon': '🏭', 'colore': '#8b5cf6', 'label': 'Industriale'},
+    }
+
+    for p, tipo in raw_lavanderie_classified:
+        cfg = TIPO_CONFIG[tipo]
+        poi = place_to_poi(p, lat, lng, 'competitor', cfg['colore'], cfg['icon'])
+        poi['tipo_lavanderia'] = tipo
+        poi['tipo_label'] = cfg['label']
         pois.append(poi)
         contatori['competitor'] += 1
+        concorrenti_per_tipo[tipo] += 1
         dist = poi['distanza_m']
-        if dist <= 500:  concorrenti_500m += 1
-        if dist <= 1000: concorrenti_1km  += 1
+
+        # Solo self-service e tradizionali contano come competitor per i contatori principali
+        if tipo in ('self_service', 'tradizionale'):
+            if dist <= 500:  concorrenti_500m += 1
+            if dist <= 1000: concorrenti_1km  += 1
 
         if dist < 400:
             sat, cerchio_col, cerchio_fill = 'alta',  '#dc2626', 'rgba(220,38,38,0.18)'
@@ -217,6 +266,8 @@ def zona_analisi():
         competitors_detail.append({
             'lat': poi['lat'], 'lng': poi['lng'],
             'nome': poi['nome'],
+            'tipo_lavanderia': tipo,
+            'tipo_label': cfg['label'],
             'distanza_m': int(dist),
             'rating': poi.get('rating'),
             'vicinity': poi.get('vicinity', ''),
@@ -238,8 +289,10 @@ def zona_analisi():
     )
 
     # ── POPOLAZIONE STIMATA ───────────────────────────────────────────────────
+    area_3min  = math.pi * (r3  ** 2) / 1_000_000
     area_5min  = math.pi * (r5  ** 2) / 1_000_000
     area_10min = math.pi * (r10 ** 2) / 1_000_000
+    pop_3min   = int(densita * area_3min)
     pop_5min   = int(densita * area_5min)
     pop_10min  = int(densita * area_10min)
 
@@ -259,7 +312,9 @@ def zona_analisi():
         'contatori':          contatori,
         'concorrenti_500m':   concorrenti_500m,
         'concorrenti_1km':    concorrenti_1km,
+        'concorrenti_per_tipo': concorrenti_per_tipo,
         'servizi_400m':       servizi_400m,
+        'pop_3min':           pop_3min,
         'pop_5min':           pop_5min,
         'pop_10min':          pop_10min,
         'score':              assessment['score'],
