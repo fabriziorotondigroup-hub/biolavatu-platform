@@ -82,6 +82,10 @@ body { background: var(--bg); color: var(--text); }
 <input type="hidden" name="macchine_json" id="f_macchine" value="[]">
 <input type="hidden" name="incasso_mese" id="f_incasso" value="0">
 <input type="hidden" name="costi_mese" id="f_costi" value="0">
+<!-- Demografici dalla zona -->
+<input type="hidden" name="eta_media" id="f_eta_media" value="42">
+<input type="hidden" name="reddito_medio" id="f_reddito_medio" value="22000">
+<input type="hidden" name="densita" id="f_densita" value="3000">
 <textarea name="ai_zona" id="f_ai_zona" style="display:none">{{ pratica.ai_zona if pratica and pratica.ai_zona else "" }}</textarea>
 <textarea name="ai_bp" id="f_ai_bp" style="display:none">{{ pratica.ai_bp if pratica and pratica.ai_bp else "" }}</textarea>
 
@@ -343,10 +347,11 @@ body { background: var(--bg); color: var(--text); }
                 <span style="font-size:12px;color:#f59e0b">🟡 Concorrenti 1km</span>
                 <span id="d_conc1km" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">—</span>
               </div>
-              <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:#0a0e1a">
+              <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background:#0a0e1a">
                 <span style="font-size:12px;color:#10b981">🟢 Attività 400m</span>
                 <span id="d_serv" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#10b981">—</span>
               </div>
+              <div id="d_conc_tipo" style="font-size:11px;margin-top:8px;padding:6px 8px;background:#0a0e1a;border-radius:6px;line-height:1.8"></div>
             </div>
           </div>
         </div>
@@ -703,6 +708,58 @@ body { background: var(--bg); color: var(--text); }
             <label class="form-label">Manutenzione (€/mese)</label>
             <input type="number" name="manutenzione" class="form-control bp-input" value="{{ settings.manutenzione if settings else 200 }}">
           </div>
+          <div class="mb-2">
+            <label class="form-label">Lavoro pulizie/supervisione (€/mese)</label>
+            <input type="number" name="costo_lavoro" class="form-control bp-input" value="480">
+          </div>
+          <hr style="border-color:var(--border);margin:10px 0">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Investimento</div>
+          <div class="mb-2">
+            <label class="form-label">Ammortamento macchine (anni)</label>
+            <input type="number" name="anni_ammortamento" class="form-control bp-input" value="10" min="5" max="15">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">% investimento finanziato</label>
+            <input type="number" name="perc_finanziato" class="form-control bp-input" value="0" min="0" max="100">
+          </div>
+          <div class="row g-1 mb-2">
+            <div class="col-6">
+              <label class="form-label">Tasso interesse (%)</label>
+              <input type="number" step="0.1" name="tasso_interesse" class="form-control bp-input" value="6.0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Durata prestito (anni)</label>
+              <input type="number" name="anni_prestito" class="form-control bp-input" value="7">
+            </div>
+          </div>
+          <hr style="border-color:var(--border);margin:10px 0">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Accessibilità locale</div>
+          <div class="mb-2">
+            <label class="form-label">Visibilità dalla strada — <span id="lbl_vis">50%</span></label>
+            <input type="range" name="accessib_visibilita" id="sl_vis" min="0" max="1" step="0.1" value="0.5"
+              class="form-range bp-input" oninput="document.getElementById('lbl_vis').textContent=Math.round(this.value*100)+'%'">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b"><span>Nascosto</span><span>Vetrina su via principale</span></div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Parcheggio — <span id="lbl_park">50%</span></label>
+            <input type="range" name="accessib_parcheggio" id="sl_park" min="0" max="1" step="0.1" value="0.5"
+              class="form-range bp-input" oninput="document.getElementById('lbl_park').textContent=Math.round(this.value*100)+'%'">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b"><span>Nessuno</span><span>Ampio parcheggio</span></div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Piano</label>
+            <select name="accessib_piano" class="form-select bp-input">
+              <option value="1.0">Piano strada ✅</option>
+              <option value="0.3">Interrato o piano superiore ⚠️</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Orario apertura</label>
+            <select name="accessib_h24" class="form-select bp-input">
+              <option value="0.0">Orari limitati (es. 7-22)</option>
+              <option value="1.0">H24 — aperto sempre ✅</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -742,6 +799,14 @@ body { background: var(--bg); color: var(--text); }
             <span id="r_capex" style="font-weight:700">—</span>
           </div>
           <div class="bp-row">
+            <span class="text-muted">+ IVA 22%</span>
+            <span id="r_capex_iva" style="font-weight:700;color:#3b82f6">—</span>
+          </div>
+          <div class="bp-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
+            <span class="text-muted">Cicli/giorno stimati</span>
+            <span id="r_cicli" style="font-weight:700;color:#8b5cf6">—</span>
+          </div>
+          <div class="bp-row">
             <span class="text-muted">Incasso mensile</span>
             <span id="r_incasso" style="color:#10b981;font-weight:700">—</span>
           </div>
@@ -754,7 +819,7 @@ body { background: var(--bg); color: var(--text); }
             <span id="r_utile" style="font-weight:700">—</span>
           </div>
           <div class="bp-row">
-            <span class="text-muted">Payback</span>
+            <span class="text-muted">Payback (IVA inclusa)</span>
             <span id="r_payback" style="color:#f59e0b;font-weight:700">—</span>
           </div>
           <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="calcolaBP()">
@@ -1168,6 +1233,7 @@ function eseguiAnalisi(lat, lng) {
         hide('loading-zona');
 
         // Hidden form fields
+        setVal('f_pop3', d.pop_3min || 0);
         setVal('f_pop5', d.pop_5min);
         setVal('f_pop10', d.pop_10min);
         setVal('f_conc500', d.concorrenti_500m);
@@ -1180,13 +1246,24 @@ function eseguiAnalisi(lat, lng) {
         console.log('[BIO] form fields set OK');
 
         // Popolazione
+        setTxt('d_pop3', (d.pop_3min||0).toLocaleString('it'));
         setTxt('d_pop5', (d.pop_5min||0).toLocaleString('it'));
         setTxt('d_pop10', (d.pop_10min||0).toLocaleString('it'));
 
-        // Concorrenza
+        // Concorrenza — totale e per tipo
         setTxt('d_conc500', d.concorrenti_500m||0);
         setTxt('d_conc1km', d.concorrenti_1km||0);
         setTxt('d_serv', d.servizi_400m||0);
+
+        // Breakdown concorrenti per tipo
+        if(d.concorrenti_per_tipo) {
+          var cpt = d.concorrenti_per_tipo;
+          var cptEl = document.getElementById('d_conc_tipo');
+          if(cptEl) cptEl.innerHTML =
+            '<span style="color:#ef4444">🪙 Self-service: <b>'+(cpt.self_service||0)+'</b></span> &nbsp;' +
+            '<span style="color:#f59e0b">👔 Tradizionali: <b>'+(cpt.tradizionale||0)+'</b></span> &nbsp;' +
+            '<span style="color:#8b5cf6">🏭 Industriali: <b>'+(cpt.industriale||0)+'</b></span>';
+        }
 
         // Score
         var pct = d.score || 0;
@@ -1247,6 +1324,9 @@ function eseguiAnalisi(lat, lng) {
         var dem = d.demografici || {};
         if(dem.eta_media) {
           show('demo-block');
+          setVal('f_eta_media', dem.eta_media);
+          setVal('f_reddito_medio', dem.reddito_medio || 22000);
+          setVal('f_densita', dem.densita || 3000);
           setTxt('demo_eta', dem.eta_media);
           setTxt('demo_reddito', '€'+(dem.reddito_medio||0).toLocaleString('it'));
           setTxt('demo_densita', (dem.densita||0).toLocaleString('it'));
@@ -1457,18 +1537,62 @@ function calcolaBP() {
     cciaa: fd.get('cciaa'),
     assicurazione: fd.get('assicurazione'),
     manutenzione: fd.get('manutenzione'),
+    // Zona
+    pop_5min: fd.get('pop_5min') || 0,
+    pop_10min: fd.get('pop_10min') || 0,
+    concorrenti_500m: fd.get('concorrenti_500m') || 0,
+    score_zona: fd.get('score_zona') || 50,
+    // Demografici
+    eta_media: fd.get('eta_media') || 42,
+    reddito_medio: fd.get('reddito_medio') || 22000,
+    densita: fd.get('densita') || 3000,
+    // Accessibilità
+    accessib_visibilita: fd.get('accessib_visibilita') || 0.5,
+    accessib_parcheggio: fd.get('accessib_parcheggio') || 0.5,
+    accessib_piano: fd.get('accessib_piano') || 1.0,
+    accessib_h24: fd.get('accessib_h24') || 0.0,
+    // Costi aggiuntivi
+    costo_lavoro: fd.get('costo_lavoro') || 480,
+    anni_ammortamento: fd.get('anni_ammortamento') || 10,
+    perc_finanziato: fd.get('perc_finanziato') || 0,
+    tasso_interesse: fd.get('tasso_interesse') || 6.0,
+    anni_prestito: fd.get('anni_prestito') || 7,
   };
   fetch('/api/calcola-bp', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
     .then(r=>r.json())
     .then(d => {
       document.getElementById('r_capex').textContent = '€' + d.capex.toLocaleString('it');
-      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it');
+      document.getElementById('r_capex_iva').textContent = '€' + (d.capex_iva || Math.round(d.capex*1.22)).toLocaleString('it') + ' (totale da pagare)';
+      document.getElementById('r_cicli').textContent = (d.cicli_giorno || 0) + ' cicli/giorno'
+        + (d.cicli_piumoni > 0 ? ' (di cui ' + d.cicli_piumoni.toFixed(1) + ' piumoni/grandi)' : '');
+      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it')
+        + (d.incasso_asciugatura > 0 ? ' (lav. €' + Math.round(d.incasso_lavaggio).toLocaleString('it') + ' + asc. €' + Math.round(d.incasso_asciugatura).toLocaleString('it') + ')' : '');
       document.getElementById('r_costi').textContent = '€' + d.costi_mese.toLocaleString('it');
       const utile = d.utile_mese;
       const uel = document.getElementById('r_utile');
       uel.textContent = '€' + utile.toLocaleString('it');
       uel.style.color = utile >= 0 ? '#10b981' : '#ef4444';
-      document.getElementById('r_payback').textContent = d.payback_anni + ' anni (' + d.payback_mesi + ' mesi)';
+      const pb = d.payback_anni;
+      document.getElementById('r_payback').textContent = pb > 0
+        ? pb.toFixed(1) + ' anni (' + d.payback_mesi + ' mesi)'
+        : 'N/D — utile negativo';
+      // Salva per il riepilogo
+      document.getElementById('f_incasso').value = d.incasso_mese;
+      document.getElementById('f_costi').value = d.costi_mese;
+      // Dettaglio costi
+      const det = d.dettaglio;
+      const dhtml = Object.entries(det).map(([k,v]) => {
+        const labels = {energia:'Energia',gas:'Gas',acqua:'Acqua',scarico:'Scarichi',
+          affitto:'Affitto',lavoro:'Lavoro',ammortamento:'Ammortamento',
+          finanziamento:'Rata finanziamento',commercialista:'Commercialista',
+          cciaa:'CCIAA',assicurazione:'Assicurazione',manutenzione:'Manutenzione',
+          det1:'Detergente 1',det2:'Detergente 2',det3:'Detergente 3'};
+        if(v <= 0) return '';
+        return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+          <span style="color:#94a3b8">${labels[k]||k}</span>
+          <span>€${v.toLocaleString('it')}</span></div>`;
+      }).join('');
+      document.getElementById('costi-dettaglio').innerHTML = dhtml;
       document.getElementById('f_incasso').value = d.incasso_mese;
       document.getElementById('f_costi').value = d.costi_mese;
       // Dettaglio
