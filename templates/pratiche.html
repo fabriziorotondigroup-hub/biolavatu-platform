@@ -77,7 +77,18 @@
           </td>
           <td class="text-muted" style="font-size:12px">{{ p.created.strftime('%d/%m/%y') }}</td>
           <td>
-            <a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="btn btn-sm btn-outline-secondary">Apri</a>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('pratiche.dettaglio', id=p.id) }}" class="btn btn-sm btn-outline-secondary">Apri</a>
+              <a href="{{ url_for('pratiche.genera_pdf', id=p.id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="PDF">
+                <i class="bi bi-file-pdf"></i>
+              </a>
+              <form method="POST" action="{{ url_for('pratiche.elimina', id=p.id) }}"
+                onsubmit="return confirm('Eliminare {{ p.numero }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}
