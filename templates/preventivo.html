@@ -61,9 +61,11 @@ body { background: var(--bg); color: var(--text); }
   <div class="step active" onclick="goStep(1)"><span class="step-num">1</span>Cliente</div>
   <div class="step" onclick="goStep(2)"><span class="step-num">2</span>Sede</div>
   <div class="step" onclick="goStep(3)"><span class="step-num">3</span>Zona</div>
+  <div class="step" id="step-3b" style="display:none" onclick="goStep('3b')"><span class="step-num">3B</span>Sopralluogo</div>
   <div class="step" onclick="goStep(4)"><span class="step-num">4</span>Macchine</div>
   <div class="step" onclick="goStep(5)"><span class="step-num">5</span>Business Plan</div>
   <div class="step" onclick="goStep(6)"><span class="step-num">6</span>Riepilogo</div>
+  <div id="modalita-nav-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(37,99,235,0.2);color:#3b82f6;white-space:nowrap;align-self:center">🚀 Rapida</div>
 </div>
 
 <form id="preventivo-form" method="POST" action="{{ url_for('preventivo.salva') }}" enctype="multipart/form-data" style="min-height:400px;width:100%">
@@ -111,6 +113,41 @@ body { background: var(--bg); color: var(--text); }
       </div>
     </div>
   </div>
+
+  <!-- ── SCELTA MODALITÀ A/B ─────────────────────────────────────────────── -->
+  <div class="card mb-3" style="border-color:#2563eb">
+    <div class="card-header" style="border-color:#2563eb">
+      <i class="bi bi-sliders me-2" style="color:#3b82f6"></i>
+      Tipo di analisi
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div id="btn-rapida" onclick="setModalita('rapida')"
+            style="cursor:pointer;border:2px solid #2563eb;border-radius:12px;padding:20px;background:rgba(37,99,235,0.15);transition:all .2s">
+            <div style="font-size:22px;margin-bottom:8px">🚀</div>
+            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#e2e8f0">Analisi Rapida</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px">Screening veloce · 10 minuti<br>Tutto automatico da Google Maps<br>Precisione ±35%</div>
+            <div style="margin-top:10px;font-size:11px;color:#3b82f6">✓ Cliente nuovo o lead freddo<br>✓ Prima valutazione di fattibilità<br>✓ Screening di più zone in poco tempo</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div id="btn-investitore" onclick="setModalita('investitore')"
+            style="cursor:pointer;border:2px solid #1e2d45;border-radius:12px;padding:20px;background:rgba(30,45,69,0.5);transition:all .2s">
+            <div style="font-size:22px;margin-bottom:8px">💼</div>
+            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#e2e8f0">Analisi Investitore</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:4px">Due diligence completa · 30-45 min<br>Sopralluogo fisico + dati verificati<br>Precisione ±15%</div>
+            <div style="margin-top:10px;font-size:11px;color:#94a3b8">✓ Cliente serio con budget definito<br>✓ Investimento > €50.000<br>✓ Confronto elettrico vs gas</div>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" name="modalita_analisi" id="f_modalita" value="rapida">
+      <div id="modalita-badge" style="margin-top:12px;font-size:12px;color:#3b82f6;font-weight:600">
+        ✅ Modalità: <span id="modalita-label">Analisi Rapida</span>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex justify-content-end">
     <button type="button" class="btn btn-primary" onclick="goStep(2)">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
   </div>
@@ -562,7 +599,165 @@ body { background: var(--bg); color: var(--text); }
 
   <div class="d-flex justify-content-between mt-2">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="button" class="btn btn-primary" onclick="goStep(4)">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+    <button type="button" class="btn btn-primary" onclick="goStep3Next()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+  </div>
+</div>
+
+<!-- ═══ STEP 3B: SOPRALLUOGO (solo Modalità Investitore) ═══ -->
+<div class="wizard-panel" id="panel-3b">
+  <div class="alert mb-3" style="background:rgba(37,99,235,0.1);border:1px solid #2563eb;border-radius:10px">
+    <i class="bi bi-clipboard-check me-2" style="color:#3b82f6"></i>
+    <strong style="color:#3b82f6">Sopralluogo fisico</strong>
+    <span style="color:#94a3b8;font-size:12px;margin-left:8px">Compila sul posto — questi dati migliorano la precisione del business plan dal ±35% al ±15%</span>
+  </div>
+
+  <div class="row g-3">
+    <!-- Traffico pedonale contato -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-people me-2 text-muted"></i>Traffico pedonale reale</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Persone/ora davanti al locale (ore di punta)</label>
+            <input type="number" name="traffico_ore_punta" class="form-control" placeholder="es. 120" min="0">
+            <div style="font-size:11px;color:#64748b;margin-top:4px">Conta per 5 minuti e moltiplica × 12</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Fascia oraria del conteggio</label>
+            <select name="traffico_fascia" class="form-select">
+              <option value="mattina">Mattina 8-12</option>
+              <option value="pranzo" selected>Ora di punta 12-14</option>
+              <option value="pomeriggio">Pomeriggio 14-18</option>
+              <option value="sera">Sera 18-21</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tipo di passanti prevalente</label>
+            <select name="tipo_passanti" class="form-select">
+              <option value="residenti">Residenti del quartiere</option>
+              <option value="lavoratori">Lavoratori/pendolari</option>
+              <option value="studenti">Studenti</option>
+              <option value="turisti">Turisti</option>
+              <option value="misto">Misto</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Caratteristiche locale -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-building me-2 text-muted"></i>Caratteristiche locale</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Visibilità dalla strada</label>
+            <select name="sopral_visibilita" class="form-select bp-input" id="sopral_vis"
+              onchange="document.querySelector('[name=accessib_visibilita]').value=this.value">
+              <option value="0.2">Nascosto / sottoportico</option>
+              <option value="0.5" selected>Buona visibilità</option>
+              <option value="0.8">Vetrina su via principale</option>
+              <option value="1.0">Angolo stradale — massima visibilità</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Parcheggio disponibile</label>
+            <select name="sopral_parcheggio" class="form-select bp-input"
+              onchange="document.querySelector('[name=accessib_parcheggio]').value=this.value">
+              <option value="0.0">Nessuno / ZTL</option>
+              <option value="0.3">Strada con divieto frequente</option>
+              <option value="0.6" selected>Parcheggio su strada</option>
+              <option value="1.0">Parcheggio privato / ampio</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Piano del locale</label>
+            <select name="sopral_piano" class="form-select bp-input"
+              onchange="document.querySelector('[name=accessib_piano]').value=this.value">
+              <option value="1.0" selected>Piano strada ✅</option>
+              <option value="0.3">Seminterrato o piano superiore ⚠️</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Disponibilità gas metano nel locale</label>
+            <select name="gas_disponibile" class="form-select" id="gas_disponibile">
+              <option value="no" selected>No — solo elettrico</option>
+              <option value="si">Sì — attacco gas disponibile</option>
+              <option value="predisposizione">Predisposizione (richiede lavori)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Concorrenza verificata sul posto -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-search me-2 text-muted"></i>Concorrenza verificata (sopralluogo)</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Lavanderie self-service visitate entro 1km</label>
+            <input type="number" name="conc_selfservice_verificate" class="form-control" min="0" value="0">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Prezzo medio lavaggio standard dei concorrenti (€)</label>
+            <input type="number" step="0.5" name="prezzo_concorrenti" class="form-control" placeholder="es. 4.50">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Stato generale dei concorrenti</label>
+            <select name="stato_concorrenti" class="form-select">
+              <option value="ottimo">Ottimo — ben tenuti, sempre pieni</option>
+              <option value="buono" selected>Buono — attivi e funzionanti</option>
+              <option value="mediocre">Mediocre — macchine vecchie, sporco</option>
+              <option value="pessimo">Pessimo — quasi abbandonati</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note sopralluogo -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-pencil me-2 text-muted"></i>Note sopralluogo</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Osservazioni libere (da compilare sul posto)</label>
+            <textarea name="note_sopralluogo" class="form-control" rows="5"
+              placeholder="Es: zona molto trafficata il sabato mattina, vicino mercato settimanale...&#10;Locale ex-negozio, buone condizioni...&#10;Concorrente principale sembra poco curato..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Valutazione complessiva sopralluogo</label>
+            <select name="valutazione_sopralluogo" class="form-select">
+              <option value="ottima">⭐⭐⭐ Ottima — aprire subito</option>
+              <option value="buona" selected>⭐⭐ Buona — vale la pena approfondire</option>
+              <option value="incerta">⭐ Incerta — serve altro studio</option>
+              <option value="negativa">❌ Negativa — sconsiglio</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confronto elettrico vs gas (solo se gas disponibile) -->
+  <div id="blocco-gas-confronto" style="display:none" class="mt-3">
+    <div class="card" style="border-color:#f59e0b">
+      <div class="card-header" style="border-color:#f59e0b">
+        <i class="bi bi-lightning-charge me-2" style="color:#f59e0b"></i>Confronto Elettrico vs Gas
+        <span style="font-size:11px;color:#94a3b8;margin-left:8px">Calcolato automaticamente per le asciugatrici</span>
+      </div>
+      <div class="card-body">
+        <div id="confronto-gas-output" style="font-size:13px;color:#94a3b8">
+          Seleziona le macchine nello step successivo per vedere il confronto.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mt-3">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+    <button type="button" class="btn btn-primary" onclick="goStep(4)">Avanti — Scegli Macchine <i class="bi bi-arrow-right ms-1"></i></button>
   </div>
 </div>
 
@@ -835,6 +1030,40 @@ body { background: var(--bg); color: var(--text); }
     </div>
   </div>
 
+  <!-- Confronto elettrico vs gas — solo modalità Investitore -->
+  <div id="blocco-confronto-bp" style="display:none" class="mt-3">
+    <div class="card" style="border-color:#f59e0b">
+      <div class="card-header" style="border-color:#f59e0b">
+        <i class="bi bi-lightning-charge me-2" style="color:#f59e0b"></i>
+        Confronto Elettrico vs Gas — Asciugatrici
+      </div>
+      <div class="card-body">
+        <div id="confronto-gas-bp" style="font-size:13px">
+          <div class="row g-3" id="confronto-tabella">
+            <div class="col-md-6">
+              <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:16px">
+                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">⚡ Solo Elettrico</div>
+                <div id="cmp_el_incasso" style="font-size:13px;color:#e2e8f0">—</div>
+                <div id="cmp_el_costi" style="font-size:13px;color:#e2e8f0;margin-top:4px">—</div>
+                <div id="cmp_el_utile" style="font-size:15px;font-weight:700;margin-top:8px">—</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div style="background:#0f172a;border:1px solid #f59e0b33;border-radius:10px;padding:16px">
+                <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;margin-bottom:8px">🔥 Con Gas (asciugatrici)</div>
+                <div id="cmp_gas_incasso" style="font-size:13px;color:#e2e8f0">—</div>
+                <div id="cmp_gas_costi" style="font-size:13px;color:#e2e8f0;margin-top:4px">—</div>
+                <div id="cmp_gas_utile" style="font-size:15px;font-weight:700;margin-top:8px">—</div>
+                <div id="cmp_gas_breakeven" style="font-size:11px;color:#f59e0b;margin-top:6px">—</div>
+              </div>
+            </div>
+          </div>
+          <div id="confronto-raccomandazione" style="margin-top:12px;padding:10px;border-radius:8px;font-size:12px;background:rgba(37,99,235,0.1);color:#94a3b8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex justify-content-between mt-3">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
     <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
@@ -904,13 +1133,68 @@ let selectedMacchine = {};
 let map = null;
 let mapEsplora = null;
 
+// ── MODALITÀ A/B ─────────────────────────────────
+let modalita = 'rapida'; // default
+
+function setModalita(m) {
+  modalita = m;
+  document.getElementById('f_modalita').value = m;
+
+  const btnR = document.getElementById('btn-rapida');
+  const btnI = document.getElementById('btn-investitore');
+  const badge = document.getElementById('modalita-nav-badge');
+  const label = document.getElementById('modalita-label');
+  const step3b = document.getElementById('step-3b');
+
+  if(m === 'rapida') {
+    btnR.style.borderColor = '#2563eb';
+    btnR.style.background = 'rgba(37,99,235,0.15)';
+    btnI.style.borderColor = '#1e2d45';
+    btnI.style.background = 'rgba(30,45,69,0.5)';
+    badge.textContent = '🚀 Rapida';
+    badge.style.background = 'rgba(37,99,235,0.2)';
+    badge.style.color = '#3b82f6';
+    label.textContent = 'Analisi Rapida';
+    step3b.style.display = 'none';
+  } else {
+    btnI.style.borderColor = '#f59e0b';
+    btnI.style.background = 'rgba(245,158,11,0.15)';
+    btnR.style.borderColor = '#1e2d45';
+    btnR.style.background = 'rgba(30,45,69,0.5)';
+    badge.textContent = '💼 Investitore';
+    badge.style.background = 'rgba(245,158,11,0.2)';
+    badge.style.color = '#f59e0b';
+    label.textContent = 'Analisi Investitore';
+    step3b.style.display = '';
+  }
+}
+
+// Da Zona → prossimo step dipende dalla modalità
+function goStep3Next() {
+  if(modalita === 'investitore') {
+    goStep('3b');
+  } else {
+    goStep(4);
+  }
+}
+
 // ── WIZARD STEPS ────────────────────────────────
 function goStep(n) {
-  document.querySelectorAll('.wizard-panel').forEach((p,i) => p.classList.toggle('active', i+1 === n));
+  // Gestione panel-3b (step sopralluogo investitore)
+  document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+  if(n === '3b') {
+    document.getElementById('panel-3b').classList.add('active');
+    window.scrollTo(0, 0);
+    return;
+  }
+  const panel = document.getElementById('panel-' + n);
+  if(panel) panel.classList.add('active');
+
   document.querySelectorAll('.step').forEach((s,i) => {
     s.classList.remove('active','done');
-    if(i+1 === n) s.classList.add('active');
-    else if(i+1 < n) s.classList.add('done');
+    const stepN = parseInt(s.querySelector('.step-num').textContent);
+    if(stepN === n) s.classList.add('active');
+    else if(stepN < n) s.classList.add('done');
   });
   if(n === 3) {
     setTimeout(() => {
@@ -1593,6 +1877,12 @@ function calcolaBP() {
           <span>€${v.toLocaleString('it')}</span></div>`;
       }).join('');
       document.getElementById('costi-dettaglio').innerHTML = dhtml;
+
+      // Confronto elettrico vs gas — solo modalità Investitore
+      if(modalita === 'investitore') {
+        document.getElementById('blocco-confronto-bp').style.display = '';
+        calcolaConfrontoGas(d);
+      }
     });
 }
 
@@ -1662,6 +1952,61 @@ function aggiornaRiepilogo() {
     </div></div>`;
 
   document.getElementById('riepilogo-finale').innerHTML = macchineHtml + kpiHtml;
+}
+
+// ── CONFRONTO ELETTRICO vs GAS ───────────────────────────────────────────────
+function calcolaConfrontoGas(dEL) {
+  // dEL = risultato corrente (tutto elettrico)
+  // Simula scenario gas: asciugatrici a gas consumano ~40% meno energia
+  // ma hanno costo macchina +€800-1200 ciascuna
+  const items = Object.values(selectedMacchine);
+  const nAsc = items.filter(m =>
+    m.combustibile === 'elettrico' &&
+    ('asciug' in m.nome.toLowerCase() || 'asciug' in (m.categoria||'').toLowerCase())
+  ).length;
+
+  // Risparmio gas: asciugatrice elettrica 5.5kW → gas 0.5kW equivalente
+  // Risparmio per ciclo: (5.5-0.5) kW × 1.2h × €kwh
+  const kwh = parseFloat(document.querySelector('[name=kwh_cost]').value) || 0.28;
+  const gasMc = parseFloat(document.querySelector('[name=gas_mc_cost]').value) || 1.20;
+  const cicliAsc = dEL.cicli_giorno * 0.65 * (nAsc || 1);
+  const risparmioEnergiaGiorno = nAsc * (5.5 - 0.5) * 1.2 * kwh - nAsc * 0.003 * gasMc; // m³ gas per ciclo
+  const risparmioMese = risparmioEnergiaGiorno * 26;
+
+  const costiGas = dEL.costi_mese - risparmioMese;
+  const utileGas = dEL.incasso_mese - costiGas;
+  const investExtra = nAsc * 1000; // €1000 in più per asciugatrice a gas
+  const breakeven = risparmioMese > 0 ? Math.round(investExtra / risparmioMese) : 0;
+
+  // Aggiorna UI
+  document.getElementById('cmp_el_incasso').textContent = 'Incasso: €' + Math.round(dEL.incasso_mese).toLocaleString('it');
+  document.getElementById('cmp_el_costi').textContent = 'Costi: €' + Math.round(dEL.costi_mese).toLocaleString('it');
+  const uelEl = document.getElementById('cmp_el_utile');
+  uelEl.textContent = 'Utile: €' + Math.round(dEL.utile_mese).toLocaleString('it') + '/mese';
+  uelEl.style.color = dEL.utile_mese >= 0 ? '#10b981' : '#ef4444';
+
+  document.getElementById('cmp_gas_incasso').textContent = 'Incasso: €' + Math.round(dEL.incasso_mese).toLocaleString('it') + ' (invariato)';
+  document.getElementById('cmp_gas_costi').textContent = 'Costi: €' + Math.round(costiGas).toLocaleString('it') + ' (risparmio €' + Math.round(risparmioMese).toLocaleString('it') + '/mese)';
+  const uelGas = document.getElementById('cmp_gas_utile');
+  uelGas.textContent = 'Utile: €' + Math.round(utileGas).toLocaleString('it') + '/mese';
+  uelGas.style.color = utileGas >= 0 ? '#10b981' : '#ef4444';
+
+  if(breakeven > 0) {
+    document.getElementById('cmp_gas_breakeven').textContent =
+      `Investimento extra: €${investExtra.toLocaleString('it')} — recuperato in ${breakeven} mesi`;
+  }
+
+  const racc = document.getElementById('confronto-raccomandazione');
+  if(risparmioMese > 50 && breakeven < 36) {
+    racc.textContent = `✅ Raccomandato il gas: risparmio di €${Math.round(risparmioMese)}/mese, investimento extra recuperato in ${breakeven} mesi.`;
+    racc.style.color = '#10b981';
+  } else if(risparmioMese > 0 && breakeven < 60) {
+    racc.textContent = `⚠️ Gas conveniente ma con pazienza: breakeven in ${breakeven} mesi. Valuta disponibilità gas nel locale.`;
+    racc.style.color = '#f59e0b';
+  } else {
+    racc.textContent = `❌ Gas non conveniente in questo scenario: risparmio mensile troppo basso (€${Math.round(risparmioMese)}) rispetto all'investimento extra.`;
+    racc.style.color = '#ef4444';
+  }
 }
 </script>
 {% endblock %}
