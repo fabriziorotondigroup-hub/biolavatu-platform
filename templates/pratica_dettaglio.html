@@ -208,9 +208,9 @@
         <a href="{{ url_for('preventivo.modifica', id=pratica.id) }}" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-pencil me-1"></i> Modifica preventivo
         </a>
-        <button class="btn btn-outline-secondary btn-sm" disabled>
+        <a href="{{ url_for('pratiche.genera_pdf', id=pratica.id) }}" target="_blank" class="btn btn-primary btn-sm">
           <i class="bi bi-file-pdf me-1"></i> Genera PDF
-        </button>
+        </a>
         <form method="POST" action="{{ url_for('pratiche.elimina', id=pratica.id) }}"
           onsubmit="return confirm('Eliminare questa pratica?')">
           <button type="submit" class="btn btn-outline-danger btn-sm w-100">
