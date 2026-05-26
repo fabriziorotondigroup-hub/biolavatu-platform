@@ -1593,15 +1593,6 @@ function calcolaBP() {
           <span>€${v.toLocaleString('it')}</span></div>`;
       }).join('');
       document.getElementById('costi-dettaglio').innerHTML = dhtml;
-      document.getElementById('f_incasso').value = d.incasso_mese;
-      document.getElementById('f_costi').value = d.costi_mese;
-      // Dettaglio
-      const det = d.dettaglio;
-      let dhtml = '';
-      Object.entries(det).forEach(([k,v]) => {
-        if(v > 0) dhtml += `<div class="d-flex justify-content-between text-muted"><span>${k}</span><span>€${v.toLocaleString('it')}</span></div>`;
-      });
-      document.getElementById('costi-dettaglio').innerHTML = dhtml;
     });
 }
 
