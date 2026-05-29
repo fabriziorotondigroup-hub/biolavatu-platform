@@ -45,7 +45,15 @@
               {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted" style="font-size:11px">Disattiva</span>{% endif %}
             </td>
             <td>
-              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalMod{{ m.id }}">✏️</button>
+              <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalMod{{ m.id }}">✏️</button>
+                <form method="POST" action="{{ url_for('admin.elimina_macchina', id=m.id) }}"
+                  onsubmit="return confirm('Eliminare {{ m.nome }}?')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
             </td>
           </tr>
           <!-- Modal modifica -->
