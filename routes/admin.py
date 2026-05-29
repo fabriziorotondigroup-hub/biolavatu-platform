@@ -157,6 +157,20 @@ def toggle_venditore(id):
     return jsonify({'attivo': u.attivo})
 
 
+@admin_bp.route('/admin/venditori/<int:id>/elimina', methods=['POST'])
+@login_required
+@admin_required
+def elimina_venditore(id):
+    u = User.query.get_or_404(id)
+    if u.is_admin:
+        flash('Non puoi eliminare un amministratore.', 'error')
+        return redirect(url_for('admin.index'))
+    db.session.delete(u)
+    db.session.commit()
+    flash(f'Venditore {u.nome} eliminato.', 'success')
+    return redirect(url_for('admin.index'))
+
+
 @admin_bp.route('/admin/venditori/<int:id>/reset-password', methods=['POST'])
 @login_required
 @admin_required
