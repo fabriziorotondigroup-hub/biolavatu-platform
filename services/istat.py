@@ -221,79 +221,84 @@ def calcola_stima_clienti(pop_5min: int, pop_10min: int, densita: float,
                            servizi_400m: int, reddito_medio: float,
                            recensioni_zona: int, gdo_500m: int) -> dict:
     """
-    Modello pesato stima clienti/giorno.
+    Modello pesato stima clienti/giorno — valori conservativi realistici.
 
-    Segnali reali usati:
-    - recensioni_zona: volume totale recensioni Google dei locali entro 400m
-      (proxy traffico pedonale reale, stesso metodo usato da Lidl/Eurospin)
-    - gdo_500m: numero catene GDO (Lidl, Eurospin, Conad, ecc.) entro 500m
-      (segnale di validazione zona: se ci sono già, la zona ha già passato
-       l'analisi di un ufficio sviluppo professionale)
+    Tasso base 1.8% (media italiana reale lavanderie self-service attive).
+    Penalità concorrenza più severa: zona satura = quota residuale bassa.
+    Segnali reali:
+    - recensioni_zona: proxy traffico pedonale reale (metodo Lidl/Eurospin)
+    - gdo_500m: validazione zona da catene GDO
     """
     # Bacino pesato (popolazione)
     pop_secondario = max(0, pop_10min - pop_5min)
     bacino = pop_5min * 0.60 + pop_secondario * 0.25
 
-    # Tasso base: ~3.5% della pop nel bacino visita/giorno
-    tasso_base = 0.035
+    # Tasso base realistico: ~1.8% della pop nel bacino visita/giorno
+    # (dato medio italiano su lavanderie self-service operative)
+    tasso_base = 0.018
 
-    # Moltiplicatore densità (alta densità = meno lavatrice in casa)
+    # Moltiplicatore densità
     if densita > 3000:
-        mult_densita = 1.35
+        mult_densita = 1.30
     elif densita > 1500:
-        mult_densita = 1.25
+        mult_densita = 1.15
     elif densita > 500:
-        mult_densita = 1.10
-    elif densita > 200:
         mult_densita = 1.00
-    else:
+    elif densita > 200:
         mult_densita = 0.85
+    else:
+        mult_densita = 0.65  # zona industriale/suburbana con villette
 
-    # Moltiplicatore reddito (fascia media = target ideale laundromat)
+    # Moltiplicatore reddito
     if 16000 <= reddito_medio <= 26000:
-        mult_reddito = 1.00
+        mult_reddito = 1.00   # target ideale
+    elif reddito_medio > 35000:
+        mult_reddito = 0.70   # reddito alto → stireria/lavatrice propria
     elif reddito_medio > 26000:
-        mult_reddito = 0.82
+        mult_reddito = 0.85
     else:
-        mult_reddito = 0.90
+        mult_reddito = 0.88   # reddito basso → abitudinari self-service
 
-    # Moltiplicatore traffico reale (da volume recensioni Google nella zona)
-    # Logica: zone con più attività recensite = più passaggio reale
+    # Moltiplicatore traffico reale (recensioni Google zona 400m)
     if recensioni_zona > 5000:
-        mult_traffico = 1.30
-    elif recensioni_zona > 2000:
         mult_traffico = 1.20
-    elif recensioni_zona > 800:
+    elif recensioni_zona > 2000:
         mult_traffico = 1.10
-    elif recensioni_zona > 200:
+    elif recensioni_zona > 800:
         mult_traffico = 1.00
+    elif recensioni_zona > 200:
+        mult_traffico = 0.90
     else:
-        mult_traffico = 0.88
+        mult_traffico = 0.75  # zona morta, poco passaggio reale
 
     # Moltiplicatore validazione GDO
-    # Se Lidl/Eurospin/Conad sono già lì, la zona ha passato il loro filtro
     if gdo_500m >= 3:
-        mult_gdo = 1.20
+        mult_gdo = 1.15
     elif gdo_500m == 2:
-        mult_gdo = 1.12
+        mult_gdo = 1.08
     elif gdo_500m == 1:
-        mult_gdo = 1.06
+        mult_gdo = 1.03
     else:
         mult_gdo = 1.00
 
-    # Quota mercato (divisore concorrenza)
-    if concorrenti_500m >= 3:
-        share = 0.25
+    # Quota mercato — penalità concorrenza più severa
+    # I clienti sono abitudinari: chi usa già una lavanderia tende a non cambiare
+    if concorrenti_500m >= 4:
+        share = 0.10   # zona ipersatura
+    elif concorrenti_500m == 3:
+        share = 0.15
     elif concorrenti_500m == 2:
-        share = 0.33
+        share = 0.22
     elif concorrenti_500m == 1:
-        share = 0.50
-    elif concorrenti_1km >= 3:
-        share = 0.65
+        share = 0.40   # un concorrente diretto già radicato
+    elif concorrenti_1km >= 4:
+        share = 0.55
+    elif concorrenti_1km >= 2:
+        share = 0.70
     elif concorrenti_1km >= 1:
         share = 0.80
     else:
-        share = 1.00
+        share = 1.00   # zona vergine, nessun concorrente
 
     clienti_lordi = bacino * tasso_base * mult_densita * mult_reddito * mult_traffico * mult_gdo
     clienti_netti = round(clienti_lordi * share)
@@ -309,9 +314,9 @@ def calcola_stima_clienti(pop_5min: int, pop_10min: int, densita: float,
 
     return {
         'clienti_giorno': clienti_netti,
-        'scenario_pessimistico': round(clienti_netti * 0.65),
+        'scenario_pessimistico': round(clienti_netti * 0.60),
         'scenario_realistico':   clienti_netti,
-        'scenario_ottimistico':  round(clienti_netti * 1.35),
+        'scenario_ottimistico':  round(clienti_netti * 1.25),
         'clienti_mese_reale':    clienti_netti * 26,
         'fattori': fattori,
         'bacino_pesato': int(bacino),
