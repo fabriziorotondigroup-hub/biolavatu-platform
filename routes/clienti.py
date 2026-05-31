@@ -71,25 +71,22 @@ def modifica(id):
     return render_template('cliente_form.html', cliente=c)
 
 
-@clienti_bp.route('/clienti/<int:id>/elimina', methods=['POST'])
-@login_required
-def elimina(id):
-    c = Cliente.query.get_or_404(id)
-    if c.pratiche:
-        flash(f'Impossibile eliminare: il cliente ha {len(c.pratiche)} pratica/e associate.', 'error')
-        return redirect(url_for('clienti.index'))
-    db.session.delete(c)
-    db.session.commit()
-    flash('Cliente eliminato.', 'success')
-    return redirect(url_for('clienti.index'))
-
-
 @clienti_bp.route('/api/clienti/cerca')
 @login_required
 def cerca():
-    q = request.args.get('q', '')
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
     clienti = Cliente.query.filter(
         Cliente.nome.ilike(f'%{q}%') |
-        Cliente.azienda.ilike(f'%{q}%')
+        Cliente.azienda.ilike(f'%{q}%') |
+        Cliente.email.ilike(f'%{q}%')
     ).limit(10).all()
-    return jsonify([c.to_dict() for c in clienti])
+    return jsonify([{
+        'id':       c.id,
+        'nome':     c.nome or '',
+        'cognome':  getattr(c, 'cognome', '') or '',
+        'azienda':  getattr(c, 'azienda', '') or '',
+        'email':    getattr(c, 'email', '') or '',
+        'telefono': getattr(c, 'telefono', '') or '',
+    } for c in clienti])
