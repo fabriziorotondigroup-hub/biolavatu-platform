@@ -364,9 +364,9 @@ def dati_demografici():
 @geo_bp.route('/api/esplora-zona')
 @login_required
 def esplora_zona():
-    lat      = float(request.args.get('lat', 0))
-    lng      = float(request.args.get('lng', 0))
-    citta    = request.args.get('citta', '')
+    lat       = float(request.args.get('lat', 0))
+    lng       = float(request.args.get('lng', 0))
+    citta     = request.args.get('citta', '')
     provincia = request.args.get('provincia', '')
     if not lat or not lng:
         return jsonify({'error': 'Coordinate mancanti'}), 400
@@ -376,29 +376,78 @@ def esplora_zona():
     reddito_medio = demo.get('reddito_medio', 19800)
     densita       = demo.get('densita', 200)
 
-    step = 0.006
+    # Griglia 3×3 centrata sull'indirizzo — passo ~700m
+    # 9 zone invece di 25: più veloce, meno chiamate API, risultati più leggibili
+    step = 0.008   # ~700m per grado a latitudini italiane
     zone = []
-    for di in range(-2, 3):
-        for dj in range(-2, 3):
+    for di in range(-1, 2):
+        for dj in range(-1, 2):
             zlat = lat + di * step
             zlng = lng + dj * step
 
-            conc_raw  = gmaps_nearby(zlat, zlng, 800, 'laundry')
-            n_conc    = len(conc_raw)
-            store_raw = gmaps_nearby(zlat, zlng, 400, 'store')
-            rec_zona  = sum(p.get('user_ratings_total', 0) or 0 for p in store_raw)
-            gdo_z     = sum(1 for p in store_raw if is_gdo(p.get('name', '')))
+            # Concorrenti: 3 keyword separate per classificare i tipi
+            raw_self    = gmaps_nearby(zlat, zlng, 800, 'laundry',
+                                       keyword='self service automatica gettoni')
+            raw_trad    = gmaps_nearby(zlat, zlng, 800, 'laundry',
+                                       keyword='tintoria lavasecco stireria')
+            # Deduplicazione per place_id
+            visti = set()
+            n_self = 0; n_trad = 0
+            for p in raw_self:
+                pid = p.get('place_id', p.get('name',''))
+                if pid not in visti:
+                    visti.add(pid); n_self += 1
+            for p in raw_trad:
+                pid = p.get('place_id', p.get('name',''))
+                if pid not in visti:
+                    visti.add(pid); n_trad += 1
+            n_conc = n_self + n_trad   # totale competitor (escluse industriali)
+
+            # Traffico reale: usa bar, ristoranti, negozi (più affidabile di 'store')
+            raw_bar  = gmaps_nearby(zlat, zlng, 400, 'cafe')
+            raw_rest = gmaps_nearby(zlat, zlng, 400, 'restaurant')
+            raw_sup  = gmaps_nearby(zlat, zlng, 400, 'supermarket')
+            rec_zona = sum(p.get('user_ratings_total', 0) or 0
+                           for p in raw_bar + raw_rest + raw_sup)
+            gdo_z    = sum(1 for p in raw_sup if is_gdo(p.get('name', '')))
+
+            # Stima popolazione nel raggio 5min (~400m)
+            r5 = walking_radius(5)
+            area_5min = math.pi * (r5 ** 2) / 1_000_000
+            pop_stimata = int(densita * area_5min)
 
             a = get_market_assessment(eta_media, reddito_medio, densita,
                                       n_conc, rec_zona, gdo_z)
+
+            # Stima clienti/giorno per questa zona specifica
+            from services.istat import calcola_stima_clienti
+            stima = calcola_stima_clienti(
+                pop_5min=pop_stimata,
+                pop_10min=int(densita * math.pi * (walking_radius(10)**2) / 1_000_000),
+                densita=densita,
+                concorrenti_500m=n_conc,
+                concorrenti_1km=n_conc,
+                servizi_400m=len(raw_bar)+len(raw_rest)+len(raw_sup),
+                reddito_medio=reddito_medio,
+                recensioni_zona=rec_zona,
+                gdo_500m=gdo_z,
+            )
+
             zone.append({
-                'lat': zlat, 'lng': zlng,
-                'score':       a['score'],
-                'label':       a['label'],
-                'colore':      a['colore'],
-                'concorrenti': n_conc,
-                'recensioni':  rec_zona,
-                'gdo':         gdo_z,
+                'lat':          zlat,
+                'lng':          zlng,
+                'score':        a['score'],
+                'label':        a['label'],
+                'colore':       a['colore'],
+                'concorrenti':  n_conc,
+                'self_service': n_self,
+                'tradizionali': n_trad,
+                'recensioni':   rec_zona,
+                'gdo':          gdo_z,
+                'pop_5min':     pop_stimata,
+                'clienti_giorno': stima.get('scenario_realistico', 0),
+                'clienti_pess':   stima.get('scenario_pessimistico', 0),
+                'clienti_ott':    stima.get('scenario_ottimistico', 0),
             })
 
     zone.sort(key=lambda z: z['score'], reverse=True)
@@ -407,10 +456,10 @@ def esplora_zona():
         'centro_lat': lat,
         'centro_lng': lng,
         'demo': {
-            'eta_media': eta_media,
+            'eta_media':     eta_media,
             'reddito_medio': reddito_medio,
-            'densita': int(densita),
-            'note': '',
-            'fonte': 'ISTAT Censimento 2021',
+            'densita':       int(densita),
+            'note':          '',
+            'fonte':         'ISTAT Censimento 2021',
         }
     })
