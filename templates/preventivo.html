@@ -259,9 +259,16 @@ body { background: var(--bg); color: var(--text); }
             <i class="bi bi-search me-1"></i> Analizza
           </button>
         </div>
-        <div id="esplora-loading" style="display:none;font-size:13px;color:#64748b">
-          <div class="spinner-border spinner-border-sm me-2" style="color:#a78bfa"></div>
-          Analisi in corso... (15-30 sec)
+        <div id="esplora-loading" style="display:none">
+          <div style="display:flex;align-items:center;gap:12px;padding:14px;background:#111827;border:1px solid #1e2d45;border-radius:10px;margin-top:8px">
+            <div class="spinner-border spinner-border-sm" style="color:#a78bfa"></div>
+            <div>
+              <div style="color:#e2e8f0;font-weight:600;font-size:13px">Analisi zona in corso...</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">
+                Analizzo 9 aree · cerco lavanderie · verifico traffico reale · calcolo clienti stimati (20-40 sec)
+              </div>
+            </div>
+          </div>
         </div>
         <!-- Mappa esplora -->
         <div id="map-esplora" style="height:420px;border-radius:10px;border:1px solid #1e2d45;display:none"></div>
@@ -1269,21 +1276,27 @@ function esploraZona() {
         const col = getColor(z.score);
         // Cerchio zona
         L.circle([z.lat, z.lng], {
-          radius: 550,
+          radius: 650,
           color: col,
           weight: i === 0 ? 3 : 1.5,
           fillColor: col,
           fillOpacity: getOpacity(z.score),
         }).addTo(mapEsplora).bindPopup(`
-          <div style="min-width:180px">
-            <div style="font-weight:700;font-size:14px;color:${col}">${z.label} — ${z.score}/100</div>
-            <div style="font-size:12px;margin-top:4px">
-              🔴 Lavanderie: ${z.concorrenti}<br>
-              🟢 GDO vicine: ${z.gdo}<br>
-              📊 Recensioni zona: ${z.recensioni}
+          <div style="min-width:200px">
+            <div style="font-weight:700;font-size:14px;color:${col};margin-bottom:6px">${i===0?'⭐ ':''} ${z.label} — ${z.score}/100</div>
+            <div style="font-size:12px;line-height:1.8">
+              👥 Pop. 5 min: <b>${(z.pop_5min||0).toLocaleString('it')}</b> ab.<br>
+              🪙 Lavanderie self-service: <b>${z.self_service||0}</b><br>
+              👔 Tintorie/lavasecco: <b>${z.tradizionali||0}</b><br>
+              🛒 GDO vicine: <b>${z.gdo}</b><br>
+              📊 Traffico (rec.): <b>${(z.recensioni||0).toLocaleString('it')}</b>
             </div>
-            <button onclick="usaZona(${z.lat},${z.lng},this.dataset.c)" data-c="${citta}" 
-              style="margin-top:8px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;padding:6px;cursor:pointer;font-size:12px">
+            <div style="margin-top:8px;padding:6px;background:#0f172a;border-radius:6px;font-size:12px">
+              📈 Stima clienti: <b style="color:#10b981">${z.clienti_giorno||0}/giorno</b>
+              <span style="color:#64748b"> (pess. ${z.clienti_pess||0} / ott. ${z.clienti_ott||0})</span>
+            </div>
+            <button onclick="usaZona(${z.lat},${z.lng},this.dataset.c)" data-c="${citta}"
+              style="margin-top:8px;width:100%;background:#2563eb;color:white;border:none;border-radius:6px;padding:7px;cursor:pointer;font-size:12px;font-weight:600">
               📍 Usa questa zona
             </button>
           </div>`);
@@ -1330,18 +1343,29 @@ function esploraZona() {
 
       // Zone cards
       const grid = document.getElementById('esplora-zone-grid');
-      grid.innerHTML = d.zone.map((z, i) => {
+      grid.innerHTML = d.zone.slice(0, 9).map((z, i) => {
         const col = getColor(z.score);
+        const clientiColor = z.clienti_giorno >= 30 ? '#10b981' : z.clienti_giorno >= 15 ? '#f59e0b' : '#ef4444';
         return `<div class="col-md-4">
           <div class="p-3 rounded" style="background:#111827;border:2px solid ${col};cursor:pointer;transition:.2s"
             onclick="usaZona(${z.lat},${z.lng},'${citta}')"
             onmouseover="this.style.background='rgba(37,99,235,.1)'" onmouseout="this.style.background='#111827'">
-            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:${col}">${i===0?'⭐ ':''} ${z.score}/100 — ${z.label}</div>
-            <div style="font-size:12px;color:#64748b;margin:6px 0">
-              🔴 ${z.concorrenti} lavanderie &nbsp; 🟢 ${z.gdo} GDO<br>
-              📊 ${z.recensioni} recensioni zona
+            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:${col};margin-bottom:6px">
+              ${i===0?'⭐ ':i===1?'🥈 ':i===2?'🥉 ':''} ${z.score}/100 — ${z.label}
             </div>
-            <div style="font-size:11px;color:#3b82f6">Clicca per usare questa zona →</div>
+            <div style="font-size:12px;color:#94a3b8;line-height:1.7">
+              👥 Pop. 5 min: <span style="color:#e2e8f0;font-weight:600">${(z.pop_5min||0).toLocaleString('it')} ab.</span><br>
+              🪙 Self-service: <span style="color:${z.self_service>0?'#ef4444':'#10b981'};font-weight:600">${z.self_service||0}</span>
+              &nbsp; 👔 Tintorie: <span style="color:${z.tradizionali>0?'#f59e0b':'#10b981'};font-weight:600">${z.tradizionali||0}</span><br>
+              🛒 GDO: <span style="color:#e2e8f0;font-weight:600">${z.gdo}</span>
+              &nbsp; 📊 Traffico: <span style="color:#e2e8f0;font-weight:600">${(z.recensioni||0).toLocaleString('it')}</span>
+            </div>
+            <div style="margin-top:8px;padding:6px 8px;background:#0f172a;border-radius:6px">
+              <span style="font-size:11px;color:#64748b">Clienti stimati: </span>
+              <span style="font-size:14px;font-weight:800;color:${clientiColor}">${z.clienti_giorno||0}/giorno</span>
+              <span style="font-size:11px;color:#64748b"> (${z.clienti_pess||0}–${z.clienti_ott||0})</span>
+            </div>
+            <div style="font-size:11px;color:#3b82f6;margin-top:6px">Clicca per usare questa zona →</div>
           </div>
         </div>`;
       }).join('');
