@@ -16,6 +16,27 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
 
+def safe_float(val, default=0.0):
+    """Converte in float in modo sicuro — gestisce None, 'None', stringa vuota."""
+    try:
+        v = str(val).strip()
+        if v in ('', 'None', 'none', 'null'):
+            return default
+        return float(v)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_int(val, default=0):
+    try:
+        v = str(val).strip()
+        if v in ('', 'None', 'none', 'null'):
+            return default
+        return int(float(v))
+    except (ValueError, TypeError):
+        return default
+
+
 def admin_required(f):
     from functools import wraps
     @wraps(f)
@@ -48,15 +69,15 @@ def nuova_macchina():
         categoria=request.form.get('categoria', 'Lavatrici'),
         modello=request.form.get('modello', ''),
         descrizione=request.form.get('descrizione', ''),
-        prezzo=float(request.form.get('prezzo', 0) or 0),
-        prezzo_scontato=float(request.form.get('prezzo_scontato', 0) or 0) or None,
-        kw=float(request.form.get('kw', 0) or 0),
-        cicli_giorno=int(request.form.get('cicli_giorno', 8) or 8),
-        tariffa=float(request.form.get('tariffa', 0) or 0),
+        prezzo=safe_float(request.form.get('prezzo', 0)),
+        prezzo_scontato=safe_float(request.form.get('prezzo_scontato')) or None,
+        kw=safe_float(request.form.get('kw', 0)),
+        cicli_giorno=safe_int(request.form.get('cicli_giorno', 8)),
+        tariffa=safe_float(request.form.get('tariffa', 0)),
         combustibile=request.form.get('combustibile', 'elettrico'),
-        mc_ciclo=float(request.form.get('mc_ciclo', 0) or 0),
-        capacita_kg=float(request.form.get('capacita_kg', 0) or 0),
-        durata_ciclo=int(request.form.get('durata_ciclo', 45) or 45),
+        mc_ciclo=safe_float(request.form.get('mc_ciclo', 0)),
+        capacita_kg=safe_float(request.form.get('capacita_kg', 0)),
+        durata_ciclo=safe_int(request.form.get('durata_ciclo', 45)),
         attiva='attiva' in request.form,
         in_evidenza='in_evidenza' in request.form,
         note_commerciali=request.form.get('note_commerciali', ''),
@@ -86,16 +107,16 @@ def modifica_macchina(id):
     m.categoria = request.form.get('categoria', m.categoria)
     m.modello = request.form.get('modello', '')
     m.descrizione = request.form.get('descrizione', '')
-    m.prezzo = float(request.form.get('prezzo', 0) or 0)
-    ps = float(request.form.get('prezzo_scontato', 0) or 0)
+    m.prezzo = safe_float(request.form.get('prezzo', 0))
+    ps = safe_float(request.form.get('prezzo_scontato'))
     m.prezzo_scontato = ps if ps > 0 else None
-    m.kw = float(request.form.get('kw', 0) or 0)
-    m.cicli_giorno = int(request.form.get('cicli_giorno', 8) or 8)
-    m.tariffa = float(request.form.get('tariffa', 0) or 0)
+    m.kw = safe_float(request.form.get('kw', 0))
+    m.cicli_giorno = safe_int(request.form.get('cicli_giorno', 8))
+    m.tariffa = safe_float(request.form.get('tariffa', 0))
     m.combustibile = request.form.get('combustibile', 'elettrico')
-    m.mc_ciclo = float(request.form.get('mc_ciclo', 0) or 0)
-    m.capacita_kg = float(request.form.get('capacita_kg', 0) or 0)
-    m.durata_ciclo = int(request.form.get('durata_ciclo', 45) or 45)
+    m.mc_ciclo = safe_float(request.form.get('mc_ciclo', 0))
+    m.capacita_kg = safe_float(request.form.get('capacita_kg', 0))
+    m.durata_ciclo = safe_int(request.form.get('durata_ciclo', 45))
     m.attiva = 'attiva' in request.form
     m.in_evidenza = 'in_evidenza' in request.form
     m.note_commerciali = request.form.get('note_commerciali', '')
