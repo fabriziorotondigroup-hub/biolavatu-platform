@@ -68,14 +68,17 @@
                     {% include '_macchina_form.html' with context %}
                   </div>
                   <div class="modal-footer">
-                    <form method="POST" action="{{ url_for('admin.elimina_macchina', id=m.id) }}" class="me-auto"
-                      onsubmit="return confirm('Eliminare?')">
-                      <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-outline-danger me-auto"
+                      onclick="if(confirm('Eliminare {{ m.nome }}?')) document.getElementById('form-elimina-{{ m.id }}').submit()">
+                      Elimina
+                    </button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
                     <button type="submit" class="btn btn-primary">Salva</button>
                   </div>
                 </form>
+                <!-- Form elimina separato, fuori dal form modifica -->
+                <form id="form-elimina-{{ m.id }}" method="POST"
+                  action="{{ url_for('admin.elimina_macchina', id=m.id) }}" style="display:none"></form>
               </div>
             </div>
           </div>
