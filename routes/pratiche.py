@@ -108,8 +108,11 @@ def genera_pdf(id):
     web     = (s.company_web   or '') if s else ''
     tel     = (s.company_tel   or '') if s else ''
 
+    _st_counter = [0]
     def st(name, **kw):
-        return ParagraphStyle(name, fontName='Helvetica', fontSize=9,
+        _st_counter[0] += 1
+        uname = f'{name}_{_st_counter[0]}'
+        return ParagraphStyle(uname, fontName='Helvetica', fontSize=9,
                               textColor=SCURO, leading=13, **kw)
     h1  = st('h1',  fontSize=13, fontName='Helvetica-Bold', textColor=BSCURO,
               spaceBefore=14, spaceAfter=6)
