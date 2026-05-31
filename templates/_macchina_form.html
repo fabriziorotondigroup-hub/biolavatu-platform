@@ -13,7 +13,7 @@
   </div>
   <div class="col-md-6">
     <label class="form-label">Modello</label>
-    <input type="text" name="modello" class="form-control" value="{{ m.modello if m else '' }}">
+    <input type="text" name="modello" class="form-control" value="{{ (m.modello or '') if m else '' }}">
   </div>
   <div class="col-md-3">
     <label class="form-label">Combustibile</label>
@@ -32,7 +32,7 @@
   </div>
   <div class="col-md-4">
     <label class="form-label">Prezzo scontato €</label>
-    <input type="number" name="prezzo_scontato" class="form-control" value="{{ m.prezzo_scontato if m else '' }}">
+    <input type="number" name="prezzo_scontato" class="form-control" value="{{ (m.prezzo_scontato or '') if m else '' }}">
   </div>
   <div class="col-md-4">
     <label class="form-label">Tariffa €/ciclo</label>
@@ -44,7 +44,7 @@
   </div>
   <div class="col-md-3">
     <label class="form-label">m³ gas/ciclo</label>
-    <input type="number" step="0.01" name="mc_ciclo" class="form-control" value="{{ m.mc_ciclo if m else 0 }}">
+    <input type="number" step="0.01" name="mc_ciclo" class="form-control" value="{{ (m.mc_ciclo or 0) if m else 0 }}">
   </div>
   <div class="col-md-3">
     <label class="form-label">Cicli/giorno</label>
