@@ -1105,20 +1105,32 @@ body { background: var(--bg); color: var(--text); }
             <span id="r_capex_iva" style="font-weight:700;color:#3b82f6">—</span>
           </div>
           <div class="bp-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
-            <span class="text-muted">Cicli/giorno stimati</span>
+            <span class="text-muted">Clienti stimati/giorno</span>
             <span id="r_cicli" style="font-weight:700;color:#8b5cf6">—</span>
           </div>
           <div class="bp-row">
+            <span class="text-muted">Spesa media/visita</span>
+            <span id="r_spesa_visita" style="font-weight:700;color:#60a5fa">—</span>
+          </div>
+          <div class="bp-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
             <span class="text-muted">Incasso mensile</span>
             <span id="r_incasso" style="color:#10b981;font-weight:700">—</span>
           </div>
           <div class="bp-row">
-            <span class="text-muted">Costi mensili</span>
+            <span class="text-muted">EBITDA mensile</span>
+            <span id="r_ebitda" style="font-weight:700;color:#34d399">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Costi mensili totali</span>
             <span id="r_costi" style="color:#ef4444;font-weight:700">—</span>
           </div>
           <div class="bp-row">
-            <span class="text-muted">Utile mensile</span>
+            <span class="text-muted">Utile netto mensile</span>
             <span id="r_utile" style="font-weight:700">—</span>
+          </div>
+          <div class="bp-row">
+            <span class="text-muted">Break-even clienti/g</span>
+            <span id="r_be_clienti" style="font-weight:700;color:#f59e0b">—</span>
           </div>
           <div class="bp-row">
             <span class="text-muted">Payback (IVA inclusa)</span>
@@ -2243,15 +2255,39 @@ function calcolaBP() {
     .then(d => {
       document.getElementById('r_capex').textContent = '€' + d.capex.toLocaleString('it');
       document.getElementById('r_capex_iva').textContent = '€' + (d.capex_iva || Math.round(d.capex*1.22)).toLocaleString('it') + ' (totale da pagare)';
-      document.getElementById('r_cicli').textContent = (d.cicli_giorno || 0) + ' cicli/giorno'
-        + (d.cicli_piumoni > 0 ? ' (di cui ' + d.cicli_piumoni.toFixed(1) + ' piumoni/grandi)' : '');
-      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it')
-        + (d.incasso_asciugatura > 0 ? ' (lav. €' + Math.round(d.incasso_lavaggio).toLocaleString('it') + ' + asc. €' + Math.round(d.incasso_asciugatura).toLocaleString('it') + ')' : '');
+
+      // Clienti/giorno e spesa visita
+      const cli = d.clienti_giorno || 0;
+      const spesa = d.spesa_cliente || d.spesa_visita || 0;
+      const tMedia = d.tariffa_media || 0;
+      document.getElementById('r_cicli').textContent = cli.toFixed(1) + ' clienti/giorno';
+      const spesaEl = document.getElementById('r_spesa_visita');
+      if(spesaEl) spesaEl.textContent = '€' + spesa.toFixed(2)
+        + (tMedia > 0 ? ' (lav. €' + tMedia.toFixed(2) + ' + asciug.)' : '');
+
+      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it');
+
+      // EBITDA
+      const ebitdaEl = document.getElementById('r_ebitda');
+      if(ebitdaEl) {
+        ebitdaEl.textContent = '€' + (d.ebitda||0).toLocaleString('it');
+        ebitdaEl.style.color = (d.ebitda||0) >= 0 ? '#34d399' : '#ef4444';
+      }
+
       document.getElementById('r_costi').textContent = '€' + d.costi_mese.toLocaleString('it');
       const utile = d.utile_mese;
       const uel = document.getElementById('r_utile');
       uel.textContent = '€' + utile.toLocaleString('it');
       uel.style.color = utile >= 0 ? '#10b981' : '#ef4444';
+
+      // Break-even
+      const beEl = document.getElementById('r_be_clienti');
+      if(beEl) {
+        const be = d.be_clienti || 0;
+        beEl.textContent = be.toFixed(0) + ' clienti/giorno';
+        beEl.style.color = cli >= be ? '#10b981' : '#ef4444';
+      }
+
       const pb = d.payback_anni;
       document.getElementById('r_payback').textContent = pb > 0
         ? pb.toFixed(1) + ' anni (' + d.payback_mesi + ' mesi)'
