@@ -48,9 +48,6 @@ class Pratica(db.Model):
     tariffa_lavaggio_med = db.Column(db.Float, default=5.0)
     tariffa_lavaggio_grd = db.Column(db.Float, default=7.0)
     tariffa_asciugatura = db.Column(db.Float, default=3.0)
-    perc_asciugatura = db.Column(db.Float, default=65.0)   # % clienti che asciugano
-    giorni_mese = db.Column(db.Float, default=30.0)         # 365/12 ≈ 30.4
-    ore_apertura = db.Column(db.Float, default=13.0)        # ore apertura/giorno
     durata_lavaggio = db.Column(db.Integer, default=45)
     durata_asciugatura = db.Column(db.Integer, default=35)
 
