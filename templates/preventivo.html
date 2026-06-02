@@ -687,22 +687,6 @@ body { background: var(--bg); color: var(--text); }
       </div>
     </div>
 
-    <!-- AI Analisi -->
-    <div class="col-lg-4">
-      <div class="card h-100" style="border-color:#7c3aed;background:rgba(124,58,237,.05)">
-        <div class="card-header d-flex align-items-center justify-content-between" style="border-color:#7c3aed">
-          <span style="color:#a78bfa"><i class="bi bi-stars me-2"></i>Analisi AI</span>
-          <button type="button" class="btn btn-sm" style="background:#7c3aed;color:white" onclick="generaAI()">
-            <i class="bi bi-magic me-1"></i> Genera
-          </button>
-        </div>
-        <div class="card-body">
-          <div id="ai-zona-text" style="font-size:13px;line-height:1.7;color:#94a3b8">
-            Clicca "Genera" per ottenere l'analisi AI della zona con raccomandazioni commerciali.
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div class="d-flex justify-content-between mt-2">
@@ -1235,11 +1219,31 @@ body { background: var(--bg); color: var(--text); }
     </div>
   </div>
 
-  <div class="d-flex justify-content-between">
+  <!-- ── ANALISI AI COMPLETA ─────────────────────────────────────────────── -->
+  <div class="card mb-3" style="border-color:#7c3aed;background:rgba(124,58,237,.05)">
+    <div class="card-header d-flex align-items-center justify-content-between" style="border-color:#7c3aed">
+      <span style="color:#a78bfa"><i class="bi bi-stars me-2"></i>Analisi AI — Zona + Business Plan</span>
+      <button type="button" id="btn-genera-ai" class="btn btn-sm" style="background:#7c3aed;color:white" onclick="generaAI()">
+        <i class="bi bi-magic me-1"></i> Genera analisi AI
+      </button>
+    </div>
+    <div class="card-body">
+      <div id="ai-zona-text" style="font-size:13px;line-height:1.7;color:#94a3b8;white-space:pre-wrap">
+        Clicca "Genera analisi AI" per ottenere una valutazione completa di zona e business plan con 3 scenari e raccomandazione finale.
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="submit" class="btn btn-success btn-lg">
-      <i class="bi bi-check-circle me-2"></i> Salva Preventivo
-    </button>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success btn-lg">
+        <i class="bi bi-check-circle me-2"></i> Salva Preventivo
+      </button>
+    </div>
+  </div>
+  <div class="mt-2 text-center" style="font-size:11px;color:#64748b">
+    💡 Dopo il salvataggio potrai generare il PDF dalla scheda della pratica
   </div>
 </div>
 
@@ -2055,54 +2059,87 @@ function eseguiAnalisi(lat, lng) {
     });
 }
 
-// ── AI ANALISI ────────────────────────────────────
+// ── AI ANALISI (Step 6 — zona + business plan combinati) ──────────────────
 function generaAI() {
-  const btn = event.target;
+  const btn = document.getElementById('btn-genera-ai');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
+  btn.innerHTML = '<div class="spinner-border spinner-border-sm me-1"></div> Analisi in corso...';
 
-  // Recupera stima clienti completa dall'oggetto globale se disponibile
   var stimaObj = window._ultimaStima || {};
-  var cptObj = window._ultimaCpt || {};
-  var srObj = window._ultimaSr || {};
-  var demObj = window._ultimaDem || {};
+  var cptObj   = window._ultimaCpt  || {};
+  var srObj    = window._ultimaSr   || {};
+  var demObj   = window._ultimaDem  || {};
+  var bpObj    = window._ultimaBP   || {};
+
+  // Raccoglie tariffe dal form
+  const fd = new FormData(document.getElementById('preventivo-form'));
 
   const data = {
-    indirizzo: document.getElementById('f_indirizzo').value,
-    citta: document.getElementById('f_citta').value,
-    pop_3min: document.getElementById('f_pop3') ? document.getElementById('f_pop3').value : 0,
-    pop_5min: document.getElementById('f_pop5').value,
-    pop_10min: document.getElementById('f_pop10').value,
-    concorrenti_500m: document.getElementById('f_conc500').value,
-    concorrenti_1km: document.getElementById('f_conc1km').value,
-    conc_self_service: cptObj.self_service || 0,
-    conc_tradizionali: cptObj.tradizionale || 0,
-    servizi_400m: document.getElementById('f_serv').value,
-    score_zona: document.getElementById('f_score').value,
-    score_label: document.getElementById('f_label').value,
-    mq: document.getElementById('f_mq').value,
-    eta_media: demObj.eta_media || document.getElementById('f_eta_media') ? (document.getElementById('f_eta_media')||{value:42}).value : 42,
-    reddito_medio: demObj.reddito_medio || document.getElementById('f_reddito_medio') ? (document.getElementById('f_reddito_medio')||{value:22000}).value : 22000,
-    densita: demObj.densita || document.getElementById('f_densita') ? (document.getElementById('f_densita')||{value:3000}).value : 3000,
-    stima_clienti: stimaObj,
-    recensioni_zona: srObj.recensioni_zona || (document.getElementById('sr_recensioni') ? document.getElementById('sr_recensioni').textContent.replace(/\./g,'').replace(/,/g,'') : 0),
-    gdo_500m: srObj.gdo_500m || (document.getElementById('sr_gdo_num') ? document.getElementById('sr_gdo_num').textContent : 0),
-    gdo_lista: srObj.gdo_lista || [],
+    // Zona
+    indirizzo:       (document.getElementById('f_indirizzo')||{value:''}).value,
+    citta:           (document.getElementById('f_citta')||{value:''}).value,
+    mq:              (document.getElementById('f_mq')||{value:60}).value,
+    pop_5min:        (document.getElementById('f_pop5')||{value:0}).value,
+    pop_10min:       (document.getElementById('f_pop10')||{value:0}).value,
+    concorrenti_500m:(document.getElementById('f_conc500')||{value:0}).value,
+    concorrenti_1km: (document.getElementById('f_conc1km')||{value:0}).value,
+    servizi_400m:    (document.getElementById('f_serv')||{value:0}).value,
+    score_zona:      (document.getElementById('f_score')||{value:0}).value,
+    score_label:     (document.getElementById('f_label')||{value:''}).value,
+    densita:         demObj.densita   || (document.getElementById('f_densita')||{value:3000}).value,
+    eta_media:       demObj.eta_media || (document.getElementById('f_eta_media')||{value:42}).value,
+    reddito_medio:   demObj.reddito_medio || (document.getElementById('f_reddito_medio')||{value:22000}).value,
+    recensioni_zona: srObj.recensioni_zona || parseInt((document.getElementById('sr_recensioni')||{textContent:'0'}).textContent.replace(/[^0-9]/g,''))||0,
+    gdo_500m:        srObj.gdo_500m  || parseInt((document.getElementById('sr_gdo_num')||{textContent:'0'}).textContent)||0,
+    stima_clienti:   stimaObj,
+    // Business plan (dall'ultimo calcolo)
+    capex:           bpObj.capex          || 0,
+    capex_iva:       bpObj.capex_iva      || 0,
+    incasso_mese:    bpObj.incasso_mese   || 0,
+    incasso_lavaggio:bpObj.incasso_lavaggio || 0,
+    incasso_asciugatura: bpObj.incasso_asciugatura || 0,
+    costi_mese:      bpObj.costi_mese     || 0,
+    utile_mese:      bpObj.utile_mese     || 0,
+    ebitda:          bpObj.ebitda         || 0,
+    payback_anni:    bpObj.payback_anni   || 0,
+    clienti_giorno:  bpObj.clienti_giorno || 0,
+    spesa_cliente:   bpObj.spesa_visita   || bpObj.spesa_cliente || 0,
+    be_clienti:      bpObj.be_clienti     || 0,
+    dettaglio_costi: bpObj.dettaglio      || {},
+    // Tariffe dal form
+    tariffa_lavaggio_std: fd.get('tariffa_lavaggio_std') || 4,
+    tariffa_lavaggio_med: fd.get('tariffa_lavaggio_med') || 5,
+    tariffa_lavaggio_grd: fd.get('tariffa_lavaggio_grd') || 7,
+    tariffa_asciugatura:  fd.get('tariffa_asciugatura')  || 3,
+    perc_asciugatura:     fd.get('perc_asciugatura')     || 65,
+    affitto_mese:         fd.get('affitto_mese')         || 0,
+    macchine: Object.values(selectedMacchine),
   };
+
+  const aiText = document.getElementById('ai-zona-text');
+  aiText.innerHTML = '<span style="color:#a78bfa">⏳ Claude sta analizzando zona e business plan...</span>';
+
   fetch('/api/analisi-ai', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
     .then(r=>r.json())
     .then(d => {
-      const testo = d.testo || d.errore || 'Errore';
-      document.getElementById('ai-zona-text').innerHTML = testo.replace(/\n/g,'<br>');
+      const testo = d.testo || d.errore || 'Errore nella generazione.';
+      // Formattazione: ## titoli in grassetto colorato
+      const html = testo
+        .replace(/^## (.+)$/gm, '<div style="font-weight:800;color:#a78bfa;margin-top:14px;margin-bottom:4px;font-size:13px">$1</div>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/✅/g, '<span style="color:#10b981">✅</span>')
+        .replace(/⚠️/g, '<span style="color:#f59e0b">⚠️</span>')
+        .replace(/❌/g, '<span style="color:#ef4444">❌</span>')
+        .replace(/\n/g, '<br>');
+      aiText.innerHTML = html;
       document.getElementById('f_ai_zona').value = testo;
       btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-magic"></i> Rigenera';
+      btn.innerHTML = '<i class="bi bi-magic me-1"></i> Rigenera';
     })
-    .catch(function(e) {
-      var txt = document.getElementById('ai-zona-text');
-      if(txt) txt.innerHTML = '<span style="color:#ef4444">⚠ Timeout o errore. Riprova.</span>';
+    .catch(function() {
+      aiText.innerHTML = '<span style="color:#ef4444">⚠ Timeout o errore di rete. Riprova.</span>';
       btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-magic"></i> Riprova';
+      btn.innerHTML = '<i class="bi bi-magic me-1"></i> Riprova';
     });
 }
 
@@ -2219,9 +2256,10 @@ function calcolaBP() {
       document.getElementById('r_payback').textContent = pb > 0
         ? pb.toFixed(1) + ' anni (' + d.payback_mesi + ' mesi)'
         : 'N/D — utile negativo';
-      // Salva per il riepilogo
+      // Salva per il riepilogo e per l'AI
       document.getElementById('f_incasso').value = d.incasso_mese;
       document.getElementById('f_costi').value = d.costi_mese;
+      window._ultimaBP = d;
       // Dettaglio costi
       const det = d.dettaglio;
       const dhtml = Object.entries(det).map(([k,v]) => {
