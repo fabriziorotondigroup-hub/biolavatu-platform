@@ -74,6 +74,7 @@ Rispondi SOLO in questo formato JSON, senza altro testo:
         durata = info.get('durata_mesi')
         ha_lav = info.get('ha_lavanderia_interna')
 
+        durata_mesi = info.get('durata_mesi')
         if ha_lav:
             mult_caserma = 0.08  # preferiscono self esterna: più pulita, no attesa
             lav_txt = ' | ha lavanderia interna (riduzione parziale — preferiscono self esterna)'
@@ -88,7 +89,7 @@ Rispondi SOLO in questo formato JSON, senza altro testo:
         else:
             mult_caserma = 0.10
 
-        info['mult_suggerito'] = mult
+        info['mult_suggerito'] = mult_caserma
         info['ricerca_ok'] = True
         return info
 
@@ -232,9 +233,21 @@ def zona_analisi():
     # ── ATTRACTOR POINTS — generatori ad alto consumo lavanderia ─────────────
     # Università: studenti fuori sede, senza lavatrice, uso quotidiano
     raw_universita   = gmaps_nearby(lat, lng, r15, 'university')
-    # Caserme: personale militare, lavaggio divise e biancheria
-    raw_caserme      = gmaps_nearby(lat, lng, r15, 'lodging',
-                                    keyword='caserma militare esercito polizia carabinieri')
+    # Caserme e scuole militari: Google Maps non ha tipo 'military'
+    # Si usa point_of_interest + keyword separate per massimizzare i risultati
+    raw_caserme_base  = gmaps_nearby(lat, lng, r15, 'point_of_interest',
+                                     keyword='caserma esercito carabinieri polizia guardia finanza')
+    raw_caserme_scuole = gmaps_nearby(lat, lng, r15, 'point_of_interest',
+                                      keyword='scuola militare accademia militare istituto militare')
+    # Unisci deduplicando per place_id
+    _caserme_viste = set()
+    raw_caserme = []
+    for _lst in [raw_caserme_base, raw_caserme_scuole]:
+        for _p in _lst:
+            _pid = _p.get('place_id', _p.get('name', ''))
+            if _pid not in _caserme_viste:
+                _caserme_viste.add(_pid)
+                raw_caserme.append(_p)
     # Vigili del fuoco: turni 24/7, divise lavate spesso, personale fisso 365gg
     raw_vvf          = gmaps_nearby(lat, lng, r15, 'fire_station')
     # Ospedali e cliniche: personale + visitatori + degenti
