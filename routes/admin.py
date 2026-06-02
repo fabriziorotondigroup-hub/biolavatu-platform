@@ -257,3 +257,25 @@ def salva_settings():
     db.session.commit()
     flash('Impostazioni salvate.', 'success')
     return redirect(url_for('admin.index'))
+
+
+@admin_bp.route('/admin/migrate-db', methods=['GET'])
+@login_required
+@admin_required
+def migrate_db():
+    """Aggiunge le colonne mancanti al database — eseguire una sola volta dopo deploy."""
+    from sqlalchemy import text
+    results = []
+    migrazioni = [
+        "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS perc_asciugatura FLOAT DEFAULT 65",
+        "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS giorni_mese FLOAT DEFAULT 30",
+        "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ore_apertura FLOAT DEFAULT 13",
+    ]
+    for sql in migrazioni:
+        try:
+            db.session.execute(text(sql))
+            results.append(f'✅ {sql}')
+        except Exception as e:
+            results.append(f'⚠️ {sql} — {str(e)[:60]}')
+    db.session.commit()
+    return '<br>'.join(results) + '<br><br><b>Migrazione completata. <a href="/admin">Torna ad Admin</a></b>'
