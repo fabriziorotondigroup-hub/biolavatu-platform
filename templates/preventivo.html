@@ -921,6 +921,10 @@ body { background: var(--bg); color: var(--text); }
 
 <!-- ═══ STEP 5: BUSINESS PLAN ═══ -->
 <div class="wizard-panel" id="panel-5">
+
+  <!-- Banner tariffe auto -->
+  <div id="tariffe-auto-banner" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#34d399"></div>
+
   <div class="row g-3">
     <!-- Tariffe -->
     <div class="col-lg-4">
@@ -1342,9 +1346,55 @@ function goStep(n) {
     }, 150);
   }
   if(n === 5) {
-    setTimeout(() => calcolaBP(), 100);
+    setTimeout(() => {
+      precompilaTariffe();
+      calcolaBP();
+    }, 100);
   }
   window.scrollTo(0, 0);
+}
+
+// ── PRECOMPILA TARIFFE DAL CATALOGO REALE ────────────────
+function precompilaTariffe() {
+  const items = Object.values(selectedMacchine);
+  if(!items.length) return;
+
+  // Separa lavatrici per taglia e asciugatrici
+  let lav_std = [], lav_med = [], lav_grd = [], asc = [];
+  items.forEach(m => {
+    const cat = (m.categoria || '').toLowerCase();
+    const nom = (m.nome || '').toLowerCase();
+    const kg  = parseFloat(m.capacita_kg || 0);
+    const tar = parseFloat(m.tariffa || 0);
+    if(tar <= 0) return; // Impianti/arredamento senza tariffa → salta
+    if('asciug' in nom || cat.includes('asciug')) {
+      asc.push(tar);
+    } else if(kg > 0 && kg <= 9)  { lav_std.push(tar); }
+    else if(kg > 9  && kg <= 13)  { lav_med.push(tar); }
+    else if(kg > 13)              { lav_grd.push(tar); }
+    else                          { lav_std.push(tar); } // fallback
+  });
+
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+
+  // Precompila solo se abbiamo macchine di quella taglia
+  const fStd = document.querySelector('[name=tariffa_lavaggio_std]');
+  const fMed = document.querySelector('[name=tariffa_lavaggio_med]');
+  const fGrd = document.querySelector('[name=tariffa_lavaggio_grd]');
+  const fAsc = document.querySelector('[name=tariffa_asciugatura]');
+
+  if(fStd && avg(lav_std) !== null) fStd.value = avg(lav_std).toFixed(2);
+  if(fMed && avg(lav_med) !== null) fMed.value = avg(lav_med).toFixed(2);
+  if(fGrd && avg(lav_grd) !== null) fGrd.value = avg(lav_grd).toFixed(2);
+  if(fAsc && avg(asc)     !== null) fAsc.value = avg(asc).toFixed(2);
+
+  // Mostra banner informativo
+  const banner = document.getElementById('tariffe-auto-banner');
+  if(banner) {
+    const nomi = items.filter(m=>parseFloat(m.tariffa||0)>0).map(m=>m.nome+'(€'+m.tariffa+')').join(', ');
+    banner.innerHTML = '<i class="bi bi-info-circle me-1"></i> Tariffe precompilate dalle macchine selezionate: ' + nomi + ' — modificale se vuoi.';
+    banner.style.display = 'block';
+  }
 }
 
 // ── TAB SWITCHER STEP 2 ──────────────────────────
