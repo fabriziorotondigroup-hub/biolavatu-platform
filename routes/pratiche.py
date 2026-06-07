@@ -76,6 +76,16 @@ def elimina(id):
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
 def genera_pdf(id):
+    try:
+        return _genera_pdf_interno(id)
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        from flask import current_app
+        current_app.logger.error(f"PDF ERROR: {err}")
+        return f"<pre>ERRORE PDF:\n{err}</pre>", 500
+
+def _genera_pdf_interno(id):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
     from reportlab.lib.units import cm
