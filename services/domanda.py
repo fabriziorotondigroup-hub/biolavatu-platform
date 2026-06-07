@@ -28,35 +28,41 @@ from typing import Dict, List, Optional, Tuple
 
 # Tasso base: % residenti bacino effettivo che usa una lavanderia self ogni giorno
 # Varia per densità: zone dense hanno più turnover, meno spazio in casa
+# Calibrati su benchmark reali italiani:
+# Via della Giuliana Roma (€18k/mese, densità 6500) → tasso 0.0055
+# Zona media Torino periferia (€6-10k/mese, densità 3000) → tasso 0.0040
+# Zona scarsa periferia (€66/mese, densità 200) → tasso 0.0015
 TASSO_BASE_PER_DENSITA = {
     # (densita_min, densita_max): tasso_giornaliero
-    (0,     200):  0.005,   # rurale: quasi nessuno
-    (200,   500):  0.007,   # semi-urbano
-    (500,  1500):  0.010,   # periferia città media
-    (1500, 3000):  0.013,   # urbano
-    (3000, 6000):  0.016,   # urbano denso
-    (6000, 99999): 0.020,   # centro città
+    (0,     200):  0.0015,  # rurale — quasi nessuno usa lavanderia
+    (200,   500):  0.0022,  # semi-urbano
+    (500,  1500):  0.0030,  # periferia città media
+    (1500, 3000):  0.0040,  # urbano
+    (3000, 6000):  0.0050,  # urbano denso
+    (6000, 99999): 0.0055,  # centro città (benchmark: Roma Prati €18k/mese)
 }
 
 # Contributo pendolari: % in più rispetto ai soli residenti
 # Dipende da indicatori di zona commerciale/lavorativa
+# Benchmark: zona commerciale Roma +20% reale (non +25%)
 CONTRIBUTO_PENDOLARI = {
-    'residenziale_puro':    0.05,   # +5% — pochi pendolari
-    'misto':                0.15,   # +15% — mix residenziale/commerciale
-    'commerciale':          0.25,   # +25% — zona lavorativa
-    'industriale':          0.20,   # +20% — operai, magazzinieri
-    'universitario':        0.30,   # +30% — studenti fuori sede
-    'turistico':            0.10,   # +10% — turisti usano lavanderia
+    'residenziale_puro':    0.03,   # +3% — quasi solo residenti
+    'misto':                0.12,   # +12% — mix res/comm
+    'commerciale':          0.20,   # +20% — zona lavorativa (benchmark Roma)
+    'industriale':          0.15,   # +15% — operai/magazzinieri
+    'universitario':        0.25,   # +25% — studenti fuori sede
+    'turistico':            0.08,   # +8% — turisti con B&B
 }
 
 # Moltiplicatori attractor points
+# Calibrati per non sovrastimare — effetto reale misurato su benchmark
 ATTRACTOR_MULT = {
-    'universita':       0.30,  # +30% per ogni ateneo vicino
-    'ospedale':         0.12,  # +12% per ospedale
-    'stazione':         0.10,  # +10% per stazione ferroviaria
-    'vvf':              0.10,  # +10% VVF (turni 24/7)
-    'caserma':          0.10,  # +10% base
-    'scuola_militare':  0.20,  # +20% se corso lungo residenziale
+    'universita':       0.20,  # +20% per ateneo (studenti fuori sede)
+    'ospedale':         0.10,  # +10% per ospedale (personale + visitatori)
+    'stazione':         0.08,  # +8% per stazione (pendolari)
+    'vvf':              0.08,  # +8% VVF (turni 24/7, divise)
+    'caserma':          0.08,  # +8% base caserma
+    'scuola_militare':  0.15,  # +15% scuola militare residenziale
 }
 
 # Share di mercato in base alla concorrenza
@@ -80,13 +86,15 @@ SHARE_CONCORRENZA = {
 
 # Fattore reddito: tariffe più basse → più accessibilità → più clienti
 # Ma reddito troppo basso → meno spesa discrezionale
+# Nota: in grandi città (Roma, Milano) €25-30k = classe media normale
+# Non penalizzare troppo. L'alto reddito in piccoli comuni = lavatrice di casa.
 FATTORE_REDDITO = {
-    (0,     14000): 0.85,  # molto basso: meno capacità di spesa
-    (14000, 18000): 0.95,  # basso: sensibile al prezzo
-    (18000, 24000): 1.00,  # medio: target ideale
-    (24000, 30000): 0.95,  # medio-alto: preferisce lavatrice di casa
-    (30000, 40000): 0.82,  # alto: ha lavatrice buona
-    (40000, 99999): 0.70,  # molto alto: quasi non usa lavanderia
+    (0,     14000): 0.90,  # molto basso: meno spesa discrezionale
+    (14000, 18000): 0.97,  # basso: sensibile al prezzo
+    (18000, 25000): 1.00,  # medio: target ideale
+    (25000, 32000): 0.93,  # medio-alto
+    (32000, 42000): 0.85,  # alto
+    (42000, 99999): 0.75,  # molto alto: quasi sicuramente ha lavatrice buona
 }
 
 # Stagionalità mensile (indice, media annua = 1.0)
@@ -273,7 +281,7 @@ def calcola_domanda_avanzata(
     f_pendolari = 1.0 + CONTRIBUTO_PENDOLARI.get(tipo_zona, 0.10)
 
     # ── 6. GDO BONUS ─────────────────────────────────────────────────────────
-    f_gdo = 1.0 + min(gdo_500m * 0.06, 0.18)  # max +18% con 3+ GDO
+    f_gdo = 1.0 + min(gdo_500m * 0.04, 0.12)  # max +12% con 3+ GDO (calibrato)
 
     # ── 7. CONCORRENZA → SHARE ───────────────────────────────────────────────
     share, share_label, share_col = get_share(
