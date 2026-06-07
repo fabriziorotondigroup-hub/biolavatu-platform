@@ -115,24 +115,22 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             story.append(Paragraph(r_html, body))
 
 
+
 def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorrenti=None):
-    """Scarica mappa statica Google Maps con marker sede + concorrenti + cerchi 500m/1km."""
+    """Mappa statica Google Maps con marker sede + concorrenti colorati."""
     if not lat or not lng or not gmaps_key:
         return None
     try:
-        import urllib.request as _ur, urllib.parse as _up
+        import urllib.request as _ur
         parts = [
             f"center={lat},{lng}",
             f"zoom=15",
             f"size={width_px}x{height_px}",
             f"scale=2",
             f"maptype=roadmap",
-            # Marker principale: stella gialla = sede proposta
             f"markers=color:yellow|size:mid|label:S|{lat},{lng}",
         ]
-        # Markers concorrenti (rosso=self-service, arancio=tradizionale, blu=industriale)
         if concorrenti:
-            # Raggruppa per colore per ridurre parametri URL
             self_sv = [c for c in concorrenti if c.get('tipo') == 'self_service']
             tradi   = [c for c in concorrenti if c.get('tipo') == 'tradizionale']
             indust  = [c for c in concorrenti if c.get('tipo') == 'industriale']
@@ -140,7 +138,6 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorr
                 if group:
                     locs = '|'.join(f"{c['lat']},{c['lng']}" for c in group[:8])
                     parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
-        # Stile mappa scuro/elegante
         styles = [
             "style=element:geometry|color:0x1d2c4d",
             "style=element:labels.text.fill|color:0x8ec3b9",
@@ -159,34 +156,6 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorr
         return None
 
 
-def _bar_chart_horizontal(canvas, x, y, items, bar_height=14, bar_gap=6, max_width=200,
-                            fill_color=None, label_color=None, val_color=None):
-    """Disegna mini grafico a barre orizzontale direttamente sul canvas ReportLab."""
-    from reportlab.lib import colors as _c
-    fc = fill_color or _c.HexColor('#2563eb')
-    lc = label_color or _c.HexColor('#64748b')
-    vc = val_color or _c.HexColor('#0f172a')
-    if not items:
-        return
-    max_val = max(v for _, v in items) or 1
-    for i, (label, val) in enumerate(items):
-        bar_y = y - i * (bar_height + bar_gap)
-        bw = max_width * (val / max_val)
-        # sfondo barra
-        canvas.setFillColor(_c.HexColor('#e2e8f0'))
-        canvas.rect(x + 60, bar_y, max_width, bar_height, fill=1, stroke=0)
-        # barra valore
-        canvas.setFillColor(fc)
-        canvas.rect(x + 60, bar_y, bw, bar_height, fill=1, stroke=0)
-        # etichetta sinistra
-        canvas.setFont('Helvetica', 7)
-        canvas.setFillColor(lc)
-        canvas.drawRightString(x + 56, bar_y + 3, label[:18])
-        # valore destra
-        canvas.setFont('Helvetica-Bold', 7)
-        canvas.setFillColor(vc)
-        canvas.drawString(x + 64 + max_width, bar_y + 3, f'{val:,}')
-
 
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
@@ -200,569 +169,787 @@ def genera_pdf(id):
         current_app.logger.error(f"PDF ERROR: {err}")
         return f"<pre>ERRORE PDF:\n{err}</pre>", 500
 
+
 def _genera_pdf_interno(id):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
-    from reportlab.lib.units import cm
+    from reportlab.lib.units import cm, mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                    TableStyle, HRFlowable, PageBreak, KeepTogether)
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                                    TableStyle, PageBreak, KeepTogether)
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
     from reportlab.platypus.flowables import Flowable
     from pypdf import PdfWriter, PdfReader
     import os, io as _io
 
-    p  = Pratica.query.get_or_404(id)
-    s  = Settings.query.first()
+    p = Pratica.query.get_or_404(id)
+    s = Settings.query.first()
     W, H = A4
+    PW = W - 4*cm  # larghezza utile
 
-    BLU   = colors.HexColor('#2563eb')
-    BSCURO= colors.HexColor('#1e3a5f')
-    GRIGIO= colors.HexColor('#64748b')
-    SCURO = colors.HexColor('#0f172a')
-    VERDE = colors.HexColor('#10b981')
-    ROSSO = colors.HexColor('#ef4444')
-    ARANCIO=colors.HexColor('#f59e0b')
-    BG    = colors.HexColor('#f8fafc')
-    BIANCO= colors.white
+    # ── PALETTE ──────────────────────────────────────────────────────────────
+    C = {
+        'navy':    colors.HexColor('#0f1f3d'),
+        'blue':    colors.HexColor('#2563eb'),
+        'lblue':   colors.HexColor('#3b82f6'),
+        'sky':     colors.HexColor('#93c5fd'),
+        'slate':   colors.HexColor('#64748b'),
+        'light':   colors.HexColor('#f1f5f9'),
+        'border':  colors.HexColor('#e2e8f0'),
+        'white':   colors.white,
+        'green':   colors.HexColor('#10b981'),
+        'red':     colors.HexColor('#ef4444'),
+        'orange':  colors.HexColor('#f59e0b'),
+        'purple':  colors.HexColor('#8b5cf6'),
+        'pink':    colors.HexColor('#ec4899'),
+        'dark':    colors.HexColor('#0f172a'),
+        'text':    colors.HexColor('#1e293b'),
+    }
 
-    brand   = (s.brand_name   or 'BIOLavaTU') if s else 'BIOLavaTU'
+    brand   = (s.brand_name   or 'BIOLavaTU')      if s else 'BIOLavaTU'
     company = (s.company_name or 'Rotondi Group Srl') if s else 'Rotondi Group Srl'
-    addr    = (s.company_addr  or '') if s else ''
-    email   = (s.company_email or '') if s else ''
-    web     = (s.company_web   or '') if s else ''
-    tel     = (s.company_tel   or '') if s else ''
+    addr    = (s.company_addr  or '')               if s else ''
+    web     = (s.company_web   or '')               if s else ''
+    tel     = (s.company_tel   or '')               if s else ''
 
-    _st_counter = [0]
+    # ── STILI ─────────────────────────────────────────────────────────────────
+    _sc = [0]
     def st(name, **kw):
-        _st_counter[0] += 1
-        uname = f'{name}_{_st_counter[0]}'
+        _sc[0] += 1
         kw.setdefault('fontSize', 9)
         kw.setdefault('fontName', 'Helvetica')
-        kw.setdefault('textColor', SCURO)
+        kw.setdefault('textColor', C['text'])
         kw.setdefault('leading', 13)
-        return ParagraphStyle(uname, **kw)
-    h1  = st('h1',  fontSize=13, fontName='Helvetica-Bold', textColor=BSCURO,
-              spaceBefore=14, spaceAfter=6)
-    h2  = st('h2',  fontSize=10, fontName='Helvetica-Bold', textColor=GRIGIO,
-              spaceBefore=8,  spaceAfter=3)
-    body= st('bd',  fontSize=9,  leading=14)
-    mu  = st('mu',  fontSize=8,  textColor=GRIGIO)
+        return ParagraphStyle(f'{name}_{_sc[0]}', **kw)
 
-    page_n = [0]
+    S = {
+        'h1':   st('h1',  fontSize=14, fontName='Helvetica-Bold', textColor=C['navy'], spaceBefore=16, spaceAfter=6),
+        'h2':   st('h2',  fontSize=10, fontName='Helvetica-Bold', textColor=C['slate'], spaceBefore=10, spaceAfter=4),
+        'body': st('bd',  fontSize=9,  leading=14),
+        'tiny': st('ti',  fontSize=7.5, textColor=C['slate']),
+        'bold': st('bl',  fontSize=9,  fontName='Helvetica-Bold'),
+    }
+
+    # ── HEADER/FOOTER ─────────────────────────────────────────────────────────
+    pn = [0]
     def on_page(cv, doc):
-        page_n[0] += 1
-        if page_n[0] == 1:
+        pn[0] += 1
+        if pn[0] == 1:
             return
         cv.saveState()
-        cv.setFillColor(BSCURO); cv.rect(0, H-1.2*cm, W, 1.2*cm, fill=1, stroke=0)
-        cv.setFont('Helvetica-Bold', 9); cv.setFillColor(BIANCO)
-        cv.drawString(2*cm, H-0.85*cm, brand)
-        cv.setFont('Helvetica', 8)
-        cv.drawRightString(W-2*cm, H-0.85*cm, f'Preventivo {p.numero}')
-        cv.setFillColor(BG); cv.rect(0, 0, W, 0.9*cm, fill=1, stroke=0)
-        cv.setFont('Helvetica', 7); cv.setFillColor(GRIGIO)
-        cv.drawString(2*cm, 0.32*cm, f'{company}  ·  {addr}')
-        cv.drawRightString(W-2*cm, 0.32*cm, f'Pag. {page_n[0]-1}')
+        # Header
+        cv.setFillColor(C['navy']); cv.rect(0, H-1.1*cm, W, 1.1*cm, fill=1, stroke=0)
+        cv.setFillColor(C['blue']); cv.rect(0, H-1.1*cm, 0.4*cm, 1.1*cm, fill=1, stroke=0)
+        cv.setFont('Helvetica-Bold', 8.5); cv.setFillColor(C['white'])
+        cv.drawString(0.8*cm, H-0.72*cm, brand)
+        cv.setFont('Helvetica', 8); cv.setFillColor(C['sky'])
+        cv.drawRightString(W-0.8*cm, H-0.72*cm, f'{p.numero}  ·  {p.citta}')
+        # Footer
+        cv.setFillColor(C['light']); cv.rect(0, 0, W, 0.85*cm, fill=1, stroke=0)
+        cv.setStrokeColor(C['border']); cv.setLineWidth(0.5)
+        cv.line(0, 0.85*cm, W, 0.85*cm)
+        cv.setFont('Helvetica', 7); cv.setFillColor(C['slate'])
+        cv.drawString(0.8*cm, 0.28*cm, f'{company}  ·  {addr}  ·  {web}')
+        cv.drawRightString(W-0.8*cm, 0.28*cm, f'Pag. {pn[0]-1}')
         cv.restoreState()
 
     main_buf = _io.BytesIO()
     doc = SimpleDocTemplate(main_buf, pagesize=A4,
         leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=1.6*cm, bottomMargin=1.4*cm,
-        allowSplitting=1,
+        topMargin=1.4*cm, bottomMargin=1.2*cm,
         onPage=on_page, onLaterPages=on_page)
-
-    def sez(titolo, icona=''):
-        t = Table([[Paragraph(f'<b>{icona}  {titolo}</b>',
-                   st('sh', fontSize=11, fontName='Helvetica-Bold',
-                      textColor=BIANCO, leading=16))]],
-                  colWidths=[W-4*cm])
-        t.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),BSCURO),
-            ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
-            ('LEFTPADDING',(0,0),(-1,-1),10)]))
-        return t
-
-    def kpi_box(items):
-        n = len(items)
-        cw = (W-4*cm)/n
-        cells = []
-        for lbl,val,col in items:
-            cells.append(Table([
-                [Paragraph(f'<font color="{col}"><b>{val}</b></font>',
-                    st(f'kv{lbl}', fontSize=13, fontName='Helvetica-Bold',
-                       alignment=TA_CENTER, textColor=colors.HexColor(col)))],
-                [Paragraph(lbl, st(f'kl{lbl}', fontSize=8, textColor=GRIGIO,
-                                    alignment=TA_CENTER))],
-            ], colWidths=[cw]))
-        row = Table([cells], colWidths=[cw]*n)
-        row.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),BG),
-            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#e2e8f0')),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#e2e8f0')),
-            ('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
-        return row
 
     story = []
 
-    # ── COPERTINA ────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # HELPER: sezione header con barra laterale colorata
+    # ─────────────────────────────────────────────────────────────────────────
+    def section_header(title, accent=None):
+        acc = accent or C['blue']
+        tbl = Table([[
+            '',
+            Paragraph(f'<b>{title}</b>',
+                      st('sh', fontSize=11, fontName='Helvetica-Bold',
+                         textColor=C['navy'], leading=15))
+        ]], colWidths=[0.35*cm, PW - 0.35*cm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND',  (0,0),(0,0), acc),
+            ('BACKGROUND',  (1,0),(1,0), C['light']),
+            ('TOPPADDING',  (0,0),(-1,-1), 8),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 8),
+            ('LEFTPADDING', (1,0),(1,0), 10),
+            ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
+        ]))
+        return tbl
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # HELPER: riga di KPI colorati
+    # ─────────────────────────────────────────────────────────────────────────
+    def kpi_row(items):
+        """items = [(label, value, hex_color), ...]"""
+        n  = len(items)
+        cw = PW / n
+        cells = []
+        for lbl, val, col in items:
+            inner = Table([
+                [Paragraph(f'<b>{val}</b>',
+                           st(f'kv', fontSize=12, fontName='Helvetica-Bold',
+                              textColor=colors.HexColor(col), alignment=TA_CENTER))],
+                [Paragraph(lbl, st(f'kl', fontSize=7.5, textColor=C['slate'],
+                                   alignment=TA_CENTER))],
+            ], colWidths=[cw - 0.4*cm])
+            cells.append(inner)
+        t = Table([cells], colWidths=[cw]*n)
+        t.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0),(-1,-1), C['light']),
+            ('BOX',           (0,0),(-1,-1), 0.5, C['border']),
+            ('INNERGRID',     (0,0),(-1,-1), 0.3, C['border']),
+            ('TOPPADDING',    (0,0),(-1,-1), 9),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 9),
+        ]))
+        return t
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 1 — COPERTINA
+    # ─────────────────────────────────────────────────────────────────────────
     class Cover(Flowable):
         def __init__(self):
             Flowable.__init__(self)
-            self.width  = W - 4*cm
-            self.height = H - 6*cm
+            self.width  = PW
+            self.height = H - 5.5*cm
+
         def draw(self):
-            c = self.canv
-            w, h = self.width, self.height
+            c   = self.canv
+            w   = self.width
+            h   = self.height
+            nav = C['navy']
+            blu = C['blue']
+            wht = C['white']
+            sky = C['sky']
 
-            c.setFillColor(BSCURO)
-            c.roundRect(0, 0, w, h, 12, fill=1, stroke=0)
+            # Sfondo totale
+            c.setFillColor(nav)
+            c.roundRect(0, 0, w, h, 10, fill=1, stroke=0)
 
-            c.setFillColor(colors.HexColor('#0a1628'))
-            c.roundRect(0, h-5.5*cm, w, 5.5*cm, 12, fill=1, stroke=0)
-            c.rect(0, h-5.5*cm, w, 0.5*cm, fill=1, stroke=0)
+            # Banda superiore blu scuro
+            c.setFillColor(colors.HexColor('#060e1f'))
+            c.roundRect(0, h*0.72, w, h*0.28, 10, fill=1, stroke=0)
+            c.rect(0, h*0.72, w, h*0.05, fill=1, stroke=0)
 
-            brand_txt = brand[:20] if len(brand) > 20 else brand
-            c.setFont('Helvetica-Bold', 28)
-            c.setFillColor(BIANCO)
-            c.drawCentredString(w/2, h-2.2*cm, brand_txt)
+            # Accent strip sinistra
+            c.setFillColor(blu)
+            c.roundRect(0, 0, 0.5*cm, h, 10, fill=1, stroke=0)
+            c.rect(0.5*cm, 0, 0.3*cm, h, fill=1, stroke=0)
 
-            c.setFont('Helvetica', 9)
-            c.setFillColor(colors.HexColor('#93c5fd'))
-            c.drawCentredString(w/2, h-3.0*cm, 'LaundryPro Platform  —  Analisi di Fattibilita')
+            # Brand name
+            c.setFont('Helvetica-Bold', 32)
+            c.setFillColor(wht)
+            c.drawString(1.2*cm, h - 1.8*cm, brand)
 
-            c.setStrokeColor(BLU); c.setLineWidth(1)
-            c.line(w*0.15, h-3.6*cm, w*0.85, h-3.6*cm)
+            # Tagline
+            c.setFont('Helvetica', 10)
+            c.setFillColor(sky)
+            c.drawString(1.2*cm, h - 2.5*cm, 'LaundryPro Platform  ·  Analisi di Fattibilità')
 
-            c.setFillColor(BLU)
-            c.roundRect(w*0.2, h-5.8*cm, w*0.6, 1.4*cm, 8, fill=1, stroke=0)
-            c.setFont('Helvetica-Bold', 14); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2, h-5.0*cm, p.numero)
-            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#bfdbfe'))
-            c.drawCentredString(w/2, h-5.55*cm,
-                f'Data: {p.created.strftime("%d/%m/%Y")}  |  Stato: {p.stato.upper()}')
+            # Linea divisoria
+            c.setStrokeColor(blu); c.setLineWidth(1.5)
+            c.line(1.2*cm, h - 3.0*cm, w - 0.5*cm, h - 3.0*cm)
 
+            # Badge numero pratica
+            c.setFillColor(blu)
+            c.roundRect(1.2*cm, h - 4.6*cm, w*0.55, 1.2*cm, 6, fill=1, stroke=0)
+            c.setFont('Helvetica-Bold', 15); c.setFillColor(wht)
+            c.drawString(1.6*cm, h - 3.93*cm, p.numero)
+            c.setFont('Helvetica', 8); c.setFillColor(sky)
+            c.drawString(1.6*cm, h - 4.45*cm,
+                f'{p.created.strftime("%d/%m/%Y")}   ·   Stato: {p.stato.upper()}')
+
+            # Cliente
             cliente = p.cliente
-            nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:40]
-            c.setFont('Helvetica-Bold', 11); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2, h-7.0*cm, nome_cl)
+            nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:42]
+            c.setFont('Helvetica-Bold', 13); c.setFillColor(wht)
+            c.drawString(1.2*cm, h*0.72 - 1.2*cm, nome_cl)
             ind = f'{p.indirizzo}, {p.citta}' if p.indirizzo else (p.citta or '')
-            ind = ind[:60]
-            c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
-            c.drawCentredString(w/2, h-7.7*cm, ind)
+            c.setFont('Helvetica', 9); c.setFillColor(sky)
+            c.drawString(1.2*cm, h*0.72 - 1.9*cm, ind[:65])
+            if p.mq:
+                c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#64748b'))
+                c.drawString(1.2*cm, h*0.72 - 2.45*cm, f'Superficie: {p.mq} mq')
 
+            # 4 KPI box
             capex_iva = p.capex * 1.22
             kpis = [
-                ('INVESTIMENTO IVA', f'EUR {capex_iva:,.0f}', '#3b82f6'),
-                ('INCASSO/MESE',     f'EUR {p.incasso_mese:,.0f}',
+                ('INVESTIMENTO + IVA', f'€ {capex_iva:,.0f}', '#3b82f6'),
+                ('INCASSO / MESE',     f'€ {p.incasso_mese:,.0f}',
                  '#10b981' if p.incasso_mese > 0 else '#ef4444'),
-                ('UTILE/MESE',       f'EUR {p.utile_mese:,.0f}',
+                ('UTILE / MESE',       f'€ {p.utile_mese:,.0f}',
                  '#10b981' if p.utile_mese >= 0 else '#ef4444'),
                 ('PAYBACK',
-                 f'{int(p.payback_mesi/12) if p.payback_mesi else "N/D"} anni', '#f59e0b'),
+                 f'{int(p.payback_mesi/12)} anni' if p.payback_mesi else 'N/D',
+                 '#f59e0b'),
             ]
-            margin = 0.3*cm
-            bw = (w - margin * 3) / 4
-            by = h - 11.2*cm
-            for i, (lbl, val, col) in enumerate(kpis):
-                bx = i * (bw + margin)
-                c.setFillColor(colors.HexColor('#0f2340'))
-                c.roundRect(bx, by, bw, 2.2*cm, 6, fill=1, stroke=0)
-                c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#93c5fd'))
-                c.drawCentredString(bx+bw/2, by+1.7*cm, lbl)
-                c.setFont('Helvetica-Bold', 9); c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(bx+bw/2, by+0.9*cm, val)
+            gap  = 0.25*cm
+            bw   = (w - 1.2*cm - gap*3) / 4
+            by   = h*0.72 - 5.2*cm
+            for i,(lbl,val,col) in enumerate(kpis):
+                bx = 1.2*cm + i*(bw+gap)
+                # Card scura
+                c.setFillColor(colors.HexColor('#0a1628'))
+                c.roundRect(bx, by, bw, 2.1*cm, 5, fill=1, stroke=0)
+                # Accent top
+                c.setFillColor(colors.HexColor(col))
+                c.roundRect(bx, by+1.8*cm, bw, 0.3*cm, 3, fill=1, stroke=0)
+                c.rect(bx, by+1.8*cm, bw, 0.15*cm, fill=1, stroke=0)
+                # Value
+                c.setFont('Helvetica-Bold', 9.5); c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(bx+bw/2, by+1.15*cm, val)
+                # Label
+                c.setFont('Helvetica', 6.5); c.setFillColor(sky)
+                c.drawCentredString(bx+bw/2, by+0.55*cm, lbl)
 
-            sc = int(p.score_zona or 0)
-            scol = '#10b981' if sc >= 70 else '#f59e0b' if sc >= 45 else '#ef4444'
-            c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
-            c.drawCentredString(w/2, h-12.5*cm, 'SCORE ZONA')
-            c.setFont('Helvetica-Bold', 30); c.setFillColor(colors.HexColor(scol))
-            c.drawCentredString(w/2, h-13.8*cm, f'{sc}/100')
-            c.setFont('Helvetica', 9); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2, h-14.5*cm, p.score_label or '')
-
+            # Score zona — grande cerchio
+            sc   = int(p.score_zona or 0)
+            scol = '#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
+            cx   = 1.2*cm + (w-1.2*cm)*0.78
+            cy   = by - 2.5*cm
+            # Cerchio sfondo
+            c.setFillColor(colors.HexColor('#0a1628'))
+            c.circle(cx, cy, 1.5*cm, fill=1, stroke=0)
+            # Arco colorato (score)
+            import math
+            angle = 360 * sc / 100
+            c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(4)
+            c.arc(cx-1.3*cm, cy-1.3*cm, cx+1.3*cm, cy+1.3*cm,
+                  startAng=90, extent=-angle)
+            # Testo score
+            c.setFont('Helvetica-Bold', 22); c.setFillColor(colors.HexColor(scol))
+            c.drawCentredString(cx, cy+0.0*cm, str(sc))
+            c.setFont('Helvetica', 7); c.setFillColor(sky)
+            c.drawCentredString(cx, cy-0.7*cm, 'score /100')
+            c.setFont('Helvetica-Bold', 8); c.setFillColor(wht)
+            c.drawCentredString(cx, cy-1.2*cm, p.score_label or '')
+            # Label a sinistra del cerchio
             c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
-            c.drawCentredString(w/2, 0.8*cm, f'{company}  {web}  {tel}')
-            c.drawCentredString(w/2, 0.2*cm, 'Documento riservato - uso interno')
+            c.drawString(1.2*cm, cy+0.4*cm, 'SCORE ZONA')
+
+            # Footer disclaimer
+            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#334155'))
+            c.drawCentredString(w/2, 0.5*cm, f'{company}  ·  {web}  ·  {tel}')
+            c.drawCentredString(w/2, 0.1*cm, 'Documento riservato — uso interno')
 
     story.append(Cover()); story.append(PageBreak())
 
-    # ── CLIENTE E SEDE ───────────────────────────────────────────────────────
-    story.append(sez('CLIENTE E SEDE', '')); story.append(Spacer(1,6))
-    cliente=p.cliente
-    rows=[
-        ['Cliente', cliente.nome_completo if cliente else ''],
-        ['Indirizzo', f'{p.indirizzo}, {p.citta}' if p.indirizzo else p.citta or ''],
-        ['CAP / Provincia', f'{p.cap or ""}  -  {p.provincia or ""}'],
-        ['Superficie', f'{p.mq or ""} mq'],
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 2 — CLIENTE + MAPPA ZONA FULL WIDTH + KPI + SCORE
+    # ─────────────────────────────────────────────────────────────────────────
+    story.append(section_header('CLIENTE E SEDE', C['blue']))
+    story.append(Spacer(1, 6))
+
+    cliente = p.cliente
+    # Info cliente in 2 colonne
+    col1 = [
+        ['Cliente',   cliente.nome_completo if cliente else '—'],
+        ['Indirizzo', f'{p.indirizzo}, {p.citta}' if p.indirizzo else p.citta or '—'],
+        ['CAP / Prov.', f'{p.cap or ""}  {p.provincia or ""}'],
     ]
-    if cliente and cliente.email:    rows.append(['Email',    cliente.email])
-    if cliente and cliente.telefono: rows.append(['Telefono', cliente.telefono])
-    tbl=Table(rows,colWidths=[3.5*cm,13.5*cm])
-    tbl.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('TEXTCOLOR',(0,0),(0,-1),GRIGIO),('TEXTCOLOR',(1,0),(1,-1),SCURO),
-        ('BOTTOMPADDING',(0,0),(-1,-1),5),('TOPPADDING',(0,0),(-1,-1),5),
-        ('LINEBELOW',(0,0),(-1,-1),0.3,colors.HexColor('#e2e8f0')),
-        ('ROWBACKGROUNDS',(0,0),(-1,-1),[BIANCO,BG])]))
-    story.append(tbl); story.append(Spacer(1,14))
+    col2 = [
+        ['Superficie', f'{p.mq or "—"} mq'],
+        ['Email',      (cliente.email or '—') if cliente else '—'],
+        ['Telefono',   (cliente.telefono or '—') if cliente else '—'],
+    ]
+    def info_tbl(rows, cw1=2.8*cm, cw2=6.2*cm):
+        t = Table(rows, colWidths=[cw1, cw2])
+        t.setStyle(TableStyle([
+            ('FONTNAME',  (0,0),(0,-1), 'Helvetica-Bold'),
+            ('FONTSIZE',  (0,0),(-1,-1), 8.5),
+            ('TEXTCOLOR', (0,0),(0,-1), C['slate']),
+            ('TEXTCOLOR', (1,0),(1,-1), C['dark']),
+            ('TOPPADDING', (0,0),(-1,-1), 4),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+            ('LINEBELOW', (0,0),(-1,-1), 0.3, C['border']),
+            ('ROWBACKGROUNDS',(0,0),(-1,-1), [C['white'], C['light']]),
+        ]))
+        return t
 
-    # ── ANALISI ZONA ─────────────────────────────────────────────────────────
-    story.append(sez('ANALISI ZONA', '')); story.append(Spacer(1,6))
+    two_col = Table([[info_tbl(col1), info_tbl(col2)]], colWidths=[PW/2]*2)
+    two_col.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),
+                                  ('LEFTPADDING',(1,0),(1,0),6)]))
+    story.append(two_col)
+    story.append(Spacer(1, 14))
 
-    # Mappa statica Google Maps
+    # ── MAPPA ZONA ────────────────────────────────────────────────────────────
+    story.append(section_header('MAPPA ZONA', C['blue']))
+    story.append(Spacer(1, 6))
+
     gmaps_key = os.environ.get('GMAPS_KEY', '')
+    mappa_ok  = False
+
     if p.lat and p.lng and gmaps_key:
-        # Estrai concorrenti dai POI salvati
         _conc_list = []
         try:
             import json as _j2
             _pois_raw = p.pois_raw if hasattr(p, 'pois_raw') and p.pois_raw else '[]'
             _all_pois = _j2.loads(_pois_raw) if isinstance(_pois_raw, str) else (_pois_raw or [])
-            _conc_list = [x for x in _all_pois if x.get('tipo') in
-                          ('self_service','tradizionale','industriale','concorrente')]
+            _conc_list = [x for x in _all_pois
+                          if x.get('tipo') in ('self_service','tradizionale','industriale','concorrente')]
         except Exception:
             _conc_list = []
-        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 260, concorrenti=_conc_list)
+
+        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key,
+                                          width_px=640, height_px=320,
+                                          concorrenti=_conc_list)
         if mappa_bytes:
             from reportlab.platypus import Image as RLImage
             import io as _io2
-            img_buf = _io2.BytesIO(mappa_bytes)
-            img_w = W - 4*cm
-            img_h = img_w * 260 / 520
-            rl_img = RLImage(img_buf, width=img_w, height=img_h)
+            img_w = PW
+            img_h = img_w * 320 / 640
+            rl_img = RLImage(_io2.BytesIO(mappa_bytes), width=img_w, height=img_h)
             story.append(rl_img)
-            story.append(Spacer(1, 8))
+            mappa_ok = True
 
-    # KPI popolazione + concorrenti
-    story.append(kpi_box([
-        ('Pop. 3 min',f'{int(p.pop_3min or 0):,}','#3b82f6'),
-        ('Pop. 5 min',f'{int(p.pop_5min or 0):,}','#8b5cf6'),
-        ('Pop. 10 min',f'{int(p.pop_10min or 0):,}','#ec4899'),
-        ('Concorrenti 500m',str(p.concorrenti_500m or 0),'#ef4444'),
-        ('Concorrenti 1km',str(p.concorrenti_1km or 0),'#f59e0b'),
+            # Legenda concorrenti sotto la mappa
+            if _conc_list:
+                n_self = sum(1 for c in _conc_list if c.get('tipo')=='self_service')
+                n_trad = sum(1 for c in _conc_list if c.get('tipo')=='tradizionale')
+                n_ind  = sum(1 for c in _conc_list if c.get('tipo')=='industriale')
+                legend_items = []
+                if n_self: legend_items.append(('Rosso C = Self-service', n_self, '#ef4444'))
+                if n_trad: legend_items.append(('Arancio T = Tradizionale', n_trad, '#f59e0b'))
+                if n_ind:  legend_items.append(('Blu I = Industriale', n_ind, '#3b82f6'))
+                if legend_items:
+                    leg_parts = [
+                        Paragraph(
+                            f'<font color="{col}">●</font>  {lbl}: <b>{n}</b>',
+                            st('leg', fontSize=8, textColor=C['text'])
+                        )
+                        for lbl, n, col in legend_items
+                    ]
+                    leg_parts.insert(0, Paragraph(
+                        '<font color="#f59e0b">★</font>  Giallo S = Sede proposta',
+                        st('leg0', fontSize=8, textColor=C['text'])
+                    ))
+                    # Distribuisci su 4 colonne max
+                    while len(leg_parts) < 4:
+                        leg_parts.append(Paragraph('', st('legx', fontSize=8)))
+                    leg_tbl = Table([leg_parts[:4]], colWidths=[PW/4]*4)
+                    leg_tbl.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0),(-1,-1), C['light']),
+                        ('TOPPADDING', (0,0),(-1,-1), 5),
+                        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+                        ('LEFTPADDING', (0,0),(-1,-1), 8),
+                    ]))
+                    story.append(leg_tbl)
+
+    if not mappa_ok:
+        story.append(Paragraph('Coordinate non disponibili per questa pratica.',
+                                st('nomappa', fontSize=9, textColor=C['slate'])))
+
+    story.append(Spacer(1, 12))
+
+    # ── KPI ZONA + SCORE ───────────────────────────────────────────────────────
+    story.append(section_header('ANALISI ZONA', C['purple']))
+    story.append(Spacer(1, 6))
+
+    story.append(kpi_row([
+        ('Abitanti 3 min',   f'{int(p.pop_3min  or 0):,}', '#3b82f6'),
+        ('Abitanti 5 min',   f'{int(p.pop_5min  or 0):,}', '#8b5cf6'),
+        ('Abitanti 10 min',  f'{int(p.pop_10min or 0):,}', '#ec4899'),
+        ('Concorrenti 500m', str(p.concorrenti_500m or 0),  '#ef4444'),
+        ('Concorrenti 1km',  str(p.concorrenti_1km  or 0),  '#f59e0b'),
     ]))
-    story.append(Spacer(1,8))
-
-    # Score + fattibilità
-    sc=int(p.score_zona or 0)
-    scol_hex='#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
-    st_sc=Table([[
-        Paragraph(f'<b>Score zona: <font color="{scol_hex}">{sc}/100 - {p.score_label or ""}</font></b>',
-                  st('ssc',fontSize=12,fontName='Helvetica-Bold',textColor=SCURO)),
-        Paragraph(f'Fattibilita: <b><font color="{scol_hex}">{p.fattibilita}%</font></b>',
-                  st('sfc',fontSize=10,textColor=GRIGIO,alignment=TA_RIGHT)),
-    ]],colWidths=[10*cm,7*cm])
-    st_sc.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),BG),
-        ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#e2e8f0')),
-        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-        ('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),
-        ('LEFTPADDING',(0,0),(-1,-1),10)]))
-    story.append(st_sc)
-
-    # ── PAGINA DEMOGRAFICA ISTAT ──────────────────────────────────────────────
-    story.append(PageBreak())
-    story.append(sez('ANALISI DEMOGRAFICA — Dati ISTAT', ''))
     story.append(Spacer(1, 8))
 
-    # Recupera dati ISTAT per la provincia
+    # Score + fattibilità — barra orizzontale
+    sc      = int(p.score_zona or 0)
+    scol_h  = '#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
+    fat     = int(p.fattibilita or 0)
+    fat_h   = '#10b981' if fat>=70 else '#f59e0b' if fat>=40 else '#ef4444'
+
+    class ScoreBar(Flowable):
+        def __init__(self, label, value, max_val, color_hex, subtitle='', width=None):
+            Flowable.__init__(self)
+            self.label    = label
+            self.value    = value
+            self.max_val  = max_val
+            self.col      = color_hex
+            self.subtitle = subtitle
+            self.width    = width or PW
+            self.height   = 1.1*cm
+        def draw(self):
+            c   = self.canv
+            w   = self.width
+            lw  = 3.5*cm   # larghezza etichetta
+            bw  = w - lw - 3.0*cm  # larghezza barra
+            bx  = lw
+            by  = 0.35*cm
+            bh  = 0.45*cm
+            pct = self.value / self.max_val
+            # Label
+            c.setFont('Helvetica-Bold', 9); c.setFillColor(C['dark'])
+            c.drawString(0, by + 0.05*cm, self.label)
+            # Sfondo barra
+            c.setFillColor(C['border'])
+            c.roundRect(bx, by, bw, bh, 3, fill=1, stroke=0)
+            # Barra colorata
+            c.setFillColor(colors.HexColor(self.col))
+            fill_w = max(6, bw * pct)
+            c.roundRect(bx, by, fill_w, bh, 3, fill=1, stroke=0)
+            # Valore
+            c.setFont('Helvetica-Bold', 10); c.setFillColor(colors.HexColor(self.col))
+            c.drawString(bx + bw + 0.3*cm, by, f'{self.value}')
+            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
+            c.drawString(bx + bw + 0.3*cm, by + 0.35*cm, f'/{self.max_val}')
+            # Subtitle
+            if self.subtitle:
+                c.setFont('Helvetica', 7.5); c.setFillColor(C['slate'])
+                c.drawString(bx + bw + 1.2*cm, by, self.subtitle)
+
+    story.append(ScoreBar('Score zona',  sc,  100, scol_h, p.score_label or '',  PW))
+    story.append(Spacer(1, 4))
+    story.append(ScoreBar('Fattibilità', fat, 100, fat_h,  '',                   PW))
+    story.append(Spacer(1, 14))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 3 — DEMOGRAFICA ISTAT (layout grafico)
+    # ─────────────────────────────────────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(section_header('ANALISI DEMOGRAFICA  —  Dati ISTAT', C['purple']))
+    story.append(Spacer(1, 8))
+
+    # Recupera dati ISTAT
     try:
-        from services.istat import PROVINCE_DATA, calcola_stima_clienti
+        from services.istat import PROVINCE_DATA
         citta_lower = (p.citta or '').lower()
         dati_prov = None
         for cod, dati in PROVINCE_DATA.items():
-            if dati.get('nome', '').lower() in citta_lower or citta_lower in dati.get('nome', '').lower():
-                dati_prov = dati
-                break
+            nn = dati.get('nome', '').lower()
+            if nn in citta_lower or citta_lower in nn:
+                dati_prov = dati; break
         if not dati_prov:
-            # Fallback: usa dati medi nazionali
             dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
                          'reddito_medio': 20500, 'densita': 200}
     except Exception:
         dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
                      'reddito_medio': 20500, 'densita': 200}
 
-    eta_media = dati_prov.get('eta_media', 46.0)
+    eta     = dati_prov.get('eta_media', 46.0)
     reddito = dati_prov.get('reddito_medio', 20500)
     densita = dati_prov.get('densita', 200)
-    pop_3 = int(p.pop_3min or 0)
-    pop_5 = int(p.pop_5min or 0)
-    pop_10 = int(p.pop_10min or 0)
+    pop5    = int(p.pop_5min  or 0)
+    pop10   = int(p.pop_10min or 0)
+    pop3    = int(p.pop_3min  or 0)
+    bacino  = pop5 if pop5 > 0 else pop10
+    tasso_b = 0.018
+    fatt_e  = 1.10 if eta<35 else 1.05 if eta<45 else 0.98 if eta<50 else 0.90
+    fatt_r  = 1.15 if reddito<17000 else 1.05 if reddito<22000 else 0.95 if reddito<27000 else 0.85
+    clienti_giorno = max(1, int(bacino * tasso_b * fatt_e * fatt_r))
 
-    # Stime clienti giornalieri
-    bacino = pop_5 if pop_5 > 0 else pop_10
-    tasso_base = 0.018
-    # Fattore età: ottimale 30-45 anni
-    if eta_media < 35: fatt_eta = 1.10
-    elif eta_media < 45: fatt_eta = 1.05
-    elif eta_media < 50: fatt_eta = 0.98
-    else: fatt_eta = 0.90
-    # Fattore reddito
-    if reddito < 17000: fatt_reddito = 1.15
-    elif reddito < 22000: fatt_reddito = 1.05
-    elif reddito < 27000: fatt_reddito = 0.95
-    else: fatt_reddito = 0.85
-    clienti_giorno_stima = int(bacino * tasso_base * fatt_eta * fatt_reddito)
-
-    # Segmentazione demografica stimata
-    seg_giovani = int(bacino * 0.22)   # 18-34 anni
-    seg_adulti  = int(bacino * 0.35)   # 35-54 anni
-    seg_senior  = int(bacino * 0.20)   # 55+ anni
-    seg_famiglie= int(bacino * 0.23)   # nuclei familiari
-
-    # Tabella indicatori chiave + mini infografica
-    class DemoPage(Flowable):
-        def __init__(self, width, height_needed):
+    class DemoGraphic(Flowable):
+        def __init__(self, width, height):
             Flowable.__init__(self)
-            self.width = width
-            self.height = height_needed
+            self.width  = width
+            self.height = height
+
         def draw(self):
             c = self.canv
             w = self.width
-            # --- Riga 1: 3 card demografiche ---
-            card_w = (w - 2*cm/3) / 3
+            h = self.height
+
+            # ── ROW 1: 3 card indicatori ISTAT ─────────────────────────────
             cards = [
-                ('ETA MEDIA', f'{eta_media:.1f} anni',
-                 '#8b5cf6', 'Fonte: ISTAT Censimento 2021'),
-                ('REDDITO MEDIO', f'EUR {reddito:,}',
-                 '#10b981', 'Dichiarazioni MEF 2022'),
-                ('DENSITA ABITATIVA', f'{densita:,} ab/km²',
-                 '#3b82f6', 'Dati provinciali ISTAT'),
+                ('ETÀ MEDIA', f'{eta:.1f}', 'anni', '#8b5cf6', 'ISTAT 2021'),
+                ('REDDITO MEDIO', f'€ {reddito:,}', '/anno', '#10b981', 'MEF 2022'),
+                ('DENSITÀ', f'{densita:,}', 'ab/km²', '#3b82f6', 'ISTAT 2021'),
             ]
-            for i, (lbl, val, col, fonte) in enumerate(cards):
-                cx = i * (card_w + cm/3)
-                cy = self.height - 2.8*cm
+            cw = (w - 2*0.3*cm) / 3
+            for i, (lbl, val, unit, col, fonte) in enumerate(cards):
+                cx = i * (cw + 0.3*cm)
+                ch = 2.3*cm
+                cy = h - ch - 0.1*cm
+                # Card background
                 c.setFillColor(colors.HexColor('#f8fafc'))
-                c.roundRect(cx, cy, card_w, 2.4*cm, 6, fill=1, stroke=0)
-                c.setStrokeColor(colors.HexColor(col))
-                c.setLineWidth(2)
-                c.line(cx + 6, cy + 2.4*cm, cx + card_w - 6, cy + 2.4*cm)
-                c.setLineWidth(1)
-                c.setFont('Helvetica', 6.5)
-                c.setFillColor(colors.HexColor('#64748b'))
-                c.drawCentredString(cx + card_w/2, cy + 1.9*cm, lbl)
-                c.setFont('Helvetica-Bold', 11)
+                c.roundRect(cx, cy, cw, ch, 6, fill=1, stroke=0)
+                # Accent top strip
                 c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(cx + card_w/2, cy + 1.2*cm, val)
-                c.setFont('Helvetica', 6)
-                c.setFillColor(colors.HexColor('#94a3b8'))
-                c.drawCentredString(cx + card_w/2, cy + 0.5*cm, fonte)
+                c.roundRect(cx, cy+ch-0.22*cm, cw, 0.22*cm, 3, fill=1, stroke=0)
+                c.rect(cx, cy+ch-0.22*cm, cw, 0.11*cm, fill=1, stroke=0)
+                # Etichetta
+                c.setFont('Helvetica-Bold', 6.5); c.setFillColor(colors.HexColor('#64748b'))
+                c.drawCentredString(cx+cw/2, cy+1.75*cm, lbl)
+                # Valore grande
+                c.setFont('Helvetica-Bold', 14); c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(cx+cw/2, cy+1.1*cm, val)
+                # Unità
+                c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor('#94a3b8'))
+                c.drawCentredString(cx+cw/2, cy+0.6*cm, unit)
+                # Fonte
+                c.setFont('Helvetica', 6); c.setFillColor(colors.HexColor('#cbd5e1'))
+                c.drawCentredString(cx+cw/2, cy+0.15*cm, fonte)
 
-            # --- Riga 2: Bacino d'utenza + Grafico population ---
-            top2 = self.height - 3.4*cm
-            # Titoletto sezione
-            c.setFont('Helvetica-Bold', 8)
-            c.setFillColor(BSCURO)
-            c.drawString(0, top2 - 0.5*cm, 'BACINO DI UTENZA per raggio')
-            # Barre popolazione
-            pop_items = [
-                ('3 min (~400m)', pop_3),
-                ('5 min (~700m)', pop_5),
-                ('10 min (~1.5km)', pop_10),
+            # ── ROW 2: Grafico bacino a barre orizzontali ──────────────────
+            row2_top = h - 2.8*cm
+            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
+            c.drawString(0, row2_top - 0.5*cm, 'BACINO DI UTENZA')
+
+            bar_items = [
+                (f'3 min  (~400m)', pop3,  '#3b82f6'),
+                (f'5 min  (~700m)', pop5,  '#8b5cf6'),
+                (f'10 min (~1.5km)', pop10, '#ec4899'),
             ]
-            bar_colors = ['#3b82f6', '#8b5cf6', '#ec4899']
-            max_pop = max(pop_10, 1)
-            bar_top = top2 - 1.1*cm
-            bar_h = 18
-            bar_gap = 8
-            bar_max_w = w * 0.55
-            for i, (lbl, val) in enumerate(pop_items):
-                by = bar_top - i * (bar_h + bar_gap)
-                bw_actual = bar_max_w * (val / max_pop)
-                # sfondo
+            max_pop = max(pop10, 1)
+            bar_top = row2_top - 1.1*cm
+            bh_bar  = 16
+            gap_bar = 7
+            label_w = 3.5*cm
+            bar_max_w = w * 0.52
+
+            for i, (lbl, val, col) in enumerate(bar_items):
+                by_ = bar_top - i*(bh_bar+gap_bar)
+                bw_ = bar_max_w * (val / max_pop)
+                # Sfondo
                 c.setFillColor(colors.HexColor('#e2e8f0'))
-                c.roundRect(90, by, bar_max_w, bar_h, 3, fill=1, stroke=0)
-                # barra
-                c.setFillColor(colors.HexColor(bar_colors[i]))
-                if bw_actual > 6:
-                    c.roundRect(90, by, bw_actual, bar_h, 3, fill=1, stroke=0)
-                # etichetta sinistra
-                c.setFont('Helvetica', 7)
-                c.setFillColor(colors.HexColor('#64748b'))
-                c.drawRightString(86, by + 5, lbl)
-                # valore
-                c.setFont('Helvetica-Bold', 8)
-                c.setFillColor(colors.HexColor('#0f172a'))
-                c.drawString(96 + bar_max_w, by + 5, f'{val:,}')
+                c.roundRect(label_w, by_, bar_max_w, bh_bar, 3, fill=1, stroke=0)
+                # Fill
+                if bw_ > 4:
+                    c.setFillColor(colors.HexColor(col))
+                    c.roundRect(label_w, by_, bw_, bh_bar, 3, fill=1, stroke=0)
+                # Label sinistra
+                c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor('#64748b'))
+                c.drawRightString(label_w - 4, by_ + 4, lbl)
+                # Valore
+                c.setFont('Helvetica-Bold', 8); c.setFillColor(colors.HexColor('#0f172a'))
+                c.drawString(label_w + bar_max_w + 6, by_ + 4, f'{val:,} ab.')
 
-            # --- Riga 3: Segmentazione target ---
-            top3 = top2 - (bar_h + bar_gap) * 3 - 1.6*cm
-            c.setFont('Helvetica-Bold', 8)
-            c.setFillColor(BSCURO)
-            c.drawString(0, top3, 'SEGMENTAZIONE TARGET (su pop. 5 min)')
-            seg_top = top3 - 0.7*cm
+            # ── ROW 2b: segmentazione (destra delle barre) ─────────────────
+            seg_x = label_w + bar_max_w + w*0.15
+            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
+            c.drawString(seg_x, row2_top - 0.5*cm, 'TARGET')
+
             seg_items = [
-                ('Giovani (18-34)', seg_giovani, '#3b82f6', '22%'),
-                ('Adulti (35-54)',  seg_adulti,  '#10b981', '35%'),
-                ('Senior (55+)',    seg_senior,  '#f59e0b', '20%'),
-                ('Nuclei famil.',   seg_famiglie,'#8b5cf6', '23%'),
+                ('18-34 anni', 22, '#3b82f6'),
+                ('35-54 anni', 35, '#10b981'),
+                ('55+ anni',   20, '#f59e0b'),
+                ('Famiglie',   23, '#8b5cf6'),
             ]
-            seg_w = (w - 1*cm) / 4
-            for i, (lbl, val, col, pct) in enumerate(seg_items):
-                sx = i * (seg_w + cm/4 * 0.33)
-                sy = seg_top - 2.2*cm
-                # card
-                c.setFillColor(colors.HexColor('#f8fafc'))
-                c.roundRect(sx, sy, seg_w - 2, 2.0*cm, 5, fill=1, stroke=0)
-                # cerchio colorato
-                cr = 0.3*cm
+            seg_top2 = row2_top - 1.1*cm
+            seg_h    = 14
+            seg_gap  = 9
+            seg_bw   = w - seg_x - 1.5*cm
+            for i,(lbl,pct,col) in enumerate(seg_items):
+                sy = seg_top2 - i*(seg_h+seg_gap)
+                bw_s = seg_bw * pct / 100
+                c.setFillColor(colors.HexColor('#e2e8f0'))
+                c.roundRect(seg_x, sy, seg_bw, seg_h, 3, fill=1, stroke=0)
                 c.setFillColor(colors.HexColor(col))
-                c.circle(sx + seg_w/2, sy + 1.55*cm, cr, fill=1, stroke=0)
-                # percentuale
-                c.setFont('Helvetica-Bold', 9)
-                c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(sx + seg_w/2, sy + 1.05*cm, pct)
-                # label
-                c.setFont('Helvetica', 6.5)
-                c.setFillColor(colors.HexColor('#64748b'))
-                c.drawCentredString(sx + seg_w/2, sy + 0.6*cm, lbl)
-                # valore
-                c.setFont('Helvetica-Bold', 7)
-                c.setFillColor(colors.HexColor('#0f172a'))
-                c.drawCentredString(sx + seg_w/2, sy + 0.15*cm, f'{val:,}')
+                c.roundRect(seg_x, sy, bw_s, seg_h, 3, fill=1, stroke=0)
+                c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
+                c.drawString(seg_x - 1.5*cm, sy + 3, lbl)
+                c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor(col))
+                c.drawString(seg_x + seg_bw + 4, sy + 3, f'{pct}%')
 
-            # --- Riga 4: Stima clienti + indicatori wash ---
-            top4 = seg_top - 2.6*cm
-            c.setFont('Helvetica-Bold', 8)
-            c.setFillColor(BSCURO)
-            c.drawString(0, top4, 'POTENZIALE COMMERCIALE STIMATO')
+            # ── ROW 3: 5 KPI commerciali ───────────────────────────────────
+            row3_top = row2_top - 3.8*cm
+            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
+            c.drawString(0, row3_top - 0.3*cm, 'POTENZIALE COMMERCIALE STIMATO')
 
-            wash_items = [
-                ('Clienti/giorno stimati', str(clienti_giorno_stima), '#10b981'),
-                ('Clienti/mese (x26gg)',   str(clienti_giorno_stima * 26), '#3b82f6'),
-                ('Età media bacino',       f'{eta_media:.0f} anni', '#8b5cf6'),
-                ('Reddito pro-capite',     f'EUR {reddito:,}', '#f59e0b'),
-                ('Densità ab./km²',        f'{densita:,}', '#ec4899'),
+            kpis_c = [
+                ('Clienti/giorno',  str(clienti_giorno),     '#10b981'),
+                ('Clienti/mese',    str(clienti_giorno*26),  '#3b82f6'),
+                ('Età media',       f'{eta:.0f} anni',        '#8b5cf6'),
+                ('Reddito/capite',  f'€ {reddito:,}',         '#f59e0b'),
+                ('Densità ab/km²',  f'{densita:,}',           '#ec4899'),
             ]
-            wash_top = top4 - 0.7*cm
-            wc_w = (w - cm * 0.5) / len(wash_items)
-            for i, (lbl, val, col) in enumerate(wash_items):
-                wx = i * (wc_w + cm * 0.1)
-                wy = wash_top - 1.8*cm
+            kpi_top = row3_top - 1.0*cm
+            kw_c    = (w - 4*0.2*cm) / 5
+            for i,(lbl,val,col) in enumerate(kpis_c):
+                kx = i*(kw_c + 0.2*cm)
+                ky = kpi_top - 1.6*cm
                 c.setFillColor(colors.HexColor('#f8fafc'))
-                c.roundRect(wx, wy, wc_w - 2, 1.6*cm, 4, fill=1, stroke=0)
+                c.roundRect(kx, ky, kw_c, 1.5*cm, 4, fill=1, stroke=0)
                 c.setStrokeColor(colors.HexColor(col)); c.setLineWidth(1.5)
-                c.line(wx + 4, wy, wx + wc_w - 6, wy)
+                c.line(kx+4, ky+1.5*cm, kx+kw_c-4, ky+1.5*cm)
                 c.setLineWidth(1)
-                c.setFont('Helvetica-Bold', 9)
-                c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(wx + wc_w/2, wy + 0.9*cm, val)
-                c.setFont('Helvetica', 6)
-                c.setFillColor(colors.HexColor('#64748b'))
-                # wrap label su 2 righe se troppo lungo
+                c.setFont('Helvetica-Bold', 9.5); c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(kx+kw_c/2, ky+0.8*cm, val)
                 words = lbl.split()
+                c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#64748b'))
                 if len(words) > 2:
-                    line1 = ' '.join(words[:2])
-                    line2 = ' '.join(words[2:])
-                    c.drawCentredString(wx + wc_w/2, wy + 0.45*cm, line1)
-                    c.drawCentredString(wx + wc_w/2, wy + 0.12*cm, line2)
+                    c.drawCentredString(kx+kw_c/2, ky+0.38*cm, ' '.join(words[:2]))
+                    c.drawCentredString(kx+kw_c/2, ky+0.1*cm, ' '.join(words[2:]))
                 else:
-                    c.drawCentredString(wx + wc_w/2, wy + 0.25*cm, lbl)
+                    c.drawCentredString(kx+kw_c/2, ky+0.25*cm, lbl)
 
-            # nota disclaimer
-            c.setFont('Helvetica', 6.5)
-            c.setFillColor(colors.HexColor('#94a3b8'))
-            c.drawString(0, 0.1*cm,
-                'Stime basate su dati ISTAT Censimento 2021, MEF 2022 e modello domanda BIOLavaTU. I valori sono indicativi.')
+            # Disclaimer
+            c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#94a3b8'))
+            c.drawString(0, 0.1*cm, 'Stime ISTAT Censimento 2021 + MEF 2022 + modello domanda BIOLavaTU. Valori indicativi.')
 
-    story.append(DemoPage(W - 4*cm, 20.5*cm))
+    story.append(DemoGraphic(PW, 19.5*cm))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 4 — MACCHINE
+    # ─────────────────────────────────────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(section_header('CONFIGURAZIONE MACCHINE', C['orange']))
+    story.append(Spacer(1, 6))
+
+    mac_rows  = []
+    capex_iva = p.capex * 1.22
+    for m in p.get_macchine():
+        prezzo = float(m.get('prezzo_effettivo') or m.get('prezzo', 0))
+        qty    = int(m.get('qty', 1))
+        cat    = m.get('categoria', '')
+        # Colore riga per categoria
+        mac_rows.append([
+            Paragraph(f"<b>{m.get('nome','')}</b>", st('mn', fontSize=8.5,
+                       fontName='Helvetica-Bold', textColor=C['dark'])),
+            Paragraph(cat, st('mc', fontSize=8, textColor=C['slate'])),
+            Paragraph(m.get('modello','') or '—', st('mm', fontSize=8, textColor=C['slate'])),
+            Paragraph(f'{qty}x',  st('mq2', fontSize=8.5, alignment=TA_CENTER)),
+            Paragraph(f'€ {prezzo:,.0f}', st('mp', fontSize=8.5, alignment=TA_RIGHT)),
+            Paragraph(f'<b>€ {prezzo*qty:,.0f}</b>',
+                      st('mt', fontSize=8.5, fontName='Helvetica-Bold',
+                         textColor=C['blue'], alignment=TA_RIGHT)),
+        ])
+
+    header_row = [
+        Paragraph('<b>Macchina</b>',   st('mh', fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
+        Paragraph('<b>Categoria</b>',  st('mh2',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
+        Paragraph('<b>Modello</b>',    st('mh3',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
+        Paragraph('<b>Qty</b>',        st('mh4',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_CENTER)),
+        Paragraph('<b>Prezzo</b>',     st('mh5',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
+        Paragraph('<b>Totale</b>',     st('mh6',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
+    ]
+
+    totali = [
+        ['', '', '', '', Paragraph('Imponibile',  st('ti1',fontSize=8,textColor=C['slate'],alignment=TA_RIGHT)),
+                         Paragraph(f'€ {p.capex:,.0f}', st('tv1',fontSize=8,alignment=TA_RIGHT))],
+        ['', '', '', '', Paragraph('IVA 22%',     st('ti2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT)),
+                         Paragraph(f'€ {p.capex*0.22:,.0f}', st('tv2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT))],
+        ['', '', '', '', Paragraph('<b>Totale IVA inclusa</b>', st('ti3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT)),
+                         Paragraph(f'<b>€ {capex_iva:,.0f}</b>', st('tv3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT))],
+    ]
+
+    mt = Table([header_row] + mac_rows + totali,
+               colWidths=[6.0*cm, 2.4*cm, 1.8*cm, 1.0*cm, 2.6*cm, 2.9*cm])
+    ts = TableStyle([
+        ('BACKGROUND',    (0,0),(-1,0),  C['navy']),
+        ('FONTSIZE',      (0,0),(-1,-1), 8.5),
+        ('ROWBACKGROUNDS',(0,1),(-1,-(len(totali)+1)), [C['white'], C['light']]),
+        ('ALIGN',         (3,0),(-1,-1), 'RIGHT'),
+        ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+        ('TOPPADDING',    (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 6),
+        ('LINEBELOW',     (0,0),(-1,-int(len(totali)+1)), 0.3, C['border']),
+        ('LINEABOVE',     (0,-len(totali)),(- 1,-len(totali)), 1.0, C['blue']),
+        ('FONTNAME',      (4,-1),(-1,-1), 'Helvetica-Bold'),
+    ])
+    mt.setStyle(ts)
+    story.append(mt)
+    story.append(Spacer(1, 14))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 4 continua — BUSINESS PLAN
+    # ─────────────────────────────────────────────────────────────────────────
+    story.append(section_header(
+        f'BUSINESS PLAN  —  Scenario {(p.scenario or "realistico").upper()}', C['green']))
+    story.append(Spacer(1, 6))
+
+    story.append(kpi_row([
+        ('Investimento + IVA', f'€ {capex_iva:,.0f}',     '#3b82f6'),
+        ('Incasso / mese',     f'€ {p.incasso_mese:,.0f}','#10b981'),
+        ('Costi / mese',       f'€ {p.costi_mese:,.0f}',  '#ef4444'),
+        ('Utile / mese',       f'€ {p.utile_mese:,.0f}',
+         '#10b981' if p.utile_mese>=0 else '#ef4444'),
+        ('Payback',
+         f'{int(p.payback_mesi/12)} anni' if p.payback_mesi else 'N/D', '#f59e0b'),
+    ]))
     story.append(Spacer(1, 10))
 
-    story.append(Spacer(1,14))
+    # 3 scenari con barra visiva
+    class ScenariChart(Flowable):
+        def __init__(self, inc, cos, uti, width):
+            Flowable.__init__(self)
+            self.inc   = inc
+            self.cos   = cos
+            self.uti   = uti
+            self.width = width
+            self.height= 4.5*cm
 
-    # ── MACCHINE ─────────────────────────────────────────────────────────────
-    story.append(PageBreak())
-    story.append(sez('CONFIGURAZIONE MACCHINE', '')); story.append(Spacer(1,6))
-    mac_header=[['Macchina','Categoria','Modello','Qty','Prezzo','Totale']]
-    mac_rows=[]
-    for m in p.get_macchine():
-        prezzo=float(m.get('prezzo_effettivo') or m.get('prezzo',0))
-        qty=int(m.get('qty',1))
-        mac_rows.append([
-            m.get('nome',''), m.get('categoria',''), m.get('modello','') or '',
-            f'{qty}x', f'EUR {prezzo:,.0f}', f'EUR {prezzo*qty:,.0f}'])
-    capex_iva=p.capex*1.22
-    mac_rows+=[
-        ['','','','','Imponibile',f'EUR {p.capex:,.0f}'],
-        ['','','','','IVA 22%',f'EUR {p.capex*0.22:,.0f}'],
-        ['','','','','TOTALE IVA INCLUSA',f'EUR {capex_iva:,.0f}'],
-    ]
-    mt=Table(mac_header+mac_rows,colWidths=[5.5*cm,2.5*cm,2*cm,1.2*cm,2.8*cm,3*cm])
-    mt.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('BACKGROUND',(0,0),(-1,0),BSCURO),('TEXTCOLOR',(0,0),(-1,0),BIANCO),
-        ('ALIGN',(3,0),(-1,-1),'RIGHT'),
-        ('LINEBELOW',(0,0),(-1,-4),0.3,colors.HexColor('#e2e8f0')),
-        ('ROWBACKGROUNDS',(0,1),(-1,-4),[BIANCO,BG]),
-        ('FONTNAME',(4,-3),(-1,-3),'Helvetica-Bold'),('TEXTCOLOR',(4,-3),(-1,-3),GRIGIO),
-        ('FONTNAME',(4,-2),(-1,-2),'Helvetica-Bold'),('TEXTCOLOR',(4,-2),(-1,-2),ARANCIO),
-        ('FONTNAME',(4,-1),(-1,-1),'Helvetica-Bold'),('TEXTCOLOR',(4,-1),(-1,-1),BLU),
-        ('FONTSIZE',(4,-1),(-1,-1),10),('LINEABOVE',(0,-1),(-1,-1),1.5,BLU),
-        ('BOTTOMPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),6)]))
-    story.append(mt); story.append(Spacer(1,14))
+        def draw(self):
+            c   = self.canv
+            w   = self.width
+            sc3 = [
+                ('Pessimistico ×0.60', self.inc*0.60, self.uti*0.60, '#ef4444'),
+                ('Realistico   ×1.00', self.inc,      self.uti,      '#3b82f6'),
+                ('Ottimistico  ×1.25', self.inc*1.25, self.uti*1.25, '#10b981'),
+            ]
+            max_inc = max(self.inc*1.25, 1)
+            bh  = 18
+            gap = 10
+            lw  = 4.2*cm
+            bar_w = w * 0.50
+            top = self.height - 0.3*cm
 
-    # ── BUSINESS PLAN ────────────────────────────────────────────────────────
-    story.append(sez(f'BUSINESS PLAN — Scenario {(p.scenario or "realistico").upper()}', ''))
-    story.append(Spacer(1,6))
-    story.append(kpi_box([
-        ('Investimento + IVA',f'EUR {capex_iva:,.0f}','#3b82f6'),
-        ('Incasso/mese',f'EUR {p.incasso_mese:,.0f}','#10b981'),
-        ('Costi/mese',f'EUR {p.costi_mese:,.0f}','#ef4444'),
-        ('Utile/mese',f'EUR {p.utile_mese:,.0f}',
-         '#10b981' if p.utile_mese>=0 else '#ef4444'),
-        ('Payback',f'{int(p.payback_mesi/12) if p.payback_mesi else "N/D"} anni','#f59e0b'),
-    ]))
-    story.append(Spacer(1,10))
-    pess=p.utile_mese*0.60; ott=p.utile_mese*1.25
-    sc3=Table([
-        ['Scenario','Incasso/mese','Utile/mese','Note'],
-        ['Pessimistico (x0.60)',f'EUR {p.incasso_mese*0.60:,.0f}',
-         f'EUR {pess:,.0f}','Avvio lento, zona difficile'],
-        ['Realistico (x1.00)',f'EUR {p.incasso_mese:,.0f}',
-         f'EUR {p.utile_mese:,.0f}','Scenario base del modello'],
-        ['Ottimistico (x1.25)',f'EUR {p.incasso_mese*1.25:,.0f}',
-         f'EUR {ott:,.0f}','Marketing attivo, clientela fidelizzata'],
-    ],colWidths=[5*cm,3.5*cm,3.5*cm,5*cm])
-    sc3.setStyle(TableStyle([
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('BACKGROUND',(0,0),(-1,0),BSCURO),('TEXTCOLOR',(0,0),(-1,0),BIANCO),
-        ('ROWBACKGROUNDS',(0,1),(-1,-1),[BIANCO,BG]),
-        ('TEXTCOLOR',(2,1),(2,1),ROSSO if pess<0 else VERDE),
-        ('TEXTCOLOR',(2,2),(2,2),ROSSO if p.utile_mese<0 else VERDE),
-        ('TEXTCOLOR',(2,3),(2,3),VERDE),
-        ('FONTNAME',(0,2),(0,2),'Helvetica-Bold'),
-        ('BOTTOMPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),7),
-        ('LINEBELOW',(0,0),(-1,-2),0.3,colors.HexColor('#e2e8f0'))]))
-    story.append(sc3); story.append(Spacer(1,14))
+            c.setFont('Helvetica-Bold', 7.5); c.setFillColor(C['slate'])
+            c.drawString(lw, top, 'Incasso/mese')
+            c.drawString(lw + bar_w + 0.5*cm, top, 'Utile/mese')
 
-    # ── ANALISI AI BP ────────────────────────────────────────────────────────
+            for i,(nome,inc_s,uti_s,col) in enumerate(sc3):
+                by_ = top - 0.6*cm - i*(bh+gap)
+                # Etichetta
+                c.setFont('Helvetica', 8); c.setFillColor(C['dark'])
+                c.drawRightString(lw-4, by_+5, nome)
+                # Barra incasso
+                c.setFillColor(colors.HexColor('#e2e8f0'))
+                c.roundRect(lw, by_, bar_w, bh, 3, fill=1, stroke=0)
+                bw_i = bar_w * (inc_s / max_inc)
+                c.setFillColor(colors.HexColor(col))
+                c.roundRect(lw, by_, max(4,bw_i), bh, 3, fill=1, stroke=0)
+                c.setFont('Helvetica-Bold', 8); c.setFillColor(colors.HexColor(col))
+                c.drawString(lw + bar_w + 0.3*cm, by_+5, f'€ {inc_s:,.0f}')
+                # Utile (valore numerico)
+                uti_col = '#10b981' if uti_s>=0 else '#ef4444'
+                c.setFont('Helvetica-Bold', 8.5); c.setFillColor(colors.HexColor(uti_col))
+                c.drawString(lw + bar_w + 3.0*cm, by_+5, f'€ {uti_s:,.0f}')
+
+    story.append(ScenariChart(p.incasso_mese, p.costi_mese, p.utile_mese, PW))
+    story.append(Spacer(1, 14))
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 5 — ANALISI AI
+    # ─────────────────────────────────────────────────────────────────────────
     if p.ai_zona:
         ai_text = p.ai_bp or p.ai_zona
         if ai_text:
             story.append(PageBreak())
-            story.append(sez('ANALISI AI - RACCOMANDAZIONE',''))
-            story.append(Spacer(1,8))
-            _render_ai_text(ai_text, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, Spacer, Paragraph)
+            story.append(section_header('ANALISI AI  —  Raccomandazione', C['orange']))
+            story.append(Spacer(1, 8))
+            _render_ai_text(ai_text, story, st, S['body'], S['h2'],
+                            C['navy'], C['green'], C['red'], C['orange'],
+                            Spacer, Paragraph)
 
-    # ── CONDIZIONI DI VENDITA ─────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # PAG 6 — CONDIZIONI DI VENDITA
+    # ─────────────────────────────────────────────────────────────────────────
     if s and s.condizioni_vendita:
         story.append(PageBreak())
-        story.append(sez('CONDIZIONI DI VENDITA', ''))
-        story.append(Spacer(1,6))
+        story.append(section_header('CONDIZIONI DI VENDITA', C['slate']))
+        story.append(Spacer(1, 6))
         for line in s.condizioni_vendita.split('\n'):
             if line.strip():
-                story.append(Paragraph(line.strip(),body))
+                story.append(Paragraph(line.strip(), S['body']))
+                story.append(Spacer(1, 2))
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # BUILD + MERGE ALLEGATI
+    # ─────────────────────────────────────────────────────────────────────────
     doc.build(story)
     main_buf.seek(0)
 
-    # ── MERGE ALLEGATI PDF ────────────────────────────────────────────────────
     from flask import current_app
     upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
     allegati = p.get_allegati()
-    pdf_all = [a for a in allegati if isinstance(a,str) and a.lower().endswith('.pdf')]
+    pdf_all  = [a for a in allegati if isinstance(a,str) and a.lower().endswith('.pdf')]
 
     if not pdf_all:
         resp = make_response(main_buf.read())
@@ -777,8 +964,7 @@ def _genera_pdf_interno(id):
         path = os.path.join(upload_folder, allegato)
         if os.path.exists(path):
             try:
-                for pg in PdfReader(path).pages:
-                    writer.add_page(pg)
+                for pg in PdfReader(path).pages: writer.add_page(pg)
             except Exception:
                 pass
     out_buf = _io.BytesIO()
@@ -787,8 +973,6 @@ def _genera_pdf_interno(id):
     resp.headers['Content-Type'] = 'application/pdf'
     resp.headers['Content-Disposition'] = f'inline; filename=BIOLavaTU-{p.numero}.pdf'
     return resp
-
-
 @pratiche_bp.route('/pratiche/<int:id>/allegato', methods=['POST'])
 @login_required
 def aggiungi_allegato(id):
@@ -825,3 +1009,4 @@ def elimina_allegato(id, idx):
         db.session.commit()
         flash('Allegato eliminato.', 'success')
     return redirect(url_for('pratiche.dettaglio', id=id))
+
