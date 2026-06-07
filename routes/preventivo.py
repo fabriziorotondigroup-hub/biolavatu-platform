@@ -119,10 +119,10 @@ def salva():
         macchine_json=macchine_raw,
         capex=capex,
         # Business plan
-        tariffa_lavaggio_std=float(data.get('tariffa_lavaggio_std', 4) or 4),
-        tariffa_lavaggio_med=float(data.get('tariffa_lavaggio_med', 5) or 5),
-        tariffa_lavaggio_grd=float(data.get('tariffa_lavaggio_grd', 7) or 7),
-        tariffa_asciugatura=float(data.get('tariffa_asciugatura', 3) or 3),
+        tariffa_lavaggio_std=float(data.get('tariffa_lavaggio_std', 6) or 6),
+        tariffa_lavaggio_med=float(data.get('tariffa_lavaggio_med', 8) or 8),
+        tariffa_lavaggio_grd=float(data.get('tariffa_lavaggio_grd', 10) or 10),
+        tariffa_asciugatura=float(data.get('tariffa_asciugatura', 3.5) or 3.5),
         affitto_mese=float(data.get('affitto_mese', 0) or 0),
         incasso_mese=incasso,
         costi_mese=costi,
@@ -185,10 +185,10 @@ def calcola_bp():
     ore_apertura= float(data.get('ore_apertura', 13) or 13)  # 12-14h/giorno
 
     # ── TARIFFE DALL'UTENTE ──────────────────────────────────────────────────
-    t_std  = float(data.get('tariffa_lavaggio_std', 4.0) or 4.0)
-    t_med  = float(data.get('tariffa_lavaggio_med', 5.0) or 5.0)
-    t_grd  = float(data.get('tariffa_lavaggio_grd', 7.0) or 7.0)
-    t_asc  = float(data.get('tariffa_asciugatura',  3.0) or 3.0)
+    t_std  = float(data.get('tariffa_lavaggio_std', 6.0) or 6.0)
+    t_med  = float(data.get('tariffa_lavaggio_med', 8.0) or 8.0)
+    t_grd  = float(data.get('tariffa_lavaggio_grd', 10.0) or 10.0)
+    t_asc  = float(data.get('tariffa_asciugatura',  3.5) or 3.5)
     p_asc  = float(data.get('perc_asciugatura', 65) or 65) / 100.0
 
     # ── ANALISI MACCHINE ─────────────────────────────────────────────────────
@@ -410,10 +410,10 @@ def analisi_ai():
     cli_g    = float(data.get('clienti_giorno', 0) or 0)
     spe      = float(data.get('spesa_cliente', 0) or 0)
     be_cli   = float(data.get('be_clienti', 0) or 0)
-    t_std    = float(data.get('tariffa_lavaggio_std', 4) or 4)
-    t_med    = float(data.get('tariffa_lavaggio_med', 5) or 5)
-    t_grd    = float(data.get('tariffa_lavaggio_grd', 7) or 7)
-    t_asc    = float(data.get('tariffa_asciugatura', 3) or 3)
+    t_std    = float(data.get('tariffa_lavaggio_std', 6) or 6)
+    t_med    = float(data.get('tariffa_lavaggio_med', 8) or 8)
+    t_grd    = float(data.get('tariffa_lavaggio_grd', 10) or 10)
+    t_asc    = float(data.get('tariffa_asciugatura', 3.5) or 3.5)
     p_asc    = float(data.get('perc_asciugatura', 65) or 65)
     aff      = float(data.get('affitto_mese', 0) or 0)
     det      = data.get('dettaglio_costi', {}) or {}
@@ -488,4 +488,5 @@ Tono: professionale, diretto, numeri precisi. NON essere ottimista per compiacer
         return jsonify({'testo': message.content[0].text})
     except Exception as e:
         return jsonify({'errore': str(e)}), 500
+
 
