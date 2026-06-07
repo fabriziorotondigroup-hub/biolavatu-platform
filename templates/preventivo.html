@@ -2185,15 +2185,72 @@ function generaAI() {
     .then(r=>r.json())
     .then(d => {
       const testo = d.testo || d.errore || 'Errore nella generazione.';
-      // Formattazione: ## titoli in grassetto colorato
-      const html = testo
-        .replace(/^## (.+)$/gm, '<div style="font-weight:800;color:#a78bfa;margin-top:14px;margin-bottom:4px;font-size:13px">$1</div>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/✅/g, '<span style="color:#10b981">✅</span>')
-        .replace(/⚠️/g, '<span style="color:#f59e0b">⚠️</span>')
-        .replace(/❌/g, '<span style="color:#ef4444">❌</span>')
-        .replace(/\n/g, '<br>');
-      aiText.innerHTML = html;
+
+      // Formattazione avanzata — rende leggibile l'analisi AI
+      function formattaAI(t) {
+        var righe = t.split('\n');
+        var out = '';
+        var inLista = false;
+
+        righe.forEach(function(r) {
+          var riga = r.trim();
+          if(!riga) {
+            if(inLista) { out += '</ul>'; inLista = false; }
+            out += '<div style="margin:4px 0"></div>';
+            return;
+          }
+
+          // Titoli ## 1. SINTESI o ## 1.
+          if(/^##\s*\d*\.?\s*(.+)/.test(riga)) {
+            if(inLista) { out += '</ul>'; inLista = false; }
+            var titolo = riga.replace(/^##\s*\d*\.?\s*/, '');
+            // Colore per sezione
+            var col = '#a78bfa';
+            if(/FORZA|POSITIV/i.test(titolo)) col = '#10b981';
+            if(/RISCHIO|CRITICA|NEGATIV|SCONSIG/i.test(titolo)) col = '#ef4444';
+            if(/ECONOMICA|PIANO|BUSINESS/i.test(titolo)) col = '#60a5fa';
+            if(/RACCOMAND|CONCLUS/i.test(titolo)) col = '#f59e0b';
+            out += '<div style="font-weight:800;color:'+col+';margin-top:18px;margin-bottom:8px;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px">'+titolo+'</div>';
+            return;
+          }
+
+          // Punti elenco con - o •
+          if(/^[-•]\s+/.test(riga)) {
+            if(!inLista) { out += '<ul style="margin:6px 0 6px 16px;padding:0">'; inLista = true; }
+            var punto = riga.replace(/^[-•]\s+/, '');
+            punto = formattaTesto(punto);
+            out += '<li style="margin:4px 0;line-height:1.6">'+punto+'</li>';
+            return;
+          }
+
+          // Linee separatori ---
+          if(/^---+$/.test(riga)) {
+            if(inLista) { out += '</ul>'; inLista = false; }
+            out += '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:10px 0">';
+            return;
+          }
+
+          // Riga normale
+          if(inLista) { out += '</ul>'; inLista = false; }
+          out += '<div style="margin:4px 0;line-height:1.7">'+formattaTesto(riga)+'</div>';
+        });
+
+        if(inLista) out += '</ul>';
+        return out;
+      }
+
+      function formattaTesto(t) {
+        return t
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/✅/g, '<span style="color:#10b981;font-size:15px">✅</span>')
+          .replace(/⚠️/g, '<span style="color:#f59e0b;font-size:15px">⚠️</span>')
+          .replace(/❌/g, '<span style="color:#ef4444;font-size:15px">❌</span>')
+          .replace(/CONSIGLIATO/g, '<span style="color:#10b981;font-weight:700">CONSIGLIATO</span>')
+          .replace(/SCONSIGLIATO/g, '<span style="color:#ef4444;font-weight:700">SCONSIGLIATO</span>')
+          .replace(/CON RISERVE/g, '<span style="color:#f59e0b;font-weight:700">CON RISERVE</span>');
+      }
+
+      aiText.innerHTML = '<div style="font-size:13px;line-height:1.7;color:#cbd5e1">' + formattaAI(testo) + '</div>';
       document.getElementById('f_ai_zona').value = testo;
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-magic me-1"></i> Rigenera';
