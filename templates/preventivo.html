@@ -943,14 +943,43 @@ body { background: var(--bg); color: var(--text); }
             <label class="form-label">Lavaggio grande (€/ciclo)</label>
             <input type="number" step="0.5" name="tariffa_lavaggio_grd" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_grd if pratica else 10.0 }}">
           </div>
-          <div class="mb-3">
-            <label class="form-label">Asciugatura (€/ciclo)</label>
-            <input type="number" step="0.5" name="tariffa_asciugatura" class="form-control bp-input" value="{{ pratica.tariffa_asciugatura if pratica else 3.5 }}">
+          <!-- ASCIUGATURA: logica cicli reali -->
+          <div class="mb-2">
+            <label class="form-label d-flex align-items-center justify-content-between">
+              <span>Costo ciclo singolo</span>
+              <span style="font-size:10px;color:#64748b">€ per 6-8 min</span>
+            </label>
+            <input type="number" step="0.10" min="0.5" max="5"
+              name="costo_ciclo_asc" id="costo_ciclo_asc"
+              class="form-control bp-input" value="1.00"
+              oninput="aggiornaTariffaAsc()">
+            <div style="font-size:10px;color:#64748b;margin-top:2px">Tipico: €1.00 per 6-8 min. In alcune zone €1.50</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label d-flex align-items-center justify-content-between">
+              <span>Cicli medi per asciugatura</span>
+              <span style="font-size:10px;color:#64748b">n. cicli</span>
+            </label>
+            <input type="number" step="1" min="1" max="10"
+              name="cicli_medi_asc" id="cicli_medi_asc"
+              class="form-control bp-input" value="3"
+              oninput="aggiornaTariffaAsc()">
+            <div style="font-size:10px;color:#64748b;margin-top:2px">Poliestere 2-3 cicli · Cotone 3-4 · Piumone 5+</div>
+          </div>
+          <input type="hidden" name="tariffa_asciugatura" id="tariffa_asciugatura_calc" value="3.0">
+          <div class="mb-2 p-2 rounded" style="background:rgba(16,185,129,0.08);font-size:12px;border-radius:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#64748b">Costo totale asciugatura/cliente:</span>
+              <span><b id="label_costo_asc" style="color:#10b981">€3.00</b>
+              <span id="label_costo_asc_det" style="color:#64748b;font-size:11px"> (€1.00 × 3 cicli = 24 min)</span></span>
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">% clienti che asciugano</label>
-            <input type="number" min="0" max="100" step="5" name="perc_asciugatura" id="perc_asciugatura" class="form-control bp-input" value="65">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">Default 65% — dipende da zona e stagione</div>
+            <input type="number" min="0" max="100" step="5"
+              name="perc_asciugatura" id="perc_asciugatura"
+              class="form-control bp-input" value="65">
+            <div style="font-size:10px;color:#64748b;margin-top:2px">65% norma · sale in inverno, scende in estate</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Giorni apertura/mese</label>
@@ -1401,7 +1430,19 @@ function precompilaTariffe() {
   const fStd = document.querySelector('[name=tariffa_lavaggio_std]');
   const fMed = document.querySelector('[name=tariffa_lavaggio_med]');
   const fGrd = document.querySelector('[name=tariffa_lavaggio_grd]');
-  const fAsc = document.querySelector('[name=tariffa_asciugatura]');
+  const fAsc = document.getElementById('tariffa_asciugatura_calc');
+
+  window.aggiornaTariffaAsc = function() {
+    const costo = parseFloat(document.getElementById('costo_ciclo_asc').value || 1);
+    const cicli = parseInt(document.getElementById('cicli_medi_asc').value || 3);
+    const totale = +(costo * cicli).toFixed(2);
+    document.getElementById('tariffa_asciugatura_calc').value = totale;
+    const lbl  = document.getElementById('label_costo_asc');
+    const lbld = document.getElementById('label_costo_asc_det');
+    if(lbl)  lbl.textContent  = '€' + totale.toFixed(2);
+    if(lbld) lbld.textContent = ' (€' + costo.toFixed(2) + ' × ' + cicli + ' cicli = ' + (cicli*8) + ' min)';
+    if(window._ultimaBP && window._ultimaBP.incasso_mese > 0) calcolaBP();
+  };
 
   if(fStd && avg(lav_std) !== null) fStd.value = avg(lav_std).toFixed(2);
   if(fMed && avg(lav_med) !== null) fMed.value = avg(lav_med).toFixed(2);
