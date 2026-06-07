@@ -279,11 +279,12 @@ def calcola_bp():
     c_asc = clienti * p_asc # cicli asciugatura/giorno
     kw_lav = kw_tot * (n_lav / max(1, n_lav + n_asc))
     kw_asc = kw_tot * (n_asc  / max(1, n_lav + n_asc))
-    # Energia = uso macchine (cicli × durata) + standby (ore apertura × 0.5kW illuminaz.)
-    kw_standby = 0.5 + (max(1, n_lav + n_asc) * 0.05)  # illuminazione + controlli
+    # Energia = uso macchine (cicli reali) + standby (ore apertura × consumi fissi)
+    # Standby: solo illuminazione + sistemi controllo (NON le macchine in standby caldo)
+    kw_standby_illum = 0.3  # illuminazione LED + sistema controllo pagamento
     cv_energia = (
-        (kw_lav * c_lav * 0.75 + kw_asc * c_asc * 0.67)  # uso macchine
-        + kw_standby * ore_apertura                        # standby/illuminazione
+        (kw_lav * c_lav * 0.75 + kw_asc * c_asc * 0.67)  # uso macchine proporzionale ai cicli
+        + kw_standby_illum * ore_apertura                  # illuminazione fissa
     ) * giorni_mese * kwh_c
 
     # Gas asciugatura (solo se asciugatrici a gas)
@@ -438,7 +439,7 @@ Asciugatura: €{t_asc}/ciclo | Clienti che asciugano: {p_asc:.0f}%
 → Spesa media per visita: €{spe:.2f} (lav. + quota asciugatura)
 
 ═══ BUSINESS PLAN — SCENARIO REALISTICO ═══
-Clienti stimati: {cli_g:.1f}/giorno → {cli_g*26:.0f}/mese
+Clienti stimati: {cli_g:.1f}/giorno → {cli_g*giorni_mese:.0f}/mese
 Ricavi mensili: €{inc:,.0f}
   di cui costi variabili: €{float(det.get('variabili',0) or 0):,.0f} (energia €{float(det.get('energia',0) or 0):,.0f} | acqua €{float(det.get('acqua',0) or 0):,.0f} | deterg. €{float(det.get('detergenti',0) or 0):,.0f})
   di cui costi fissi: €{float(det.get('fissi',0) or 0):,.0f} (affitto €{aff:,.0f} | manut/assic/comm €{float(det.get('manutenzione',0) or 0)+float(det.get('assicurazione',0) or 0)+float(det.get('commercialista',0) or 0):,.0f})
@@ -487,3 +488,4 @@ Tono: professionale, diretto, numeri precisi. NON essere ottimista per compiacer
         return jsonify({'testo': message.content[0].text})
     except Exception as e:
         return jsonify({'errore': str(e)}), 500
+
