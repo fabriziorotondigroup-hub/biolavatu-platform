@@ -879,9 +879,9 @@ def _genera_pdf_interno(id):
             c   = self.canv
             w   = self.width
             sc3 = [
-                ('Pessimistico ×0.60', self.inc*0.60, self.uti*0.60, '#ef4444'),
-                ('Realistico   ×1.00', self.inc,      self.uti,      '#3b82f6'),
-                ('Ottimistico  ×1.25', self.inc*1.25, self.uti*1.25, '#10b981'),
+                ('Pessimistico ×0.60', self.inc*0.60, self.inc*0.60 - self.cos, '#ef4444'),
+                ('Realistico   ×1.00', self.inc,      self.uti,                   '#3b82f6'),
+                ('Ottimistico  ×1.25', self.inc*1.25, self.inc*1.25 - self.cos,   '#10b981'),
             ]
             max_inc = max(self.inc*1.25, 1)
             bh  = 18
