@@ -116,6 +116,29 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
 
 
 
+def _geocodifica_indirizzo(indirizzo, citta, gmaps_key):
+    """Geocodifica un indirizzo e restituisce (lat, lng) o (None, None)."""
+    import urllib.parse as _up, urllib.request as _ur2
+    tentativi = []
+    if indirizzo and citta:
+        tentativi.append(f"{indirizzo}, {citta}, Italia")
+    if citta:
+        tentativi.append(f"{citta}, Italia")
+    for addr in tentativi:
+        try:
+            url = ("https://maps.googleapis.com/maps/api/geocode/json?address="
+                   + _up.quote_plus(addr) + "&key=" + gmaps_key)
+            req = _ur2.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
+            with _ur2.urlopen(req, timeout=6) as r:
+                data = __import__('json').loads(r.read())
+            if data.get('results'):
+                loc = data['results'][0]['geometry']['location']
+                return float(loc['lat']), float(loc['lng'])
+        except Exception:
+            continue
+    return None, None
+
+
 def _cerchio_path(lat, lng, raggio_m, punti=20):
     """Genera stringa path per cerchio approssimato su Google Maps Static API."""
     import math as _m
