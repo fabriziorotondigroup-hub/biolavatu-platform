@@ -116,42 +116,84 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
 
 
 
-def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorrenti=None, attractors=None):
-    """Mappa statica Google Maps con marker sede + concorrenti + attractor points."""
+def _cerchio_path(lat, lng, raggio_m, punti=20):
+    """Genera stringa path per cerchio approssimato su Google Maps Static API."""
+    import math as _m
+    R_lat = raggio_m / 111000
+    R_lng = raggio_m / (111000 * _m.cos(_m.radians(lat)))
+    pts = []
+    for i in range(punti + 1):
+        a = 2 * _m.pi * i / punti
+        pts.append(f"{lat + R_lat*_m.sin(a):.6f},{lng + R_lng*_m.cos(a):.6f}")
+    return "|".join(pts)
+
+
+def _get_mappa_statica(lat, lng, gmaps_key, width_px=640, height_px=360,
+                       concorrenti=None, attractors=None):
+    """Mappa statica Google Maps con cerchi 3/5/10 min + markers + attractor points."""
     if not lat or not lng or not gmaps_key:
         return None
     try:
         import urllib.request as _ur
+
         parts = [
             f"center={lat},{lng}",
-            f"zoom=15",
+            f"zoom=14",
             f"size={width_px}x{height_px}",
             f"scale=2",
             f"maptype=roadmap",
-            f"markers=color:yellow|size:mid|label:S|{lat},{lng}",
         ]
-        # Concorrenti
+
+        # ── Cerchi 3/5/10 minuti ──────────────────────────────────────────
+        # 3 min ≈ 240m blu, 5 min ≈ 400m viola, 10 min ≈ 800m rosa
+        cerchi = [
+            (240,  '0x3b82f640', '0x3b82f618'),  # blu
+            (400,  '0x8b5cf640', '0x8b5cf610'),  # viola
+            (800,  '0xec489920', '0xec489908'),  # rosa
+        ]
+        for raggio, colore_bordo, colore_fill in cerchi:
+            path_pts = _cerchio_path(lat, lng, raggio, 20)
+            parts.append(
+                f"path=color:{colore_bordo}|fillcolor:{colore_fill}|weight:2|{path_pts}"
+            )
+
+        # ── Marker sede ───────────────────────────────────────────────────
+        parts.append(f"markers=color:yellow|size:mid|label:S|{lat},{lng}")
+
+        # ── Concorrenti ───────────────────────────────────────────────────
         if concorrenti:
             self_sv = [c for c in concorrenti if c.get('tipo') == 'self_service']
             tradi   = [c for c in concorrenti if c.get('tipo') == 'tradizionale']
             indust  = [c for c in concorrenti if c.get('tipo') == 'industriale']
-            for group, color, lbl in [(self_sv,'red','C'),(tradi,'orange','T'),(indust,'blue','I')]:
+            for group, color, lbl in [
+                (self_sv, 'red',    'C'),
+                (tradi,   'orange', 'T'),
+                (indust,  'blue',   'I'),
+            ]:
                 if group:
-                    locs = '|'.join(f"{c['lat']},{c['lng']}" for c in group[:8])
+                    locs = "|".join(f"{c['lat']},{c['lng']}" for c in group[:6])
                     parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
-        # Attractor points
+
+        # ── Attractor points ──────────────────────────────────────────────
         if attractors:
             univ = [a for a in attractors if a.get('tipo') == 'universita']
             osp  = [a for a in attractors if a.get('tipo') == 'ospedale']
-            mil  = [a for a in attractors if a.get('tipo') in ('caserma','scuola_militare')]
+            mil  = [a for a in attractors if a.get('tipo') in
+                    ('caserma', 'scuola_militare')]
             staz = [a for a in attractors if a.get('tipo') == 'stazione']
+            vvf  = [a for a in attractors if a.get('tipo') == 'vvf']
             for group, color, lbl in [
-                (univ,'purple','U'), (osp,'green','H'),
-                (mil,'red','M'),    (staz,'blue','Z')
+                (univ, 'purple', 'U'),
+                (osp,  'green',  'H'),
+                (mil,  'red',    'M'),
+                (staz, 'blue',   'Z'),
+                (vvf,  'orange', 'V'),
             ]:
                 if group:
-                    locs = '|'.join(f"{a['lat']},{a['lng']}" for a in group[:5])
+                    locs = "|".join(f"{a['lat']},{a['lng']}" for a in group[:4])
                     parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
+
+        # ── Stile mappa scuro ─────────────────────────────────────────────
         styles = [
             "style=element:geometry|color:0x1d2c4d",
             "style=element:labels.text.fill|color:0x8ec3b9",
@@ -162,9 +204,10 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorr
             "style=feature:poi|visibility:off",
             f"key={gmaps_key}",
         ]
-        url = "https://maps.googleapis.com/maps/api/staticmap?" + "&".join(parts + styles)
+        url = ("https://maps.googleapis.com/maps/api/staticmap?"
+               + "&".join(parts + styles))
         req = _ur.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
-        with _ur.urlopen(req, timeout=8) as r:
+        with _ur.urlopen(req, timeout=10) as r:
             return r.read()
     except Exception:
         return None
