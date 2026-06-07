@@ -1366,13 +1366,13 @@ function precompilaTariffe() {
     const nom = (m.nome || '').toLowerCase();
     const kg  = parseFloat(m.capacita_kg || 0);
     const tar = parseFloat(m.tariffa || 0);
-    if(tar <= 0) return; // Impianti/arredamento senza tariffa → salta
-    if('asciug' in nom || cat.includes('asciug')) {
+    if(tar <= 0) return;
+    if(nom.indexOf('asciug') >= 0 || cat.indexOf('asciug') >= 0) {
       asc.push(tar);
     } else if(kg > 0 && kg <= 9)  { lav_std.push(tar); }
     else if(kg > 9  && kg <= 13)  { lav_med.push(tar); }
     else if(kg > 13)              { lav_grd.push(tar); }
-    else                          { lav_std.push(tar); } // fallback
+    else                          { lav_std.push(tar); }
   });
 
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
