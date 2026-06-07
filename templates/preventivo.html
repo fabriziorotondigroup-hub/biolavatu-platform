@@ -933,19 +933,19 @@ body { background: var(--bg); color: var(--text); }
         <div class="card-body">
           <div class="mb-3">
             <label class="form-label">Lavaggio standard (€/ciclo)</label>
-            <input type="number" step="0.5" name="tariffa_lavaggio_std" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_std if pratica else 4.0 }}">
+            <input type="number" step="0.5" name="tariffa_lavaggio_std" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_std if pratica else 6.0 }}">
           </div>
           <div class="mb-3">
             <label class="form-label">Lavaggio medio (€/ciclo)</label>
-            <input type="number" step="0.5" name="tariffa_lavaggio_med" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_med if pratica else 5.0 }}">
+            <input type="number" step="0.5" name="tariffa_lavaggio_med" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_med if pratica else 8.0 }}">
           </div>
           <div class="mb-3">
             <label class="form-label">Lavaggio grande (€/ciclo)</label>
-            <input type="number" step="0.5" name="tariffa_lavaggio_grd" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_grd if pratica else 7.0 }}">
+            <input type="number" step="0.5" name="tariffa_lavaggio_grd" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_grd if pratica else 10.0 }}">
           </div>
           <div class="mb-3">
             <label class="form-label">Asciugatura (€/ciclo)</label>
-            <input type="number" step="0.5" name="tariffa_asciugatura" class="form-control bp-input" value="{{ pratica.tariffa_asciugatura if pratica else 3.0 }}">
+            <input type="number" step="0.5" name="tariffa_asciugatura" class="form-control bp-input" value="{{ pratica.tariffa_asciugatura if pratica else 3.5 }}">
           </div>
           <div class="mb-3">
             <label class="form-label">% clienti che asciugano</label>
@@ -2189,10 +2189,10 @@ function generaAI() {
     be_clienti:      bpObj.be_clienti     || 0,
     dettaglio_costi: bpObj.dettaglio      || {},
     // Tariffe dal form
-    tariffa_lavaggio_std: fd.get('tariffa_lavaggio_std') || 4,
-    tariffa_lavaggio_med: fd.get('tariffa_lavaggio_med') || 5,
-    tariffa_lavaggio_grd: fd.get('tariffa_lavaggio_grd') || 7,
-    tariffa_asciugatura:  fd.get('tariffa_asciugatura')  || 3,
+    tariffa_lavaggio_std: fd.get('tariffa_lavaggio_std') || 6,
+    tariffa_lavaggio_med: fd.get('tariffa_lavaggio_med') || 8,
+    tariffa_lavaggio_grd: fd.get('tariffa_lavaggio_grd') || 10,
+    tariffa_asciugatura:  fd.get('tariffa_asciugatura')  || 3.5,
     perc_asciugatura:     fd.get('perc_asciugatura')     || 65,
     affitto_mese:         fd.get('affitto_mese')         || 0,
     macchine: Object.values(selectedMacchine),
