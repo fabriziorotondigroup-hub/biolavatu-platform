@@ -4,7 +4,283 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+// ═══════════════════════════════════════════════════════════════
+// MODALITÀ BUSINESS PLAN AVANZATA
+// ═══════════════════════════════════════════════════════════════
+
+function setBPMode(mode) {
+  document.getElementById('f_bp_mode').value = mode;
+  const isAdv = mode === 'avanzata';
+
+  document.getElementById('panel-bp-rapida').style.display  = isAdv ? 'none' : 'block';
+  document.getElementById('panel-bp-avanzata').style.display = isAdv ? 'block' : 'none';
+
+  const btnR = document.getElementById('btn-bp-rapida');
+  const btnA = document.getElementById('btn-bp-avanzata');
+  btnR.style.background = isAdv ? 'transparent' : '#2563eb';
+  btnR.style.color       = isAdv ? '#64748b'     : 'white';
+  btnA.style.background = isAdv ? '#7c3aed'     : 'transparent';
+  btnA.style.color       = isAdv ? 'white'       : '#64748b';
+
+  const hint = document.getElementById('bp-mode-hint');
+  hint.textContent = isAdv
+    ? '📊 Inserisci i cicli/giorno previsti — calcolo identico al tuo Excel'
+    : '🚀 Calcolo automatico dalla domanda di zona';
+
+  if(isAdv) {
+    // Popola default dalla zona se disponibile
+    const bp = window._ultimaBP || {};
+    if(bp.clienti_giorno > 0) {
+      const info = document.getElementById('adv-zona-info');
+      const txt  = document.getElementById('adv-zona-txt');
+      if(info && txt) {
+        info.style.display = 'block';
+        txt.innerHTML = `La zona stima <b>${bp.clienti_giorno} clienti/giorno</b> — ` +
+          `puoi usare questo come punto di partenza o inserire la tua previsione.`;
+      }
+      // Suggerisci cicli proporzionali ai clienti stimati
+      const c = bp.clienti_giorno;
+      const n_std = parseInt(document.getElementById('adv_cicli_std').value)||0;
+      // Solo se non modificati dall'utente, aggiorna i hint
+      ['adv_hint_std','adv_hint_med'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if(el) el.textContent = `Zona: ~${Math.round(c*0.6)} cicli/g stimati`;
+      });
+      // Mostra confronto
+      document.getElementById('adv-confronto-card').style.display = 'block';
+    }
+    calcolaADV();
+  }
+}
+
+function _v(id) {
+  const el = document.getElementById(id);
+  return el ? (parseFloat(el.value) || 0) : 0;
+}
+
+function calcolaADV() {
+  const giorni = _v('adv_giorni') || 26;
+  const ore    = _v('adv_ore') || 13;
+
+  // ── RICAVI LAVAGGI ──────────────────────────────────────────
+  const rev_std = _v('adv_cicli_std') * _v('adv_tar_std') * giorni;
+  const rev_med = _v('adv_cicli_med') * _v('adv_tar_med') * giorni;
+  const rev_grd = _v('adv_cicli_grd') * _v('adv_tar_grd') * giorni;
+  const rev_lav = rev_std + rev_med + rev_grd;
+
+  // ── RICAVI ASCIUGATURE ──────────────────────────────────────
+  // cicli/giorno × cicli_per_asciug × tariffa × giorni
+  const rev_asc_p = _v('adv_cicli_asc_p') * _v('adv_cicli_asc_p_num') * _v('adv_tar_asc_p') * giorni;
+  const rev_asc_g = _v('adv_cicli_asc_g') * _v('adv_cicli_asc_g_num') * _v('adv_tar_asc_g') * giorni;
+  const rev_asc   = rev_asc_p + rev_asc_g;
+
+  // ── RICAVI EXTRA ────────────────────────────────────────────
+  const rev_det   = _v('adv_det_cicli') * _v('adv_det_prezzo') * giorni;
+  const rev_caffe = _v('adv_caffe_mese');
+  const rev_extra = rev_det + rev_caffe;
+
+  const rev_tot = rev_lav + rev_asc + rev_extra;
+
+  // Aggiorna label ricavi parziali
+  const fmt = n => '€' + Math.round(n).toLocaleString('it') + '/mese';
+  const setTxt = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  setTxt('adv_rev_std',   `→ €${Math.round(rev_std).toLocaleString('it')}/mese`);
+  setTxt('adv_rev_med',   `→ €${Math.round(rev_med).toLocaleString('it')}/mese`);
+  setTxt('adv_rev_grd',   `→ €${Math.round(rev_grd).toLocaleString('it')}/mese`);
+  setTxt('adv_rev_asc_p', `→ €${Math.round(rev_asc_p).toLocaleString('it')}/mese`);
+  setTxt('adv_rev_asc_g', `→ €${Math.round(rev_asc_g).toLocaleString('it')}/mese`);
+  setTxt('adv_rev_extra', `Detersivo €${Math.round(rev_det).toLocaleString('it')} + Caffè €${Math.round(rev_caffe).toLocaleString('it')} = €${Math.round(rev_extra).toLocaleString('it')}/mese`);
+
+  // ── COSTI VARIABILI ─────────────────────────────────────────
+  const cv_energia = (rev_lav + rev_asc) * _v('adv_perc_energia') / 100;
+  const cv_det     = rev_det * _v('adv_perc_det') / 100;
+  const cv_tot     = cv_energia + cv_det;
+  setTxt('adv_costi_var_det', `Energia/acqua: €${Math.round(cv_energia).toLocaleString('it')} · Detersivi: €${Math.round(cv_det).toLocaleString('it')}`);
+
+  // ── COSTI FISSI ─────────────────────────────────────────────
+  const cf_ids = ['adv_cf_affitto','adv_cf_riscald','adv_cf_comm','adv_cf_promo',
+                  'adv_cf_manut','adv_cf_energia','adv_cf_assic','adv_cf_pulizia',
+                  'adv_cf_cancel','adv_cf_cciaa','adv_cf_personale','adv_cf_altro'];
+  const cf_tot = cf_ids.reduce((s,id) => s + _v(id), 0);
+  setTxt('adv_tot_fissi', `€${Math.round(cf_tot).toLocaleString('it')}`);
+
+  // ── INVESTIMENTI + AMMORTAMENTO ─────────────────────────────
+  // Macchine dal catalogo (dal form base)
+  let capex_mac = 0;
+  (window._ultimaMacchine || []).forEach(function(m) {
+    capex_mac += (parseFloat(m.prezzo_effettivo || m.prezzo || 0)) * (parseInt(m.qty) || 1);
+  });
+  const anni_mac  = _v('adv_anni_mac') || 4;
+  const amm_mac   = capex_mac / anni_mac / 12;
+
+  // Investimenti extra
+  const inv_ids = ['adv_inv_murarie','adv_inv_impianti','adv_inv_insegne','adv_inv_illum',
+                   'adv_inv_arredo','adv_inv_antifurto','adv_inv_gettoniere',
+                   'adv_inv_allaccia','adv_inv_promo','adv_inv_altro'];
+  let amm_extra = 0;
+  let capex_extra = 0;
+  inv_ids.forEach(function(id) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const val  = parseFloat(el.value) || 0;
+    const anni = parseFloat(el.dataset.anni) || 5;
+    capex_extra += val;
+    amm_extra   += val / anni / 12;
+  });
+  const amm_tot   = amm_mac + amm_extra;
+  const capex_tot = capex_mac + capex_extra;
+  const capex_iva = capex_tot * 1.22;
+
+  // Finanziamento
+  const pf = _v('adv_perc_fin') / 100;
+  const ti = _v('adv_tasso') / 100;
+  const ap = _v('adv_anni_prest');
+  let rata = 0;
+  const cf_fin = capex_iva * pf;
+  if(cf_fin > 0 && ap > 0) {
+    const r = ti/12, n = ap*12;
+    rata = cf_fin * (r*Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+  }
+  const costi_cap = amm_tot + rata;
+
+  // ── TOTALI ──────────────────────────────────────────────────
+  const costi_tot = cv_tot + cf_tot + costi_cap;
+  const ebitda    = rev_tot - cv_tot - cf_tot;
+  const utile     = rev_tot - costi_tot;
+  const payback_a = utile > 0 ? (capex_iva / utile / 12) : 0;
+
+  // Clienti equivalenti (cicli lav totali / giorni)
+  const cicli_lav_g = _v('adv_cicli_std') + _v('adv_cicli_med') + _v('adv_cicli_grd');
+  const be_cicli    = costi_tot > 0 && giorni > 0
+    ? (cf_tot + costi_cap) / (rev_tot / Math.max(cicli_lav_g*giorni,1)) / giorni
+    : 0;
+
+  // ── CONTO ECONOMICO ─────────────────────────────────────────
+  const rows_eco = [
+    ['RICAVI TOTALI/mese',    rev_tot,   '#10b981', true],
+    ['  di cui lavaggi',      rev_lav,   '#34d399', false],
+    ['  di cui asciugature',  rev_asc,   '#34d399', false],
+    ['  di cui extra',        rev_extra, '#34d399', false],
+    ['Costi variabili',      -cv_tot,    '#ef4444', false],
+    ['Costi fissi',          -cf_tot,    '#f97316', false],
+    ['Ammortamento',         -amm_tot,   '#f59e0b', false],
+    ['Rata finanziamento',   -rata,      '#f59e0b', false],
+    ['EBITDA',               ebitda,     ebitda>=0?'#10b981':'#ef4444', true],
+    ['UTILE NETTO/mese',     utile,      utile>=0?'#10b981':'#ef4444', true],
+    ['Payback',              payback_a,  '#f59e0b', true, ' anni'],
+  ];
+  let html_eco = '';
+  rows_eco.forEach(function(r) {
+    const [lbl, val, col, bold, suf] = r;
+    const suffix = suf || '/mese';
+    const vstr = Math.abs(val) > 0.01
+      ? (val < 0 ? '-€' : '€') + Math.abs(Math.round(val)).toLocaleString('it') + (lbl==='Payback'?' anni':'/mese')
+      : '—';
+    html_eco += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;color:${bold?'#e2e8f0':'#94a3b8'};${bold?'font-weight:700':''}${lbl.startsWith('  ')?';padding-left:12px':''}">${lbl.trim()}</span>
+      <span style="font-size:${bold?'13':'11'}px;font-weight:${bold?'700':'400'};color:${col}">${vstr}</span>
+    </div>`;
+  });
+  html_eco += `<div style="margin-top:8px;padding:6px 8px;background:rgba(37,99,235,0.1);border-radius:6px;font-size:11px">
+    <span style="color:#64748b">Investimento totale:</span>
+    <b style="color:#3b82f6"> €${Math.round(capex_tot).toLocaleString('it')} + IVA = €${Math.round(capex_iva).toLocaleString('it')}</b>
+  </div>`;
+  const eco = document.getElementById('adv-conto-eco');
+  if(eco) eco.innerHTML = html_eco;
+
+  // ── CONFRONTO ZONA ──────────────────────────────────────────
+  const bp = window._ultimaBP || {};
+  const zona_cli = parseFloat(bp.clienti_giorno) || 0;
+  if(zona_cli > 0 && cicli_lav_g > 0) {
+    document.getElementById('adv-confronto-card').style.display = 'block';
+    const diff_pct = Math.round((cicli_lav_g - zona_cli) / zona_cli * 100);
+    const colCmp   = diff_pct > 50 ? '#ef4444' : diff_pct > 0 ? '#f59e0b' : '#10b981';
+    document.getElementById('adv-confronto-body').innerHTML =
+      `<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#64748b">Cicli/giorno nel tuo BP:</span>
+        <b style="color:#e2e8f0">${cicli_lav_g}</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#64748b">Clienti/giorno stimati zona:</span>
+        <b style="color:#8b5cf6">${zona_cli.toFixed(1)}</b>
+      </div>
+      <div style="padding:6px 10px;border-radius:6px;background:rgba(${diff_pct>50?'239,68,68':diff_pct>0?'245,158,11':'16,185,129'},0.15);margin-top:4px;font-size:12px;color:${colCmp}">
+        ${diff_pct > 50
+          ? `⚠️ Il tuo piano prevede <b>${diff_pct}% in più</b> rispetto alla domanda stimata. Verifica se realistico.`
+          : diff_pct > 0
+          ? `ℹ️ Piano <b>${diff_pct}% sopra</b> la stima zona — ottimistico ma possibile.`
+          : `✅ Piano in linea o sotto la stima zona.`
+        }
+      </div>`;
+  }
+
+  // ── PIANO DI CASSA 12 MESI ──────────────────────────────────
+  // Mese 1: include investimento; mesi 2-12: solo operatività
+  let html_cassa = '';
+  const voci_cassa = [
+    ['Ricavi',         rev_tot,   '#10b981'],
+    ['Costi variabili',-cv_tot,   '#ef4444'],
+    ['Costi fissi',   -cf_tot,   '#f97316'],
+    ['Ammort.+Rata',  -costi_cap,'#f59e0b'],
+    ['Saldo mensile',  utile,     utile>=0?'#10b981':'#ef4444'],
+  ];
+  voci_cassa.forEach(function(vc) {
+    const [lbl, val, col] = vc;
+    const isSaldo = lbl === 'Saldo mensile';
+    let row = `<tr style="${isSaldo?'border-top:2px solid var(--border);font-weight:700':''}">
+      <td style="padding:4px 8px;font-size:10px;color:${col};${isSaldo?'font-weight:700':''};white-space:nowrap">${lbl}</td>`;
+    let cumul = 0;
+    for(let m=1; m<=12; m++) {
+      const v = m===1 && isSaldo ? (val - capex_iva) : val;
+      cumul += v;
+      const vstr = (v>=0?'':'−') + '€' + Math.abs(Math.round(v)).toLocaleString('it');
+      const vcol = v >= 0 ? '#10b981' : '#ef4444';
+      row += `<td style="padding:4px;text-align:right;font-size:10px;color:${isSaldo?vcol:col}">${vstr}</td>`;
+    }
+    row += '</tr>';
+    html_cassa += row;
+  });
+  // Riga saldo cumulato
+  html_cassa += `<tr style="border-top:2px solid #2563eb">
+    <td style="padding:4px 8px;font-size:10px;color:#3b82f6;font-weight:700">Saldo cumulato</td>`;
+  let cumul = -capex_iva;
+  for(let m=1; m<=12; m++) {
+    cumul += utile;
+    const vcol = cumul >= 0 ? '#10b981' : '#ef4444';
+    html_cassa += `<td style="padding:4px;text-align:right;font-size:10px;color:${vcol};font-weight:700">${(cumul>=0?'':'-')}€${Math.abs(Math.round(cumul)).toLocaleString('it')}</td>`;
+  }
+  html_cassa += '</tr>';
+  const cassa_body = document.getElementById('adv-cassa-body');
+  if(cassa_body) cassa_body.innerHTML = html_cassa;
+
+  // Salva per riepilogo/AI
+  window._ultimaBP_adv = {
+    rev_tot, rev_lav, rev_asc, rev_extra,
+    cv_tot, cf_tot, costi_cap, costi_tot,
+    ebitda, utile, capex_tot, capex_iva, payback_a,
+    cicli_lav_g, giorni
+  };
+}
+
+// Popola i default della modalità avanzata con i dati dalla zona
+window._popolaAdvDaZona = function(bp) {
+  if(!bp || !bp.clienti_giorno) return;
+  const c = parseFloat(bp.clienti_giorno) || 0;
+  // Distribuisci i clienti stimati sui cicli per taglia (proporzione tipica)
+  const el_std = document.getElementById('adv_cicli_std');
+  const el_med = document.getElementById('adv_cicli_med');
+  const el_grd = document.getElementById('adv_cicli_grd');
+  if(el_std && c > 0) el_std.value = Math.max(1, Math.round(c * 0.45));
+  if(el_med && c > 0) el_med.value = Math.max(0, Math.round(c * 0.30));
+  if(el_grd && c > 0) el_grd.value = Math.max(0, Math.round(c * 0.25));
+  // Asciugature: ~70% dei clienti asciuga
+  const el_asc = document.getElementById('adv_cicli_asc_p');
+  if(el_asc && c > 0) el_asc.value = Math.max(1, Math.round(c * 0.70));
+};
+
+
+</script>
 <style>
 :root {
   --bg: #0a0e1a; --bg2: #111827; --bg3: #1a2236;
@@ -917,8 +1193,31 @@ body { background: var(--bg); color: var(--text); }
 <div class="wizard-panel" id="panel-5">
 
   <!-- Banner tariffe auto -->
-  <div id="tariffe-auto-banner" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#34d399"></div>
+  <div id="tariffe-auto-banner" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#34d399"></div>
 
+  <!-- Toggle Rapida / Avanzata -->
+  <div class="d-flex align-items-center gap-3 mb-3" style="flex-wrap:wrap">
+    <span style="font-size:13px;color:#94a3b8;font-weight:600">Modalità Business Plan:</span>
+    <div style="display:flex;background:#0a0e1a;border:1px solid #1e2d45;border-radius:8px;padding:3px;gap:2px">
+      <button type="button" id="btn-bp-rapida"
+        onclick="setBPMode('rapida')"
+        style="padding:6px 16px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#2563eb;color:white">
+        🚀 Rapida
+      </button>
+      <button type="button" id="btn-bp-avanzata"
+        onclick="setBPMode('avanzata')"
+        style="padding:6px 16px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#64748b">
+        📊 Avanzata (Excel)
+      </button>
+    </div>
+    <div id="bp-mode-hint" style="font-size:11px;color:#64748b"></div>
+  </div>
+  <input type="hidden" id="f_bp_mode" name="bp_mode" value="rapida">
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- MODALITÀ RAPIDA                                         -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="panel-bp-rapida">
   <div class="row g-3">
     <!-- Tariffe -->
     <div class="col-lg-4">
@@ -937,53 +1236,43 @@ body { background: var(--bg); color: var(--text); }
             <label class="form-label">Lavaggio grande (€/ciclo)</label>
             <input type="number" step="0.5" name="tariffa_lavaggio_grd" class="form-control bp-input" value="{{ pratica.tariffa_lavaggio_grd if pratica else 10.0 }}">
           </div>
-          <!-- ASCIUGATURA: logica cicli reali -->
           <div class="mb-2">
             <label class="form-label d-flex align-items-center justify-content-between">
-              <span>Costo ciclo singolo</span>
-              <span style="font-size:10px;color:#64748b">€ per 6-8 min</span>
+              <span>Costo ciclo asciugatura</span>
+              <span style="font-size:10px;color:#64748b">€/8 min</span>
             </label>
             <input type="number" step="0.10" min="0.5" max="5"
               name="costo_ciclo_asc" id="costo_ciclo_asc"
               class="form-control bp-input" value="1.00"
               oninput="aggiornaTariffaAsc()">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">Tipico: €1.00 per 6-8 min. In alcune zone €1.50</div>
           </div>
           <div class="mb-2">
-            <label class="form-label d-flex align-items-center justify-content-between">
-              <span>Cicli medi per asciugatura</span>
-              <span style="font-size:10px;color:#64748b">n. cicli</span>
-            </label>
+            <label class="form-label">Cicli medi per asciugatura</label>
             <input type="number" step="1" min="1" max="10"
               name="cicli_medi_asc" id="cicli_medi_asc"
               class="form-control bp-input" value="3"
               oninput="aggiornaTariffaAsc()">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">Poliestere 2-3 cicli · Cotone 3-4 · Piumone 5+</div>
+            <div style="font-size:10px;color:#64748b;margin-top:2px">Poliestere 2-3 · Cotone 3-4 · Piumone 5+</div>
           </div>
           <input type="hidden" name="tariffa_asciugatura" id="tariffa_asciugatura_calc" value="3.0">
-          <div class="mb-2 p-2 rounded" style="background:rgba(16,185,129,0.08);font-size:12px;border-radius:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:#64748b">Costo totale asciugatura/cliente:</span>
-              <span><b id="label_costo_asc" style="color:#10b981">€3.00</b>
-              <span id="label_costo_asc_det" style="color:#64748b;font-size:11px"> (€1.00 × 3 cicli = 24 min)</span></span>
-            </div>
+          <div class="mb-2 p-2 rounded" style="background:rgba(16,185,129,0.08);font-size:12px">
+            <span style="color:#64748b">Totale asciugatura/cliente:</span>
+            <b id="label_costo_asc" style="color:#10b981">€3.00</b>
+            <span id="label_costo_asc_det" style="color:#64748b;font-size:11px"> (€1.00 × 3 cicli)</span>
           </div>
           <div class="mb-3">
             <label class="form-label">% clienti che asciugano</label>
             <input type="number" min="0" max="100" step="5"
               name="perc_asciugatura" id="perc_asciugatura"
               class="form-control bp-input" value="65">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">65% norma · sale in inverno, scende in estate</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Giorni apertura/mese</label>
             <input type="number" min="20" max="31" step="1" name="giorni_mese" id="giorni_mese" class="form-control bp-input" value="30">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">365gg/anno ÷ 12 = 30.4 → default 30</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Ore apertura/giorno</label>
             <input type="number" min="8" max="24" step="1" name="ore_apertura" id="ore_apertura" class="form-control bp-input" value="13">
-            <div style="font-size:10px;color:#64748b;margin-top:2px">Incide su energia standby e illuminazione</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Scenario</label>
@@ -1001,98 +1290,41 @@ body { background: var(--bg); color: var(--text); }
       <div class="card h-100">
         <div class="card-header"><i class="bi bi-lightning me-2 text-muted"></i>Costi operativi</div>
         <div class="card-body">
-          <div class="mb-2">
-            <label class="form-label">Costo energia (€/kWh)</label>
-            <input type="number" step="0.01" name="kwh_cost" class="form-control bp-input" value="{{ settings.kwh_cost if settings else 0.28 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Costo gas (€/m³)</label>
-            <input type="number" step="0.01" name="gas_mc_cost" class="form-control bp-input" value="{{ settings.gas_mc_cost if settings else 1.20 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Acqua (€/m³)</label>
-            <input type="number" step="0.01" name="acqua_mc_cost" class="form-control bp-input" value="{{ settings.acqua_mc_cost if settings else 2.50 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Scarichi (€/m³)</label>
-            <input type="number" step="0.01" name="scarico_mc_cost" class="form-control bp-input" value="{{ settings.scarico_mc_cost if settings else 1.80 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Affitto mensile (€)</label>
-            <input type="number" step="10" name="affitto_mese" class="form-control bp-input" value="{{ pratica.affitto_mese if pratica else 0 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Commercialista (€/mese)</label>
-            <input type="number" name="commercialista" class="form-control bp-input" value="{{ settings.commercialista if settings else 150 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">CCIAA (€/mese)</label>
-            <input type="number" name="cciaa" class="form-control bp-input" value="{{ settings.cciaa if settings else 50 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Assicurazione (€/mese)</label>
-            <input type="number" name="assicurazione" class="form-control bp-input" value="{{ settings.assicurazione if settings else 100 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Manutenzione (€/mese)</label>
-            <input type="number" name="manutenzione" class="form-control bp-input" value="{{ settings.manutenzione if settings else 200 }}">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Lavoro pulizie/supervisione (€/mese)</label>
-            <input type="number" name="costo_lavoro" class="form-control bp-input" value="480">
-          </div>
+          <div class="mb-2"><label class="form-label">Costo energia (€/kWh)</label>
+            <input type="number" step="0.01" name="kwh_cost" class="form-control bp-input" value="{{ settings.kwh_cost if settings else 0.28 }}"></div>
+          <div class="mb-2"><label class="form-label">Costo gas (€/m³)</label>
+            <input type="number" step="0.01" name="gas_mc_cost" class="form-control bp-input" value="{{ settings.gas_mc_cost if settings else 1.20 }}"></div>
+          <div class="mb-2"><label class="form-label">Acqua (€/m³)</label>
+            <input type="number" step="0.01" name="acqua_mc_cost" class="form-control bp-input" value="{{ settings.acqua_mc_cost if settings else 2.50 }}"></div>
+          <div class="mb-2"><label class="form-label">Scarichi (€/m³)</label>
+            <input type="number" step="0.01" name="scarico_mc_cost" class="form-control bp-input" value="{{ settings.scarico_mc_cost if settings else 1.80 }}"></div>
+          <div class="mb-2"><label class="form-label">Affitto mensile (€)</label>
+            <input type="number" step="10" name="affitto_mese" class="form-control bp-input" value="{{ pratica.affitto_mese if pratica else 0 }}"></div>
+          <div class="mb-2"><label class="form-label">Commercialista (€/mese)</label>
+            <input type="number" name="commercialista" class="form-control bp-input" value="{{ settings.commercialista if settings else 150 }}"></div>
+          <div class="mb-2"><label class="form-label">CCIAA (€/mese)</label>
+            <input type="number" name="cciaa" class="form-control bp-input" value="{{ settings.cciaa if settings else 50 }}"></div>
+          <div class="mb-2"><label class="form-label">Assicurazione (€/mese)</label>
+            <input type="number" name="assicurazione" class="form-control bp-input" value="{{ settings.assicurazione if settings else 100 }}"></div>
+          <div class="mb-2"><label class="form-label">Manutenzione (€/mese)</label>
+            <input type="number" name="manutenzione" class="form-control bp-input" value="{{ settings.manutenzione if settings else 200 }}"></div>
+          <div class="mb-2"><label class="form-label">Pulizie/supervisione (€/mese)</label>
+            <input type="number" name="costo_lavoro" class="form-control bp-input" value="0"></div>
           <hr style="border-color:var(--border);margin:10px 0">
-          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Investimento</div>
-          <div class="mb-2">
-            <label class="form-label">Ammortamento macchine (anni)</label>
-            <input type="number" name="anni_ammortamento" class="form-control bp-input" value="10" min="5" max="15">
-          </div>
-          <div class="mb-2">
-            <label class="form-label">% investimento finanziato</label>
-            <input type="number" name="perc_finanziato" class="form-control bp-input" value="0" min="0" max="100">
-          </div>
+          <div class="mb-2"><label class="form-label">Ammortamento macchine (anni)</label>
+            <input type="number" name="anni_ammortamento" class="form-control bp-input" value="10" min="5" max="15"></div>
+          <div class="mb-2"><label class="form-label">% investimento finanziato</label>
+            <input type="number" name="perc_finanziato" class="form-control bp-input" value="0" min="0" max="100"></div>
           <div class="row g-1 mb-2">
-            <div class="col-6">
-              <label class="form-label">Tasso interesse (%)</label>
-              <input type="number" step="0.1" name="tasso_interesse" class="form-control bp-input" value="6.0">
-            </div>
-            <div class="col-6">
-              <label class="form-label">Durata prestito (anni)</label>
-              <input type="number" name="anni_prestito" class="form-control bp-input" value="7">
-            </div>
-          </div>
-          <hr style="border-color:var(--border);margin:10px 0">
-          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Accessibilità locale</div>
-          <div class="mb-2">
-            <label class="form-label">Visibilità dalla strada — <span id="lbl_vis">50%</span></label>
-            <input type="range" name="accessib_visibilita" id="sl_vis" min="0" max="1" step="0.1" value="0.5"
-              class="form-range bp-input" oninput="document.getElementById('lbl_vis').textContent=Math.round(this.value*100)+'%'">
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b"><span>Nascosto</span><span>Vetrina su via principale</span></div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Parcheggio — <span id="lbl_park">50%</span></label>
-            <input type="range" name="accessib_parcheggio" id="sl_park" min="0" max="1" step="0.1" value="0.5"
-              class="form-range bp-input" oninput="document.getElementById('lbl_park').textContent=Math.round(this.value*100)+'%'">
-            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b"><span>Nessuno</span><span>Ampio parcheggio</span></div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Piano</label>
-            <select name="accessib_piano" class="form-select bp-input">
-              <option value="1.0">Piano strada ✅</option>
-              <option value="0.3">Interrato o piano superiore ⚠️</option>
-            </select>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Orario apertura</label>
-            <select name="accessib_h24" class="form-select bp-input">
-              <option value="0.0">Orari limitati (es. 7-22)</option>
-              <option value="1.0">H24 — aperto sempre ✅</option>
-            </select>
+            <div class="col-6"><label class="form-label">Tasso interesse (%)</label>
+              <input type="number" step="0.1" name="tasso_interesse" class="form-control bp-input" value="6.0"></div>
+            <div class="col-6"><label class="form-label">Durata prestito (anni)</label>
+              <input type="number" name="anni_prestito" class="form-control bp-input" value="7"></div>
           </div>
         </div>
       </div>
     </div>
-    <!-- Detergenti + Risultati -->
+    <!-- Risultati Rapida -->
     <div class="col-lg-4">
       <div class="card mb-3">
         <div class="card-header"><i class="bi bi-droplet me-2 text-muted"></i>Detergenti</div>
@@ -1103,51 +1335,26 @@ body { background: var(--bg); color: var(--text); }
             (settings.det3_nome if settings else 'Igienizzante', settings.det3_costo_kg if settings else 4.0, settings.det3_grammi_ciclo if settings else 20),
           ] %}
           {% for det in dets %}{% set i = loop.index %}
-          <div class="mb-3 p-2 rounded" style="background:var(--bg3)">
-            <div class="fw-semibold mb-2" style="font-size:12px">{{ det[0] }}</div>
+          <div class="mb-2 p-2 rounded" style="background:var(--bg3)">
+            <div style="font-size:11px;font-weight:600;margin-bottom:4px">{{ det[0] }}</div>
             <div class="row g-1">
-              <div class="col-6">
-                <label class="form-label" style="font-size:10px">€/kg</label>
-                <input type="number" step="0.1" name="det{{ i }}_costo_kg" class="form-control form-control-sm bp-input" value="{{ det[1] }}">
-              </div>
-              <div class="col-6">
-                <label class="form-label" style="font-size:10px">g/ciclo</label>
-                <input type="number" name="det{{ i }}_grammi_ciclo" class="form-control form-control-sm bp-input" value="{{ det[2] }}">
-              </div>
+              <div class="col-6"><label class="form-label" style="font-size:10px">€/kg</label>
+                <input type="number" step="0.1" name="det{{ i }}_costo_kg" class="form-control form-control-sm bp-input" value="{{ det[1] }}"></div>
+              <div class="col-6"><label class="form-label" style="font-size:10px">g/ciclo</label>
+                <input type="number" step="1" name="det{{ i }}_grammi_ciclo" class="form-control form-control-sm bp-input" value="{{ det[2] }}"></div>
             </div>
           </div>
           {% endfor %}
         </div>
       </div>
-      <!-- Risultati BP -->
       <div class="card" style="border-color:var(--primary)">
         <div class="card-header" style="border-color:var(--primary)"><i class="bi bi-calculator me-2"></i>Risultati</div>
         <div class="card-body">
-          <div class="bp-row">
-            <span class="text-muted">Investimento (CAPEX)</span>
-            <span id="r_capex" style="font-weight:700">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">+ IVA 22%</span>
-            <span id="r_capex_iva" style="font-weight:700;color:#3b82f6">—</span>
-          </div>
-          <div class="bp-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
-            <span class="text-muted">Clienti stimati/giorno</span>
-            <span id="r_cicli" style="font-weight:700;color:#8b5cf6">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">Spesa media/visita</span>
-            <span id="r_spesa_visita" style="font-weight:700;color:#60a5fa">—</span>
-          </div>
-          <!-- Box formula incasso — trasparente e chiaro -->
-          <div id="box-formula-incasso" style="
-            border-top:1px solid var(--border);
-            margin-top:6px;padding-top:8px;margin-bottom:4px;
-            background:rgba(16,185,129,0.06);
-            border-radius:8px;padding:10px 12px">
-            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
-              Come si calcola l'incasso
-            </div>
+          <div class="bp-row"><span class="text-muted">Investimento (CAPEX)</span><span id="r_capex" style="font-weight:700">—</span></div>
+          <div class="bp-row"><span class="text-muted">+ IVA 22%</span><span id="r_capex_iva" style="font-weight:700;color:#3b82f6">—</span></div>
+          <!-- Box formula incasso -->
+          <div id="box-formula-incasso" style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;margin-bottom:4px;background:rgba(16,185,129,0.06);border-radius:8px;padding:10px 12px">
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Come si calcola l'incasso</div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;line-height:1.8">
               <span id="formula_cli" style="font-weight:700;color:#8b5cf6;font-size:14px">—</span>
               <span style="color:#64748b">clienti/g</span>
@@ -1163,30 +1370,14 @@ body { background: var(--bg); color: var(--text); }
             </div>
             <div id="formula_note" style="font-size:11px;color:#64748b;margin-top:5px"></div>
           </div>
-          <div class="bp-row">
-            <span class="text-muted">EBITDA mensile</span>
-            <span id="r_ebitda" style="font-weight:700;color:#34d399">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">Costi mensili totali</span>
-            <span id="r_costi" style="color:#ef4444;font-weight:700">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">Utile netto mensile</span>
-            <span id="r_utile" style="font-weight:700">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">Break-even clienti/g</span>
-            <span id="r_be_clienti" style="font-weight:700;color:#f59e0b">—</span>
-          </div>
-          <div class="bp-row">
-            <span class="text-muted">Payback (IVA inclusa)</span>
-            <span id="r_payback" style="color:#f59e0b;font-weight:700">—</span>
-          </div>
+          <div class="bp-row"><span class="text-muted">EBITDA mensile</span><span id="r_ebitda" style="font-weight:700;color:#34d399">—</span></div>
+          <div class="bp-row"><span class="text-muted">Costi mensili totali</span><span id="r_costi" style="color:#ef4444;font-weight:700">—</span></div>
+          <div class="bp-row"><span class="text-muted">Utile netto mensile</span><span id="r_utile" style="font-weight:700">—</span></div>
+          <div class="bp-row"><span class="text-muted">Break-even clienti/g</span><span id="r_be_clienti" style="font-weight:700;color:#f59e0b">—</span></div>
+          <div class="bp-row"><span class="text-muted">Payback (IVA inclusa)</span><span id="r_payback" style="color:#f59e0b;font-weight:700">—</span></div>
           <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-3" onclick="calcolaBP()">
             <i class="bi bi-arrow-clockwise me-1"></i> Ricalcola
           </button>
-          <!-- Dettaglio costi -->
           <div class="mt-3">
             <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Dettaglio costi</div>
             <div id="costi-dettaglio" style="font-size:12px"></div>
@@ -1195,48 +1386,414 @@ body { background: var(--bg); color: var(--text); }
       </div>
     </div>
   </div>
+  </div><!-- fine panel-bp-rapida -->
 
-  <!-- Confronto elettrico vs gas — solo modalità Investitore -->
-  <div id="blocco-confronto-bp" style="display:none" class="mt-3">
-    <div class="card" style="border-color:#f59e0b">
-      <div class="card-header" style="border-color:#f59e0b">
-        <i class="bi bi-lightning-charge me-2" style="color:#f59e0b"></i>
-        Confronto Elettrico vs Gas — Asciugatrici
-      </div>
-      <div class="card-body">
-        <div id="confronto-gas-bp" style="font-size:13px">
-          <div class="row g-3" id="confronto-tabella">
-            <div class="col-md-6">
-              <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:16px">
-                <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">⚡ Solo Elettrico</div>
-                <div id="cmp_el_incasso" style="font-size:13px;color:#e2e8f0">—</div>
-                <div id="cmp_el_costi" style="font-size:13px;color:#e2e8f0;margin-top:4px">—</div>
-                <div id="cmp_el_utile" style="font-size:15px;font-weight:700;margin-top:8px">—</div>
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- MODALITÀ AVANZATA (modello Excel)                       -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div id="panel-bp-avanzata" style="display:none">
+
+    <!-- Info zona (auto) -->
+    <div id="adv-zona-info" style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;display:none">
+      <i class="bi bi-geo-alt me-2" style="color:#3b82f6"></i>
+      <span id="adv-zona-txt" style="color:#93c5fd"></span>
+    </div>
+
+    <div class="row g-3">
+
+      <!-- ── COL 1: RICAVI ───────────────────────── -->
+      <div class="col-lg-4">
+
+        <!-- LAVAGGI -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.3)">
+            <i class="bi bi-droplet me-2" style="color:#3b82f6"></i>
+            <b style="color:#93c5fd">RICAVI — Lavaggi</b>
+          </div>
+          <div class="card-body">
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:8px">
+              Cicli/giorno: stimati dalla zona, modificabili
+            </div>
+
+            <!-- Lavatrici piccole -->
+            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
+              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici piccole (≤9kg)</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
+                  <input type="number" step="1" min="0" max="200" id="adv_cicli_std" name="adv_cicli_std"
+                    class="form-control form-control-sm adv-input" value="15"
+                    oninput="calcolaADV()">
+                  <div style="font-size:9px;color:#8b5cf6;margin-top:2px" id="adv_hint_std"></div>
+                </div>
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
+                  <input type="number" step="0.5" min="1" id="adv_tar_std" name="adv_tar_std"
+                    class="form-control form-control-sm adv-input" value="6.00"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_std">—</div>
+            </div>
+
+            <!-- Lavatrici medie -->
+            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
+              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici medie (10-13kg)</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
+                  <input type="number" step="1" min="0" max="200" id="adv_cicli_med" name="adv_cicli_med"
+                    class="form-control form-control-sm adv-input" value="10"
+                    oninput="calcolaADV()">
+                  <div style="font-size:9px;color:#8b5cf6;margin-top:2px" id="adv_hint_med"></div>
+                </div>
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
+                  <input type="number" step="0.5" min="1" id="adv_tar_med" name="adv_tar_med"
+                    class="form-control form-control-sm adv-input" value="8.00"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_med">—</div>
+            </div>
+
+            <!-- Lavatrici grandi -->
+            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
+              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici grandi (≥14kg)</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
+                  <input type="number" step="1" min="0" max="200" id="adv_cicli_grd" name="adv_cicli_grd"
+                    class="form-control form-control-sm adv-input" value="5"
+                    oninput="calcolaADV()">
+                </div>
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
+                  <input type="number" step="0.5" min="1" id="adv_tar_grd" name="adv_tar_grd"
+                    class="form-control form-control-sm adv-input" value="10.00"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_grd">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ASCIUGATURE -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3)">
+            <i class="bi bi-wind me-2" style="color:#8b5cf6"></i>
+            <b style="color:#c4b5fd">RICAVI — Asciugature</b>
+          </div>
+          <div class="card-body">
+            <!-- Asciugature piccole -->
+            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
+              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Asciugatrici piccole/singole</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
+                  <input type="number" step="1" min="0" id="adv_cicli_asc_p" name="adv_cicli_asc_p"
+                    class="form-control form-control-sm adv-input" value="20"
+                    oninput="calcolaADV()">
+                </div>
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo 8min)</label>
+                  <input type="number" step="0.10" min="0.5" id="adv_tar_asc_p" name="adv_tar_asc_p"
+                    class="form-control form-control-sm adv-input" value="1.00"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div class="row g-2 mt-1">
+                <div class="col-12">
+                  <label class="form-label" style="font-size:10px">Cicli medi per asciugatura completa</label>
+                  <input type="number" step="1" min="1" max="10" id="adv_cicli_asc_p_num" name="adv_cicli_asc_p_num"
+                    class="form-control form-control-sm adv-input" value="3"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_asc_p">—</div>
+            </div>
+            <!-- Asciugature grandi/doppie -->
+            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
+              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Asciugatrici grandi/doppie</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
+                  <input type="number" step="1" min="0" id="adv_cicli_asc_g" name="adv_cicli_asc_g"
+                    class="form-control form-control-sm adv-input" value="5"
+                    oninput="calcolaADV()">
+                </div>
+                <div class="col-6">
+                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo 8min)</label>
+                  <input type="number" step="0.10" min="0.5" id="adv_tar_asc_g" name="adv_tar_asc_g"
+                    class="form-control form-control-sm adv-input" value="1.50"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div class="row g-2 mt-1">
+                <div class="col-12">
+                  <label class="form-label" style="font-size:10px">Cicli medi per asciugatura completa</label>
+                  <input type="number" step="1" min="1" max="10" id="adv_cicli_asc_g_num" name="adv_cicli_asc_g_num"
+                    class="form-control form-control-sm adv-input" value="4"
+                    oninput="calcolaADV()">
+                </div>
+              </div>
+              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_asc_g">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXTRA -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3)">
+            <i class="bi bi-plus-circle me-2" style="color:#10b981"></i>
+            <b style="color:#6ee7b7">RICAVI — Extra</b>
+          </div>
+          <div class="card-body">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label" style="font-size:10px">Vendita detersivo (cicli/g)</label>
+                <input type="number" step="1" min="0" id="adv_det_cicli" name="adv_det_cicli"
+                  class="form-control form-control-sm adv-input" value="10" oninput="calcolaADV()">
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:10px">Prezzo/dose (€)</label>
+                <input type="number" step="0.10" min="0" id="adv_det_prezzo" name="adv_det_prezzo"
+                  class="form-control form-control-sm adv-input" value="0.50" oninput="calcolaADV()">
               </div>
             </div>
-            <div class="col-md-6">
-              <div style="background:#0f172a;border:1px solid #f59e0b33;border-radius:10px;padding:16px">
-                <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;margin-bottom:8px">🔥 Con Gas (asciugatrici)</div>
-                <div id="cmp_gas_incasso" style="font-size:13px;color:#e2e8f0">—</div>
-                <div id="cmp_gas_costi" style="font-size:13px;color:#e2e8f0;margin-top:4px">—</div>
-                <div id="cmp_gas_utile" style="font-size:15px;font-weight:700;margin-top:8px">—</div>
-                <div id="cmp_gas_breakeven" style="font-size:11px;color:#f59e0b;margin-top:6px">—</div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:10px">Distributore caffè/bibite (€/mese)</label>
+              <input type="number" step="10" min="0" id="adv_caffe_mese" name="adv_caffe_mese"
+                class="form-control form-control-sm adv-input" value="0" oninput="calcolaADV()">
+            </div>
+            <div id="adv_rev_extra" style="font-size:11px;color:#10b981">—</div>
+          </div>
+        </div>
+
+      </div><!-- fine col ricavi -->
+
+      <!-- ── COL 2: COSTI ────────────────────────── -->
+      <div class="col-lg-4">
+
+        <!-- COSTI VARIABILI -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)">
+            <i class="bi bi-lightning me-2" style="color:#ef4444"></i>
+            <b style="color:#fca5a5">COSTI VARIABILI</b>
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <label class="form-label" style="font-size:11px">
+                Energia+acqua+gas (% sui ricavi lavaggi+asciugature)
+                <span style="color:#64748b"> — Excel: 17-18%</span>
+              </label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="number" step="0.5" min="5" max="40" id="adv_perc_energia" name="adv_perc_energia"
+                  class="form-control form-control-sm adv-input" value="18" oninput="calcolaADV()">
+                <span style="color:#64748b;font-size:12px">%</span>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:11px">
+                Detersivi (% sui ricavi detersivo venduto)
+                <span style="color:#64748b"> — Excel: 30%</span>
+              </label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="number" step="1" min="0" max="100" id="adv_perc_det" name="adv_perc_det"
+                  class="form-control form-control-sm adv-input" value="30" oninput="calcolaADV()">
+                <span style="color:#64748b;font-size:12px">%</span>
+              </div>
+            </div>
+            <div id="adv_costi_var_det" style="font-size:11px;color:#ef4444;margin-top:4px">—</div>
+          </div>
+        </div>
+
+        <!-- COSTI FISSI -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)">
+            <i class="bi bi-building me-2" style="color:#f97316"></i>
+            <b style="color:#fdba74">COSTI FISSI MENSILI</b>
+          </div>
+          <div class="card-body">
+            {% set costi_fissi = [
+              ('Affitto',            'adv_cf_affitto',      700),
+              ('Riscaldamento/amm.', 'adv_cf_riscald',       25),
+              ('Commercialista',     'adv_cf_comm',         125),
+              ('Promozione',         'adv_cf_promo',         83),
+              ('Manutenzioni',       'adv_cf_manut',        150),
+              ('Energia elettrica',  'adv_cf_energia',       35),
+              ('Assicurazione',      'adv_cf_assic',         50),
+              ('Pulizia/supervisione','adv_cf_pulizia',       0),
+              ('Cancelleria/ufficio','adv_cf_cancel',        42),
+              ('CCIAA + tasse',      'adv_cf_cciaa',         20),
+              ('Personale (se prev.)','adv_cf_personale',    0),
+              ('Altro',              'adv_cf_altro',          0),
+            ] %}
+            {% for lbl, fid, default in costi_fissi %}
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label style="font-size:11px;color:#94a3b8;flex:1">{{ lbl }}</label>
+              <div class="d-flex align-items-center gap-1">
+                <span style="font-size:11px;color:#64748b">€</span>
+                <input type="number" step="1" min="0" id="{{ fid }}" name="{{ fid }}"
+                  class="form-control form-control-sm adv-input" value="{{ default }}"
+                  style="width:80px" oninput="calcolaADV()">
+              </div>
+            </div>
+            {% endfor %}
+            <hr style="border-color:var(--border);margin:8px 0">
+            <div class="d-flex justify-content-between align-items-center">
+              <span style="font-size:12px;font-weight:700;color:#f97316">Totale fissi/mese</span>
+              <span id="adv_tot_fissi" style="font-size:14px;font-weight:700;color:#f97316">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- INVESTIMENTI EXTRA -->
+        <div class="card mb-3">
+          <div class="card-header" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3)">
+            <i class="bi bi-tools me-2" style="color:#f59e0b"></i>
+            <b style="color:#fcd34d">INVESTIMENTI EXTRA</b>
+            <span style="font-size:10px;color:#64748b;font-weight:400"> (aggiuntivi alle macchine)</span>
+          </div>
+          <div class="card-body">
+            {% set inv_extra = [
+              ('Opere murarie/ristrutturazione', 'adv_inv_murarie',  1800, 5),
+              ('Impianti idraulici/elettrici',   'adv_inv_impianti', 8000, 8),
+              ('Insegne/vetrofanie',             'adv_inv_insegne',   400, 5),
+              ('Illuminazione',                  'adv_inv_illum',       0, 6),
+              ('Arredo locali',                  'adv_inv_arredo',   1500, 4),
+              ('Impianto antifurto',             'adv_inv_antifurto',1300, 6),
+              ('Distributore monete/banconote',  'adv_inv_gettoniere',1300, 4),
+              ('Allacciamento utenze',           'adv_inv_allaccia', 1300, 5),
+              ('Promozione avvio',               'adv_inv_promo',     800, 5),
+              ('Altro',                          'adv_inv_altro',       0, 5),
+            ] %}
+            {% for lbl, fid, default, anni in inv_extra %}
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label style="font-size:10px;color:#94a3b8;flex:1">{{ lbl }}</label>
+              <div class="d-flex align-items-center gap-1">
+                <span style="font-size:11px;color:#64748b">€</span>
+                <input type="number" step="100" min="0" id="{{ fid }}" name="{{ fid }}"
+                  class="form-control form-control-sm adv-input" value="{{ default }}"
+                  style="width:80px" oninput="calcolaADV()"
+                  data-anni="{{ anni }}">
+              </div>
+            </div>
+            {% endfor %}
+            <div class="row g-2 mt-2">
+              <div class="col-6">
+                <label style="font-size:10px;color:#94a3b8">Amm. macchine (anni)</label>
+                <input type="number" step="1" min="5" max="15" id="adv_anni_mac" name="adv_anni_mac"
+                  class="form-control form-control-sm adv-input" value="4" oninput="calcolaADV()">
+              </div>
+              <div class="col-6">
+                <label style="font-size:10px;color:#94a3b8">% finanziato</label>
+                <input type="number" step="5" min="0" max="100" id="adv_perc_fin" name="adv_perc_fin"
+                  class="form-control form-control-sm adv-input" value="0" oninput="calcolaADV()">
+              </div>
+            </div>
+            <div class="row g-2 mt-1">
+              <div class="col-6">
+                <label style="font-size:10px;color:#94a3b8">Tasso interesse (%)</label>
+                <input type="number" step="0.1" id="adv_tasso" name="adv_tasso"
+                  class="form-control form-control-sm adv-input" value="6.0" oninput="calcolaADV()">
+              </div>
+              <div class="col-6">
+                <label style="font-size:10px;color:#94a3b8">Durata prestito (anni)</label>
+                <input type="number" step="1" id="adv_anni_prest" name="adv_anni_prest"
+                  class="form-control form-control-sm adv-input" value="7" oninput="calcolaADV()">
               </div>
             </div>
           </div>
-          <div id="confronto-raccomandazione" style="margin-top:12px;padding:10px;border-radius:8px;font-size:12px;background:rgba(37,99,235,0.1);color:#94a3b8"></div>
         </div>
-      </div>
+
+        <!-- Giorni/ore -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" style="font-size:11px">Giorni apertura/mese</label>
+                <input type="number" min="20" max="31" id="adv_giorni" name="adv_giorni"
+                  class="form-control form-control-sm adv-input" value="26" oninput="calcolaADV()">
+                <div style="font-size:9px;color:#64748b">Excel usa 26</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label" style="font-size:11px">Ore apertura/giorno</label>
+                <input type="number" min="8" max="24" id="adv_ore" name="adv_ore"
+                  class="form-control form-control-sm adv-input" value="13" oninput="calcolaADV()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- fine col costi -->
+
+      <!-- ── COL 3: RISULTATI + PIANO DI CASSA ──── -->
+      <div class="col-lg-4">
+
+        <!-- Risultati conto economico -->
+        <div class="card mb-3" style="border-color:#2563eb">
+          <div class="card-header" style="border-color:#2563eb;background:rgba(37,99,235,0.15)">
+            <b style="color:#93c5fd">📊 CONTO ECONOMICO</b>
+          </div>
+          <div class="card-body" id="adv-conto-eco">
+            <div style="font-size:12px;color:#64748b;text-align:center;padding:20px">
+              Compila i campi per vedere i risultati
+            </div>
+          </div>
+        </div>
+
+        <!-- Confronto zona -->
+        <div class="card mb-3" id="adv-confronto-card" style="display:none;border-color:#8b5cf6">
+          <div class="card-header" style="border-color:#8b5cf6;background:rgba(139,92,246,0.15)">
+            <b style="color:#c4b5fd">🔍 CONFRONTO CON ZONA</b>
+          </div>
+          <div class="card-body" id="adv-confronto-body" style="font-size:12px">
+          </div>
+        </div>
+
+        <!-- Piano di cassa 12 mesi -->
+        <div class="card mb-3" style="border-color:#10b981">
+          <div class="card-header" style="border-color:#10b981;background:rgba(16,185,129,0.15)">
+            <b style="color:#6ee7b7">📅 PIANO DI CASSA — 12 mesi</b>
+          </div>
+          <div class="card-body p-0" style="overflow-x:auto">
+            <table class="table table-sm mb-0" id="adv-piano-cassa" style="font-size:11px;min-width:600px">
+              <thead>
+                <tr style="color:#64748b;border-bottom:1px solid var(--border)">
+                  <th style="padding:6px 8px">Voce</th>
+                  {% for m in range(1,13) %}
+                  <th style="padding:6px 4px;text-align:right">M{{ m }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody id="adv-cassa-body">
+                <tr><td colspan="13" style="text-align:center;color:#64748b;padding:16px">Compila i campi ricavi e costi</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- fine col risultati -->
+
+    </div><!-- fine row avanzata -->
+
+    <!-- Bottone ricalcola avanzata -->
+    <div class="text-center mt-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcolaADV()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Ricalcola tutto
+      </button>
     </div>
-  </div>
+
+  </div><!-- fine panel-bp-avanzata -->
 
   <div class="d-flex justify-content-between mt-3">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+    <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1\"></i></button>
   </div>
 </div>
 
-<!-- ═══ STEP 6: RIEPILOGO ═══ -->
 <div class="wizard-panel" id="panel-6">
   <div class="row g-3 mb-3">
     <div class="col-md-6">
@@ -2374,6 +2931,11 @@ function changeQty(id, delta) {
 }
 
 function aggiornaRiepilogoMacchine() {
+  // Aggiorna macchine per calcolo avanzato
+  try {
+    const raw = document.getElementById('f_macchine').value;
+    window._ultimaMacchine = raw ? JSON.parse(raw) : [];
+  } catch(e) { window._ultimaMacchine = []; }
   const items = Object.values(selectedMacchine);
   document.getElementById('f_macchine').value = JSON.stringify(items);
   const div = document.getElementById('riepilogo-macchine');
@@ -2510,6 +3072,8 @@ function calcolaBP() {
       document.getElementById('f_incasso').value = d.incasso_mese;
       document.getElementById('f_costi').value = d.costi_mese;
       window._ultimaBP = d;
+      // Salva macchine per calcolo capex modalità avanzata
+      window._ultimaMacchine = data.macchine || [];
       // Dettaglio costi
       const det = d.dettaglio;
       const dhtml = Object.entries(det).map(([k,v]) => {
@@ -2657,4 +3221,5 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
 
