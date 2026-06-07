@@ -149,6 +149,17 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
 .pagination .page-item.active .page-link { background: var(--primary) !important; color: white !important; }
 
 /* ── RESPONSIVE ────────────────────────────────────────────── */
+/* Dashboard KPI: 2 colonne su mobile */
+@media (max-width: 767px) {
+  .col-md-3 { flex: 0 0 50%; max-width: 50%; }
+  .col-md-4 { flex: 0 0 100%; max-width: 100%; }
+  .col-md-6 { flex: 0 0 100%; max-width: 100%; }
+  .col-lg-4 { flex: 0 0 100%; max-width: 100%; }
+  .col-lg-8 { flex: 0 0 100%; max-width: 100%; }
+}
+@media (max-width: 480px) {
+  .col-md-3 { flex: 0 0 100%; max-width: 100%; }
+}
 /* Hamburger button — visibile solo su mobile */
 .hamburger {
   display: none;
@@ -231,6 +242,77 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
   .topbar-title { font-size: 14px; }
   .btn-lg { font-size: 14px !important; padding: 10px 16px !important; }
 }
+
+/* ── WIZARD MOBILE ─────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Steps wizard: scroll orizzontale */
+  .wizard-steps {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 8px;
+    gap: 4px !important;
+  }
+  .step {
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+  .step-label { font-size: 9px !important; }
+  .step-num { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+
+  /* Mappa analisi zona — altezza ridotta */
+  #map { height: 250px !important; }
+
+  /* Bottoni azione full-width su mobile */
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .d-flex.justify-content-between .btn {
+    width: 100%;
+  }
+
+  /* Tabelle macchine — scroll */
+  .macchine-grid { overflow-x: auto; }
+
+  /* Card azioni nella scheda pratica — stack verticale */
+  .azioni-card .btn { width: 100%; margin-bottom: 6px; }
+
+  /* Topbar — nascondi testo lungo */
+  .topbar-title { 
+    font-size: 14px; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  /* KPI value più piccolo su mobile */
+  .kpi-value { font-size: 22px !important; }
+  .kpi-icon { width: 36px !important; height: 36px !important; font-size: 16px !important; }
+
+  /* Page body padding ridotto */
+  .page-body { padding: 12px !important; }
+
+  /* Row gap ridotto */
+  .row.g-3 { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0.5rem; }
+}
+
+/* ── TABLET ─────────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root { --sidebar-w: 200px; }
+  .page-body { padding: 20px; }
+  .kpi-value { font-size: 26px; }
+  #map { height: 300px; }
+}
+
+/* ── DESKTOP LARGE ───────────────────────────────────────────── */
+@media (min-width: 1400px) {
+  :root { --sidebar-w: 260px; }
+  .page-body { padding: 32px; }
+  .kpi-value { font-size: 36px; }
+}
+
 </style>
 {% block extra_head %}{% endblock %}
 </head>
