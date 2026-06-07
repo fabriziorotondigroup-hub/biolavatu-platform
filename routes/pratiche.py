@@ -73,6 +73,50 @@ def elimina(id):
     return redirect(url_for('pratiche.index'))
 
 
+
+def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, Spacer, Paragraph):
+    """Renderizza testo AI nel PDF con formattazione corretta."""
+    from reportlab.lib import colors as _colors
+    righe = testo.split('\n')
+    for riga in righe:
+        r = riga.strip()
+        if not r:
+            story.append(Spacer(1, 4))
+            continue
+        # Separatori ---
+        if r.startswith('---'):
+            story.append(Spacer(1, 6))
+            continue
+        # Titoli ## 1. SINTESI o ## TITOLO
+        if r.startswith('##') or r.startswith('#'):
+            titolo = r.lstrip('#').strip()
+            # Determina colore per tipo sezione
+            col = BSCURO
+            if any(k in titolo.upper() for k in ['FORZA', 'POSITIV']):
+                col = VERDE
+            elif any(k in titolo.upper() for k in ['RISCHIO', 'CRITICA', 'SCONSIG']):
+                col = ROSSO
+            elif any(k in titolo.upper() for k in ['ECONOMICA', 'PIANO', 'BUSINESS']):
+                col = _colors.HexColor('#2563eb')
+            elif any(k in titolo.upper() for k in ['RACCOMAND', 'CONCLUS']):
+                col = ARANCIO
+            story.append(Spacer(1, 8))
+            story.append(Paragraph(titolo, st('ai_h', fontSize=10,
+                fontName='Helvetica-Bold', textColor=col, spaceBefore=4, spaceAfter=3)))
+            continue
+        # Testo con **grassetto**
+        import re
+        # Converti **testo** in <b>testo</b> per ReportLab
+        r_html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', r)
+        # Punti elenco - 
+        if r_html.startswith('- ') or r_html.startswith('• '):
+            r_html = '• ' + r_html[2:]
+            story.append(Paragraph(r_html, st('ai_li', fontSize=9,
+                leftIndent=10, spaceBefore=2)))
+        else:
+            story.append(Paragraph(r_html, body))
+
+
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
 def genera_pdf(id):
@@ -253,7 +297,7 @@ def _genera_pdf_interno(id):
     story.append(Cover()); story.append(PageBreak())
 
     # ── CLIENTE E SEDE ───────────────────────────────────────────────────────
-    story.append(sez('CLIENTE E SEDE','Utente')); story.append(Spacer(1,6))
+    story.append(sez('CLIENTE E SEDE', '')); story.append(Spacer(1,6))
     cliente=p.cliente
     rows=[
         ['Cliente', cliente.nome_completo if cliente else ''],
@@ -273,7 +317,7 @@ def _genera_pdf_interno(id):
     story.append(tbl); story.append(Spacer(1,14))
 
     # ── ANALISI ZONA ─────────────────────────────────────────────────────────
-    story.append(sez('ANALISI ZONA','Mappa')); story.append(Spacer(1,6))
+    story.append(sez('ANALISI ZONA', '')); story.append(Spacer(1,6))
     story.append(kpi_box([
         ('Pop. 3 min',f'{int(p.pop_3min or 0):,}','#3b82f6'),
         ('Pop. 5 min',f'{int(p.pop_5min or 0):,}','#8b5cf6'),
@@ -299,20 +343,12 @@ def _genera_pdf_interno(id):
     if p.ai_zona:
         story.append(Spacer(1,10))
         story.append(Paragraph('Analisi AI della zona', h2))
-        for line in p.ai_zona.split('\n'):
-            line=line.strip()
-            if not line: continue
-            clean=line.replace('**','').replace('##','').replace('#','').strip()
-            if line.startswith('#') or (clean and clean[0].isdigit() and '.' in clean[:3]):
-                story.append(Paragraph(clean,st('aih'+clean[:5],fontSize=9,
-                    fontName='Helvetica-Bold',textColor=BSCURO,spaceBefore=4)))
-            else:
-                story.append(Paragraph(clean,body))
+        _render_ai_text(p.ai_zona, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, Spacer, Paragraph)
     story.append(Spacer(1,14))
 
     # ── MACCHINE ─────────────────────────────────────────────────────────────
     story.append(PageBreak())
-    story.append(sez('CONFIGURAZIONE MACCHINE','Ingranaggio')); story.append(Spacer(1,6))
+    story.append(sez('CONFIGURAZIONE MACCHINE', '')); story.append(Spacer(1,6))
     mac_header=[['Macchina','Categoria','Modello','Qty','Prezzo','Totale']]
     mac_rows=[]
     for m in p.get_macchine():
@@ -342,7 +378,7 @@ def _genera_pdf_interno(id):
     story.append(mt); story.append(Spacer(1,14))
 
     # ── BUSINESS PLAN ────────────────────────────────────────────────────────
-    story.append(sez(f'BUSINESS PLAN - Scenario {(p.scenario or "realistico").upper()}','Grafico'))
+    story.append(sez(f'BUSINESS PLAN — Scenario {(p.scenario or "realistico").upper()}', ''))
     story.append(Spacer(1,6))
     story.append(kpi_box([
         ('Investimento + IVA',f'EUR {capex_iva:,.0f}','#3b82f6'),
@@ -380,17 +416,9 @@ def _genera_pdf_interno(id):
         ai_text = p.ai_bp or p.ai_zona
         if ai_text:
             story.append(PageBreak())
-            story.append(sez('ANALISI AI - RACCOMANDAZIONE','Robot'))
+            story.append(sez('ANALISI AI - RACCOMANDAZIONE',''))
             story.append(Spacer(1,8))
-            for line in ai_text.split('\n'):
-                line=line.strip()
-                if not line: story.append(Spacer(1,4)); continue
-                clean=line.replace('**','').replace('##','').replace('#','').strip()
-                if line.startswith('#') or (clean and clean[0].isdigit() and '.' in clean[:3]):
-                    story.append(Paragraph(clean,st('abh'+clean[:5],fontSize=10,
-                        fontName='Helvetica-Bold',textColor=BSCURO,spaceBefore=6)))
-                else:
-                    story.append(Paragraph(clean,body))
+            _render_ai_text(ai_text, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, Spacer, Paragraph)
 
     # ── CONDIZIONI DI VENDITA ─────────────────────────────────────────────
     if s and s.condizioni_vendita:
