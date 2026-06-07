@@ -106,15 +106,7 @@ body { background: var(--bg); color: var(--text); }
   <div class="card mb-3">
     <div class="card-header">Seleziona o crea cliente</div>
     <div class="card-body">
-      <div class="mb-3">
-        <label class="form-label">Cerca cliente esistente</label>
-        <input type="text" id="search-cliente" class="form-control" placeholder="Digita nome o azienda...">
-        <div id="cliente-risultati" class="mt-2"></div>
-      </div>
       <input type="hidden" name="cliente_id" id="cliente_id" value="{{ pratica.cliente_id if pratica else '' }}">
-      <div id="cliente-selezionato" class="alert alert-info" style="display:none"></div>
-      <hr class="divider my-3">
-      <p class="text-muted mb-2" style="font-size:12px">Oppure crea nuovo cliente</p>
       <div class="row g-2">
         <div class="col-md-6"><input type="text" name="cliente_nome" class="form-control" placeholder="Nome *"></div>
         <div class="col-md-6"><input type="text" name="cliente_azienda" class="form-control" placeholder="Azienda"></div>
@@ -1765,33 +1757,7 @@ document.getElementById('preventivo-form').addEventListener('submit', function(e
     e.preventDefault(); alert('Inserisci l\x27indirizzo.'); goStep(2); return;
   }
 });
-document.getElementById('search-cliente').addEventListener('input', function() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => cercaCliente(this.value), 300);
-});
 
-function cercaCliente(q) {
-  if(q.length < 2) { document.getElementById('cliente-risultati').innerHTML=''; return; }
-  fetch('/api/clienti/cerca?q=' + encodeURIComponent(q))
-    .then(r => r.json())
-    .then(data => {
-      const div = document.getElementById('cliente-risultati');
-      div.innerHTML = data.map(c => `
-        <div class="p-2 rounded mb-1" style="background:var(--bg3);cursor:pointer" onclick="selezionaCliente(${c.id},'${c.nome} ${c.cognome||''} ${c.azienda?'('+c.azienda+')':''}')">
-          <div class="fw-semibold">${c.azienda || c.nome+' '+c.cognome}</div>
-          <small class="text-muted">${c.email||''} ${c.telefono||''}</small>
-        </div>`).join('') || '<small class="text-muted">Nessun risultato</small>';
-    });
-}
-
-function selezionaCliente(id, nome) {
-  document.getElementById('cliente_id').value = id;
-  const el = document.getElementById('cliente-selezionato');
-  el.innerHTML = `<i class="bi bi-check-circle me-2"></i>Cliente selezionato: <strong>${nome}</strong>`;
-  el.style.display = 'block';
-  document.getElementById('cliente-risultati').innerHTML = '';
-  document.getElementById('search-cliente').value = '';
-}
 
 // ── GEOCODING ────────────────────────────────────
 function geocodifica() {
