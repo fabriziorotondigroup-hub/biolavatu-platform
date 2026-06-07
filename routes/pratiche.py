@@ -866,6 +866,87 @@ def _genera_pdf_interno(id):
         f'BUSINESS PLAN  —  Scenario {(p.scenario or "realistico").upper()}', C['green']))
     story.append(Spacer(1, 6))
 
+    # ── BOX FORMULA INCASSO ─────────────────────────────────────────────────
+    _bp2 = {}
+    try:
+        import json as _jbp
+        _bp2 = _jbp.loads(p.bp_dettaglio_json) if hasattr(p,'bp_dettaglio_json') and p.bp_dettaglio_json else {}
+    except Exception:
+        _bp2 = {}
+    _cli_g2  = float(_bp2.get('clienti_giorno', 0) or 0)
+    _spesa2  = float(_bp2.get('spesa_cliente',  0) or 0)
+    _giorni2 = float(_bp2.get('giorni_mese',   30) or 30)
+    if _cli_g2 == 0 and p.incasso_mese > 0 and _spesa2 > 0:
+        _cli_g2 = p.incasso_mese / (_spesa2 * _giorni2)
+
+    class FormulaBox(Flowable):
+        def __init__(self, cli_g, spesa, giorni, incasso, width):
+            Flowable.__init__(self)
+            self.cli_g   = cli_g
+            self.spesa   = spesa
+            self.giorni  = giorni
+            self.incasso = incasso
+            self.width   = width
+            self.height  = 2.2*cm
+
+        def draw(self):
+            c   = self.canv
+            w   = self.width
+            cli = self.cli_g
+            sp  = self.spesa
+            gg  = self.giorni
+            inc = self.incasso
+
+            c.setFillColor(colors.HexColor('#f0fdf4'))
+            c.roundRect(0, 0, w, self.height, 6, fill=1, stroke=0)
+            c.setStrokeColor(colors.HexColor('#10b981')); c.setLineWidth(1)
+            c.roundRect(0, 0, w, self.height, 6, fill=0, stroke=1)
+
+            c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor('#065f46'))
+            label_formula = 'COME SI CALCOLA L' + chr(39) + 'INCASSO MENSILE'
+            c.drawString(0.3*cm, self.height - 0.4*cm, label_formula)
+
+            items = [
+                (f'{cli:.1f}',   '#7c3aed', 'clienti/giorno'),
+                ('x',            '#94a3b8', ''),
+                (f'€{sp:.2f}',   '#1d4ed8', 'spesa/visita'),
+                ('x',            '#94a3b8', ''),
+                (f'{gg:.0f}',    '#b45309', 'gg/mese'),
+                ('=',            '#94a3b8', ''),
+                (f'€{inc:,.0f}', '#059669', '/mese'),
+            ]
+            x = 0.3*cm
+            y_val = self.height - 1.0*cm
+            y_lbl = self.height - 1.55*cm
+            for val, col, lbl in items:
+                is_op = val in ('x', '=')
+                fs = 7 if is_op else 13
+                fn = 'Helvetica' if is_op else 'Helvetica-Bold'
+                c.setFont(fn, fs)
+                c.setFillColor(colors.HexColor(col))
+                tw = c.stringWidth(val, fn, fs)
+                c.drawString(x, y_val, val)
+                if lbl:
+                    c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#64748b'))
+                    c.drawString(x, y_lbl, lbl)
+                x += tw + (0.25*cm if not is_op else 0.15*cm)
+
+            if cli < 1:
+                ogni = int(round(1/cli)) if cli > 0 else 99
+                nota = f'ATTENZIONE: meno di 1 cliente al giorno — 1 ogni {ogni} giorni. Zona a domanda molto bassa.'
+                ncol = '#ef4444'
+            elif cli < 5:
+                nota = f'{int(cli*gg)} clienti stimati al mese — zona a bassa affluenza.'
+                ncol = '#f59e0b'
+            else:
+                nota = f'{int(cli*gg)} clienti stimati al mese — domanda nella norma per questa zona.'
+                ncol = '#059669'
+            c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor(ncol))
+            c.drawString(0.3*cm, 0.2*cm, nota)
+
+    story.append(FormulaBox(_cli_g2, _spesa2, _giorni2, p.incasso_mese, PW))
+    story.append(Spacer(1, 8))
+
     story.append(kpi_row([
         ('Investimento + IVA', f'€ {capex_iva:,.0f}',     '#3b82f6'),
         ('Incasso / mese',     f'€ {p.incasso_mese:,.0f}','#10b981'),
