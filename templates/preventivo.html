@@ -1116,9 +1116,29 @@ body { background: var(--bg); color: var(--text); }
             <span class="text-muted">Spesa media/visita</span>
             <span id="r_spesa_visita" style="font-weight:700;color:#60a5fa">—</span>
           </div>
-          <div class="bp-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
-            <span class="text-muted">Incasso mensile</span>
-            <span id="r_incasso" style="color:#10b981;font-weight:700">—</span>
+          <!-- Box formula incasso — trasparente e chiaro -->
+          <div id="box-formula-incasso" style="
+            border-top:1px solid var(--border);
+            margin-top:6px;padding-top:8px;margin-bottom:4px;
+            background:rgba(16,185,129,0.06);
+            border-radius:8px;padding:10px 12px">
+            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
+              Come si calcola l'incasso
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;line-height:1.8">
+              <span id="formula_cli" style="font-weight:700;color:#8b5cf6;font-size:14px">—</span>
+              <span style="color:#64748b">clienti/g</span>
+              <span style="color:#475569">×</span>
+              <span id="formula_spesa" style="font-weight:700;color:#60a5fa;font-size:14px">—</span>
+              <span style="color:#64748b">€/visita</span>
+              <span style="color:#475569">×</span>
+              <span id="formula_giorni" style="font-weight:700;color:#f59e0b;font-size:14px">—</span>
+              <span style="color:#64748b">gg/mese</span>
+              <span style="color:#475569">=</span>
+              <span id="r_incasso" style="font-weight:800;color:#10b981;font-size:16px">—</span>
+              <span style="color:#64748b;font-size:11px">/mese</span>
+            </div>
+            <div id="formula_note" style="font-size:11px;color:#64748b;margin-top:5px"></div>
           </div>
           <div class="bp-row">
             <span class="text-muted">EBITDA mensile</span>
@@ -2372,6 +2392,29 @@ function calcolaBP() {
       if(spesaEl) spesaEl.textContent = '€' + spesa.toFixed(2)
         + (tMedia > 0 ? ' (lav. €' + tMedia.toFixed(2) + ' + asciug.)' : '');
 
+      // Formula incasso: clienti × spesa × giorni
+      const giorni_m = d.giorni_mese || 30;
+      const incasso_g = cli > 0 ? (d.incasso_mese / giorni_m) : 0;
+      const formulaCli = document.getElementById('formula_cli');
+      const formulaSpesa = document.getElementById('formula_spesa');
+      const formulaGiorni = document.getElementById('formula_giorni');
+      const formulaNote = document.getElementById('formula_note');
+      if(formulaCli)   formulaCli.textContent   = cli.toFixed(1);
+      if(formulaSpesa) formulaSpesa.textContent  = '€' + spesa.toFixed(2);
+      if(formulaGiorni) formulaGiorni.textContent = giorni_m;
+      // Nota contestuale
+      if(formulaNote) {
+        if(cli < 1) {
+          formulaNote.innerHTML = `⚠️ Meno di 1 cliente al giorno — mediamente <b>1 ogni ${(1/cli).toFixed(0)} giorni</b>. Zona a domanda molto bassa.`;
+          formulaNote.style.color = '#ef4444';
+        } else if(cli < 5) {
+          formulaNote.innerHTML = `ℹ️ Circa <b>${Math.round(cli * giorni_m)} clienti al mese</b> — zona a bassa affluenza.`;
+          formulaNote.style.color = '#f59e0b';
+        } else {
+          formulaNote.innerHTML = `✅ <b>${Math.round(cli * giorni_m)} clienti al mese</b> — domanda nella norma per questa zona.`;
+          formulaNote.style.color = '#10b981';
+        }
+      }
       document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it');
 
       // EBITDA
@@ -2391,8 +2434,16 @@ function calcolaBP() {
       const beEl = document.getElementById('r_be_clienti');
       if(beEl) {
         const be = d.be_clienti || 0;
-        beEl.textContent = be.toFixed(0) + ' clienti/giorno';
-        beEl.style.color = cli >= be ? '#10b981' : '#ef4444';
+        const gap = be - cli;
+        if(cli >= be) {
+          beEl.innerHTML = be.toFixed(0) + ' clienti/g &nbsp;<span style="color:#10b981;font-size:11px">✅ già raggiunto</span>';
+          beEl.style.color = '#10b981';
+        } else {
+          const pct = cli > 0 ? Math.round(cli/be*100) : 0;
+          beEl.innerHTML = be.toFixed(0) + ' clienti/g &nbsp;<span style="color:#ef4444;font-size:11px">('
+            + pct + '% raggiunto — mancano ' + gap.toFixed(1) + ' clienti/g)</span>';
+          beEl.style.color = '#ef4444';
+        }
       }
 
       const pb = d.payback_anni;
@@ -2550,3 +2601,4 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
