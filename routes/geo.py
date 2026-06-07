@@ -102,8 +102,8 @@ Rispondi SOLO in questo formato JSON, senza altro testo:
         }
 
 
-from services.istat import (get_demographic_data, get_market_assessment,
-                             calcola_stima_clienti)
+from services.istat import get_demographic_data, get_market_assessment
+from services.domanda import calcola_stima_clienti, calcola_domanda_avanzata
 
 geo_bp = Blueprint('geo', __name__)
 
@@ -229,6 +229,15 @@ def zona_analisi():
     raw_scuole       = gmaps_nearby(lat, lng, r5,  'school')
     raw_trasporti    = gmaps_nearby(lat, lng, r5,  'transit_station')
     raw_palestre     = gmaps_nearby(lat, lng, r5,  'gym')
+    # Raccogliamo anche uffici/aziende come proxy zona lavorativa
+    raw_uffici       = gmaps_nearby(lat, lng, r5,  'establishment',
+                                    keyword='ufficio azienda sede legale')
+
+    # Contatori per classificazione tipo zona (usati da modello domanda avanzato)
+    _n_rist  = len(raw_ristoranti)
+    _n_bar   = len(raw_bar_cafe)
+    _n_farm  = len(raw_farmacie)
+    _n_trasp = len(raw_trasporti)
 
     # ── ATTRACTOR POINTS — generatori ad alto consumo lavanderia ─────────────
     # Università: studenti fuori sede, senza lavatrice, uso quotidiano
@@ -574,12 +583,15 @@ def zona_analisi():
 
     # ── STIMA CLIENTI ─────────────────────────────────────────────────────────
     stima = calcola_stima_clienti(
+        pop_3min=pop_3min,
         pop_5min=pop_5min, pop_10min=pop_10min,
         densita=densita, concorrenti_500m=concorrenti_500m,
         concorrenti_1km=concorrenti_1km, servizi_400m=servizi_400m,
         reddito_medio=reddito_medio,
         recensioni_zona=recensioni_zona, gdo_500m=gdo_500m,
         mult_attractor=mult_attractor,
+        attractor_points=attractor_points,
+        n_ristoranti=_n_rist, n_bar=_n_bar,
     )
 
     return jsonify({
@@ -611,6 +623,12 @@ def zona_analisi():
             'citta':         demo.get('citta', citta),
         },
         'stima_clienti': stima,
+        'confidenza': {
+            'score': stima.get('confidenza_score', 0),
+            'label': stima.get('confidenza_label', 'N/D'),
+            'col':   stima.get('confidenza_col', '#64748b'),
+        },
+        'tipo_zona':          stima.get('tipo_zona', 'misto'),
         'attractor_points':   attractor_points,
         'mult_attractor':     round(mult_attractor, 2),
         'n_universita':       n_universita,
@@ -1038,4 +1056,5 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
