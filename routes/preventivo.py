@@ -380,22 +380,19 @@ def calcola_bp():
 def analisi_ai():
     """Genera analisi AI della zona"""
     import anthropic
-    import httpx
     import os
 
     data = request.json
 
     # Istanziazione robusta: compatibile con anthropic >=0.18 e >=0.40
     # Evita il bug "unexpected keyword argument 'proxies'" delle versioni intermedie
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata'}), 500
     try:
-        http_client = httpx.Client()
-        client = anthropic.Anthropic(
-            api_key=os.environ.get('ANTHROPIC_API_KEY'),
-            http_client=http_client,
-        )
-    except TypeError:
-        # Fallback per versioni molto vecchie
-        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        client = anthropic.Anthropic(api_key=api_key)
+    except Exception as e:
+        return jsonify({'errore': f'Errore init client: {str(e)}'}), 500
 
     # Costruisce contesto completo per l'analisi
     mac_list = data.get('macchine', [])
