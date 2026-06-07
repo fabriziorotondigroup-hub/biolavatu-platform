@@ -1886,7 +1886,25 @@ function eseguiAnalisi(lat, lng) {
         setVal('f_serv', d.servizi_400m);
         setVal('f_score', d.score);
         setVal('f_label', d.score_label);
-        setVal('f_pois', JSON.stringify(d.pois||[]));
+        // Salva pois + attractor_points + competitors unificati per PDF
+        var allPoisForPdf = (d.pois||[]).concat(
+          (d.attractor_points||[]).map(function(ap){
+            return {lat:ap.lat, lng:ap.lng, nome:ap.nome,
+                    tipo:ap.tipo, categoria:'attractor',
+                    colore: ap.tipo==='universita'?'viola':
+                            ap.tipo==='ospedale'?'verde':
+                            ap.tipo==='stazione'?'blu':
+                            ap.tipo==='vvf'?'arancio':'rosso',
+                    distanza_m: ap.distanza_m||0};
+          }),
+          (d.competitors_detail||[]).map(function(c){
+            return {lat:c.lat, lng:c.lng, nome:c.nome,
+                    tipo: c.tipo_lavanderia||'self_service',
+                    categoria:'concorrente',
+                    colore:'rosso', distanza_m:c.distanza_m||0};
+          })
+        );
+        setVal('f_pois', JSON.stringify(allPoisForPdf));
 
         console.log('[BIO] form fields set OK');
 
@@ -2103,6 +2121,35 @@ function eseguiAnalisi(lat, lng) {
 
           (d.alta_affluenza||[]).forEach(function(a){
             L.circle([a.lat,a.lng],{radius:60,color:'#fbbf24',weight:2,fillColor:'#fbbf24',fillOpacity:0.2}).addTo(map).bindPopup('<b>⭐ '+a.nome+'</b>');
+          });
+
+          // Attractor points sulla mappa con icone dedicate
+          var attractorCfg = {
+            universita:     {col:'#8b5cf6', icon:'🎓', raggio:300},
+            ospedale:       {col:'#10b981', icon:'🏥', raggio:300},
+            stazione:       {col:'#3b82f6', icon:'🚉', raggio:200},
+            vvf:            {col:'#f59e0b', icon:'🚒', raggio:200},
+            caserma:        {col:'#ef4444', icon:'🪖', raggio:250},
+            scuola_militare:{col:'#dc2626', icon:'⭐', raggio:300},
+          };
+          (d.attractor_points||[]).forEach(function(ap){
+            var cfg = attractorCfg[ap.tipo] || {col:'#888', icon:'📍', raggio:200};
+            var multPct = ap.mult > 1 ? '+'+Math.round((ap.mult-1)*100)+'%' : '';
+            // Cerchio di influenza
+            L.circle([ap.lat,ap.lng],{
+              radius: cfg.raggio, color: cfg.col, weight:2,
+              dashArray:'5,4', fillColor:cfg.col, fillOpacity:0.12
+            }).addTo(map);
+            // Icona marker
+            var icon = L.divIcon({className:'',
+              html:'<div style="background:'+cfg.col+';color:white;width:28px;height:28px;border-radius:50%;'+
+                   'border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5);'+
+                   'display:flex;align-items:center;justify-content:center;font-size:14px">'+cfg.icon+'</div>',
+              iconSize:[28,28], iconAnchor:[14,14]});
+            L.marker([ap.lat,ap.lng],{icon:icon}).addTo(map)
+              .bindPopup('<b>'+cfg.icon+' '+ap.nome+'</b><br>'+
+                         '<small style="color:#64748b">'+ap.tipo.replace('_',' ')+'</small>'+
+                         (multPct?'<br><span style="color:'+cfg.col+';font-weight:700">Boost affluenza: '+multPct+'</span>':''));
           });
 
           var sedeIcon = L.divIcon({className:'',html:'<div style="background:#2563eb;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',iconSize:[20,20],iconAnchor:[10,10]});
