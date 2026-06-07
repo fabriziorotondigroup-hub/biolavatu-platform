@@ -101,15 +101,20 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             elif any(k in titolo.upper() for k in ['RACCOMAND', 'CONCLUS']):
                 col = ARANCIO
             story.append(Spacer(1, 8))
-            story.append(Paragraph(titolo, st('ai_h', fontSize=10,
+            # Rimuovi eventuali ** dal titolo
+            import re as _re2
+            titolo_clean = _re2.sub(r'[*][*](.+?)[*][*]', r'\1', titolo)
+            story.append(Paragraph(titolo_clean, st('ai_h', fontSize=10,
                 fontName='Helvetica-Bold', textColor=col, spaceBefore=4, spaceAfter=3)))
             continue
         # Testo con **grassetto** — converti per ReportLab XML
         import re as _re
         r_safe = r.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        r_html = _re.sub(r'[*][*](.+?)[*][*]', r'<b>\1</b>', r_safe)
-        if r_html.startswith('- ') or r_html.startswith('• '):
-            r_html = '• ' + r_html[2:]
+        # Rimuovi ** anche da righe che iniziano con ■ o simili simboli
+        r_safe = _re.sub(r'[*][*](.+?)[*][*]', r'<b>\1</b>', r_safe)
+        r_html = r_safe
+        if r_html.startswith('- ') or r_html.startswith('\u2022 '):
+            r_html = '\u2022 ' + r_html[2:]
             story.append(Paragraph(r_html, st('ai_li', fontSize=9,
                 leftIndent=12, spaceBefore=2)))
         else:
