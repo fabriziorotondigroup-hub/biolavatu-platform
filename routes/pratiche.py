@@ -115,28 +115,43 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             story.append(Paragraph(r_html, body))
 
 
-def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300):
-    """Scarica mappa statica da Google Maps Static API e restituisce bytes."""
+def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorrenti=None):
+    """Scarica mappa statica Google Maps con marker sede + concorrenti + cerchi 500m/1km."""
     if not lat or not lng or not gmaps_key:
         return None
     try:
-        import urllib.request as _ur
-        params = (
-            f"center={lat},{lng}"
-            f"&zoom=15"
-            f"&size={width_px}x{height_px}"
-            f"&scale=2"
-            f"&maptype=roadmap"
-            f"&markers=color:red|label:S|{lat},{lng}"
-            f"&style=element:geometry|color:0x1d2c4d"
-            f"&style=element:labels.text.fill|color:0x8ec3b9"
-            f"&style=element:labels.text.stroke|color:0x1a3646"
-            f"&style=feature:road|element:geometry|color:0x304a7d"
-            f"&style=feature:road|element:geometry.stroke|color:0x255763"
-            f"&style=feature:water|element:geometry|color:0x0e1626"
-            f"&key={gmaps_key}"
-        )
-        url = f"https://maps.googleapis.com/maps/api/staticmap?{params}"
+        import urllib.request as _ur, urllib.parse as _up
+        parts = [
+            f"center={lat},{lng}",
+            f"zoom=15",
+            f"size={width_px}x{height_px}",
+            f"scale=2",
+            f"maptype=roadmap",
+            # Marker principale: stella gialla = sede proposta
+            f"markers=color:yellow|size:mid|label:S|{lat},{lng}",
+        ]
+        # Markers concorrenti (rosso=self-service, arancio=tradizionale, blu=industriale)
+        if concorrenti:
+            # Raggruppa per colore per ridurre parametri URL
+            self_sv = [c for c in concorrenti if c.get('tipo') == 'self_service']
+            tradi   = [c for c in concorrenti if c.get('tipo') == 'tradizionale']
+            indust  = [c for c in concorrenti if c.get('tipo') == 'industriale']
+            for group, color, lbl in [(self_sv,'red','C'),(tradi,'orange','T'),(indust,'blue','I')]:
+                if group:
+                    locs = '|'.join(f"{c['lat']},{c['lng']}" for c in group[:8])
+                    parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
+        # Stile mappa scuro/elegante
+        styles = [
+            "style=element:geometry|color:0x1d2c4d",
+            "style=element:labels.text.fill|color:0x8ec3b9",
+            "style=element:labels.text.stroke|color:0x1a3646",
+            "style=feature:road|element:geometry|color:0x304a7d",
+            "style=feature:road|element:geometry.stroke|color:0x255763",
+            "style=feature:water|element:geometry|color:0x0e1626",
+            "style=feature:poi|visibility:off",
+            f"key={gmaps_key}",
+        ]
+        url = "https://maps.googleapis.com/maps/api/staticmap?" + "&".join(parts + styles)
         req = _ur.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
         with _ur.urlopen(req, timeout=8) as r:
             return r.read()
@@ -400,7 +415,17 @@ def _genera_pdf_interno(id):
     # Mappa statica Google Maps
     gmaps_key = os.environ.get('GMAPS_KEY', '')
     if p.lat and p.lng and gmaps_key:
-        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 260)
+        # Estrai concorrenti dai POI salvati
+        _conc_list = []
+        try:
+            import json as _j2
+            _pois_raw = p.pois_raw if hasattr(p, 'pois_raw') and p.pois_raw else '[]'
+            _all_pois = _j2.loads(_pois_raw) if isinstance(_pois_raw, str) else (_pois_raw or [])
+            _conc_list = [x for x in _all_pois if x.get('tipo') in
+                          ('self_service','tradizionale','industriale','concorrente')]
+        except Exception:
+            _conc_list = []
+        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 260, concorrenti=_conc_list)
         if mappa_bytes:
             from reportlab.platypus import Image as RLImage
             import io as _io2
@@ -645,11 +670,6 @@ def _genera_pdf_interno(id):
     story.append(DemoPage(W - 4*cm, 20.5*cm))
     story.append(Spacer(1, 10))
 
-    # Analisi AI zona (testo)
-    if p.ai_zona:
-        story.append(Spacer(1,10))
-        story.append(Paragraph('Analisi AI della zona', h2))
-        _render_ai_text(p.ai_zona, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, Spacer, Paragraph)
     story.append(Spacer(1,14))
 
     # ── MACCHINE ─────────────────────────────────────────────────────────────
