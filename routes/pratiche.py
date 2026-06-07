@@ -547,23 +547,32 @@ def _genera_pdf_interno(id):
     gmaps_key = os.environ.get('GMAPS_KEY', '')
     mappa_ok  = False
 
-    # Se mancano le coordinate, prova a geocodificare dalla città
+    # Se mancano le coordinate, prova a geocodificare dall'indirizzo/città
     _map_lat = float(p.lat or 0)
     _map_lng = float(p.lng or 0)
-    if (not _map_lat or not _map_lng) and gmaps_key and (p.citta or p.indirizzo):
-        try:
-            import urllib.request as _ugeo, urllib.parse as _upgeo
-            _addr = f"{p.indirizzo}, {p.citta}" if p.indirizzo else p.citta
-            _gurl = (f"https://maps.googleapis.com/maps/api/geocode/json"
-                     f"?address={_upgeo.quote(_addr)}&key={gmaps_key}")
-            with _ugeo.urlopen(_gurl, timeout=6) as _gr:
-                _gdata = __import__('json').loads(_gr.read())
-            if _gdata.get('results'):
-                _loc = _gdata['results'][0]['geometry']['location']
-                _map_lat = _loc['lat']
-                _map_lng = _loc['lng']
-        except Exception:
-            pass
+    if (not _map_lat or not _map_lng) and gmaps_key:
+        # Prova prima con indirizzo completo, poi solo città
+        _geo_attempts = []
+        if p.indirizzo and p.citta:
+            _geo_attempts.append(f"{p.indirizzo}, {p.citta}, Italia")
+        if p.citta:
+            _geo_attempts.append(f"{p.citta}, Italia")
+        for _geo_addr in _geo_attempts:
+            try:
+                import urllib.parse as _upgeo
+                _gurl = ("https://maps.googleapis.com/maps/api/geocode/json"
+                         "?address=" + _upgeo.quote_plus(_geo_addr)
+                         + "&key=" + gmaps_key)
+                _greq = ur.Request(_gurl, headers={"User-Agent": "BIOLavaTU-PDF"})
+                with ur.urlopen(_greq, timeout=8) as _gr:
+                    _gdata = __import__('json').loads(_gr.read())
+                if _gdata.get('results'):
+                    _loc = _gdata['results'][0]['geometry']['location']
+                    _map_lat = float(_loc['lat'])
+                    _map_lng = float(_loc['lng'])
+                    break  # trovato, esci dal loop
+            except Exception:
+                continue
 
     if _map_lat and _map_lng and gmaps_key:
         _mlat, _mlng = _map_lat, _map_lng
