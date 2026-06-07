@@ -417,6 +417,7 @@ def analisi_ai():
     p_asc    = float(data.get('perc_asciugatura', 65) or 65)
     aff      = float(data.get('affitto_mese', 0) or 0)
     det      = data.get('dettaglio_costi', {}) or {}
+    giorni_mese = float(data.get('giorni_mese', 30) or 30)
 
     prompt = f"""Sei un consulente senior specializzato in apertura di lavanderie self-service in Italia.
 Devi produrre un'analisi professionale, strutturata e onesta — come farebbe un consulente Bocconi/McKinsey.
