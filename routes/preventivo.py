@@ -484,7 +484,7 @@ Tono: professionale, diretto, numeri precisi. NON essere ottimista per compiacer
     try:
         message = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=800,
+            max_tokens=2000,
             messages=[{"role": "user", "content": prompt}]
         )
         return jsonify({'testo': message.content[0].text})
