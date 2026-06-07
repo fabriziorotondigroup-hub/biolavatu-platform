@@ -798,50 +798,62 @@ def _genera_pdf_interno(id):
         prezzo = float(m.get('prezzo_effettivo') or m.get('prezzo', 0))
         qty    = int(m.get('qty', 1))
         cat    = m.get('categoria', '')
-        # Colore riga per categoria
+        modello = m.get('modello', '') or ''
+        nome    = m.get('nome', '')
+        # Prima cella: nome bold + categoria + modello su righe separate
+        sub_lines = []
+        if cat:     sub_lines.append(f'<font color="#64748b">{cat}</font>')
+        if modello: sub_lines.append(f'<font color="#94a3b8">{modello}</font>')
+        sub_text = '  ·  '.join(sub_lines) if sub_lines else ''
+        desc_html = f'<b>{nome}</b>'
+        if sub_text:
+            desc_html += f'<br/><font size="7.5">{sub_text}</font>'
         mac_rows.append([
-            Paragraph(f"<b>{m.get('nome','')}</b>", st('mn', fontSize=8.5,
-                       fontName='Helvetica-Bold', textColor=C['dark'])),
-            Paragraph(cat, st('mc', fontSize=8, textColor=C['slate'])),
-            Paragraph(m.get('modello','') or '—', st('mm', fontSize=8, textColor=C['slate'])),
-            Paragraph(f'{qty}x',  st('mq2', fontSize=8.5, alignment=TA_CENTER)),
+            Paragraph(desc_html, st('mn', fontSize=8.5, fontName='Helvetica-Bold',
+                                    textColor=C['dark'], leading=13)),
+            Paragraph(f'<b>{qty}x</b>', st('mq2', fontSize=9, fontName='Helvetica-Bold',
+                                            alignment=TA_CENTER)),
             Paragraph(f'€ {prezzo:,.0f}', st('mp', fontSize=8.5, alignment=TA_RIGHT)),
             Paragraph(f'<b>€ {prezzo*qty:,.0f}</b>',
-                      st('mt', fontSize=8.5, fontName='Helvetica-Bold',
+                      st('mt', fontSize=9, fontName='Helvetica-Bold',
                          textColor=C['blue'], alignment=TA_RIGHT)),
         ])
 
     header_row = [
-        Paragraph('<b>Macchina</b>',   st('mh', fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
-        Paragraph('<b>Categoria</b>',  st('mh2',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
-        Paragraph('<b>Modello</b>',    st('mh3',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'])),
-        Paragraph('<b>Qty</b>',        st('mh4',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_CENTER)),
-        Paragraph('<b>Prezzo</b>',     st('mh5',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
-        Paragraph('<b>Totale</b>',     st('mh6',fontSize=8, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
+        Paragraph('<b>Descrizione macchina</b>', st('mh',  fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'])),
+        Paragraph('<b>Qty</b>',   st('mh4', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_CENTER)),
+        Paragraph('<b>Prezzo unit.</b>', st('mh5', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
+        Paragraph('<b>Totale</b>', st('mh6', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
     ]
 
     totali = [
-        ['', '', '', '', Paragraph('Imponibile',  st('ti1',fontSize=8,textColor=C['slate'],alignment=TA_RIGHT)),
-                         Paragraph(f'€ {p.capex:,.0f}', st('tv1',fontSize=8,alignment=TA_RIGHT))],
-        ['', '', '', '', Paragraph('IVA 22%',     st('ti2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT)),
-                         Paragraph(f'€ {p.capex*0.22:,.0f}', st('tv2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT))],
-        ['', '', '', '', Paragraph('<b>Totale IVA inclusa</b>', st('ti3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT)),
-                         Paragraph(f'<b>€ {capex_iva:,.0f}</b>', st('tv3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT))],
+        ['', '', Paragraph('Imponibile', st('ti1',fontSize=8,textColor=C['slate'],alignment=TA_RIGHT)),
+                 Paragraph(f'€ {p.capex:,.0f}', st('tv1',fontSize=8,alignment=TA_RIGHT))],
+        ['', '', Paragraph('IVA 22%', st('ti2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT)),
+                 Paragraph(f'€ {p.capex*0.22:,.0f}', st('tv2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT))],
+        ['', '', Paragraph('<b>Totale IVA inclusa</b>', st('ti3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT)),
+                 Paragraph(f'<b>€ {capex_iva:,.0f}</b>', st('tv3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT))],
     ]
 
+    # 4 colonne: Descrizione (larga) | Qty | Prezzo unit | Totale
+    # PW = 17cm → 10.5 + 1.2 + 2.5 + 2.8 = 17.0
     mt = Table([header_row] + mac_rows + totali,
-               colWidths=[6.0*cm, 2.4*cm, 1.8*cm, 1.0*cm, 2.6*cm, 2.9*cm])
+               colWidths=[10.5*cm, 1.2*cm, 2.5*cm, 2.8*cm])
     ts = TableStyle([
-        ('BACKGROUND',    (0,0),(-1,0),  C['navy']),
-        ('FONTSIZE',      (0,0),(-1,-1), 8.5),
-        ('ROWBACKGROUNDS',(0,1),(-1,-(len(totali)+1)), [C['white'], C['light']]),
-        ('ALIGN',         (3,0),(-1,-1), 'RIGHT'),
-        ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
-        ('TOPPADDING',    (0,0),(-1,-1), 6),
-        ('BOTTOMPADDING', (0,0),(-1,-1), 6),
-        ('LINEBELOW',     (0,0),(-1,-int(len(totali)+1)), 0.3, C['border']),
-        ('LINEABOVE',     (0,-len(totali)),(- 1,-len(totali)), 1.0, C['blue']),
-        ('FONTNAME',      (4,-1),(-1,-1), 'Helvetica-Bold'),
+        ('BACKGROUND',     (0,0),(-1,0),   C['navy']),
+        ('FONTSIZE',       (0,0),(-1,-1),  8.5),
+        ('ROWBACKGROUNDS', (0,1),(-1,-(len(totali)+1)), [C['white'], C['light']]),
+        ('ALIGN',          (1,0),(-1,-1),  'RIGHT'),
+        ('ALIGN',          (1,0),(1,-1),   'CENTER'),
+        ('VALIGN',         (0,0),(-1,-1),  'MIDDLE'),
+        ('TOPPADDING',     (0,0),(-1,-1),  7),
+        ('BOTTOMPADDING',  (0,0),(-1,-1),  7),
+        ('LEFTPADDING',    (0,0),(0,-1),   10),
+        ('LINEBELOW',      (0,0),(-1,-(len(totali)+1)), 0.3, C['border']),
+        ('LINEABOVE',      (0,-len(totali)),(-1,-len(totali)), 1.2, C['blue']),
+        ('FONTNAME',       (2,-1),(-1,-1), 'Helvetica-Bold'),
+        # Sfondo navy header
+        ('TEXTCOLOR',      (0,0),(-1,0),   C['white']),
     ])
     mt.setStyle(ts)
     story.append(mt)
