@@ -83,14 +83,11 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
         if not r:
             story.append(Spacer(1, 4))
             continue
-        # Separatori ---
         if r.startswith('---'):
             story.append(Spacer(1, 6))
             continue
-        # Titoli ## 1. SINTESI o ## TITOLO
         if r.startswith('##') or r.startswith('#'):
             titolo = r.lstrip('#').strip()
-            # Determina colore per tipo sezione
             col = BSCURO
             if any(k in titolo.upper() for k in ['FORZA', 'POSITIV']):
                 col = VERDE
@@ -101,16 +98,13 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             elif any(k in titolo.upper() for k in ['RACCOMAND', 'CONCLUS']):
                 col = ARANCIO
             story.append(Spacer(1, 8))
-            # Rimuovi eventuali ** dal titolo
             import re as _re2
             titolo_clean = _re2.sub(r'[*][*](.+?)[*][*]', r'\1', titolo)
             story.append(Paragraph(titolo_clean, st('ai_h', fontSize=10,
                 fontName='Helvetica-Bold', textColor=col, spaceBefore=4, spaceAfter=3)))
             continue
-        # Testo con **grassetto** — converti per ReportLab XML
         import re as _re
         r_safe = r.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        # Rimuovi ** anche da righe che iniziano con ■ o simili simboli
         r_safe = _re.sub(r'[*][*](.+?)[*][*]', r'<b>\1</b>', r_safe)
         r_html = r_safe
         if r_html.startswith('- ') or r_html.startswith('\u2022 '):
@@ -121,14 +115,12 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             story.append(Paragraph(r_html, body))
 
 
-
 def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300):
     """Scarica mappa statica da Google Maps Static API e restituisce bytes."""
     if not lat or not lng or not gmaps_key:
         return None
     try:
         import urllib.request as _ur
-        # Mappa con marker centrale rosso + cerchi approssimati (non supportati nativamente)
         params = (
             f"center={lat},{lng}"
             f"&zoom=15"
@@ -150,6 +142,36 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300):
             return r.read()
     except Exception:
         return None
+
+
+def _bar_chart_horizontal(canvas, x, y, items, bar_height=14, bar_gap=6, max_width=200,
+                            fill_color=None, label_color=None, val_color=None):
+    """Disegna mini grafico a barre orizzontale direttamente sul canvas ReportLab."""
+    from reportlab.lib import colors as _c
+    fc = fill_color or _c.HexColor('#2563eb')
+    lc = label_color or _c.HexColor('#64748b')
+    vc = val_color or _c.HexColor('#0f172a')
+    if not items:
+        return
+    max_val = max(v for _, v in items) or 1
+    for i, (label, val) in enumerate(items):
+        bar_y = y - i * (bar_height + bar_gap)
+        bw = max_width * (val / max_val)
+        # sfondo barra
+        canvas.setFillColor(_c.HexColor('#e2e8f0'))
+        canvas.rect(x + 60, bar_y, max_width, bar_height, fill=1, stroke=0)
+        # barra valore
+        canvas.setFillColor(fc)
+        canvas.rect(x + 60, bar_y, bw, bar_height, fill=1, stroke=0)
+        # etichetta sinistra
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColor(lc)
+        canvas.drawRightString(x + 56, bar_y + 3, label[:18])
+        # valore destra
+        canvas.setFont('Helvetica-Bold', 7)
+        canvas.setFillColor(vc)
+        canvas.drawString(x + 64 + max_width, bar_y + 3, f'{val:,}')
+
 
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
@@ -274,21 +296,18 @@ def _genera_pdf_interno(id):
         def __init__(self):
             Flowable.__init__(self)
             self.width  = W - 4*cm
-            self.height = H - 6*cm  # margini top+bottom+sicurezza
+            self.height = H - 6*cm
         def draw(self):
             c = self.canv
             w, h = self.width, self.height
 
-            # Sfondo principale
             c.setFillColor(BSCURO)
             c.roundRect(0, 0, w, h, 12, fill=1, stroke=0)
 
-            # Header band
             c.setFillColor(colors.HexColor('#0a1628'))
             c.roundRect(0, h-5.5*cm, w, 5.5*cm, 12, fill=1, stroke=0)
             c.rect(0, h-5.5*cm, w, 0.5*cm, fill=1, stroke=0)
 
-            # Brand — dimensione adattiva
             brand_txt = brand[:20] if len(brand) > 20 else brand
             c.setFont('Helvetica-Bold', 28)
             c.setFillColor(BIANCO)
@@ -298,11 +317,9 @@ def _genera_pdf_interno(id):
             c.setFillColor(colors.HexColor('#93c5fd'))
             c.drawCentredString(w/2, h-3.0*cm, 'LaundryPro Platform  —  Analisi di Fattibilita')
 
-            # Linea separatrice
             c.setStrokeColor(BLU); c.setLineWidth(1)
             c.line(w*0.15, h-3.6*cm, w*0.85, h-3.6*cm)
 
-            # Numero pratica
             c.setFillColor(BLU)
             c.roundRect(w*0.2, h-5.8*cm, w*0.6, 1.4*cm, 8, fill=1, stroke=0)
             c.setFont('Helvetica-Bold', 14); c.setFillColor(BIANCO)
@@ -311,17 +328,15 @@ def _genera_pdf_interno(id):
             c.drawCentredString(w/2, h-5.55*cm,
                 f'Data: {p.created.strftime("%d/%m/%Y")}  |  Stato: {p.stato.upper()}')
 
-            # Cliente e indirizzo
             cliente = p.cliente
             nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:40]
             c.setFont('Helvetica-Bold', 11); c.setFillColor(BIANCO)
             c.drawCentredString(w/2, h-7.0*cm, nome_cl)
             ind = f'{p.indirizzo}, {p.citta}' if p.indirizzo else (p.citta or '')
-            ind = ind[:60]  # tronca se troppo lungo
+            ind = ind[:60]
             c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
             c.drawCentredString(w/2, h-7.7*cm, ind)
 
-            # KPI boxes — 4 colonne
             capex_iva = p.capex * 1.22
             kpis = [
                 ('INVESTIMENTO IVA', f'EUR {capex_iva:,.0f}', '#3b82f6'),
@@ -344,7 +359,6 @@ def _genera_pdf_interno(id):
                 c.setFont('Helvetica-Bold', 9); c.setFillColor(colors.HexColor(col))
                 c.drawCentredString(bx+bw/2, by+0.9*cm, val)
 
-            # Score zona
             sc = int(p.score_zona or 0)
             scol = '#10b981' if sc >= 70 else '#f59e0b' if sc >= 45 else '#ef4444'
             c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
@@ -354,7 +368,6 @@ def _genera_pdf_interno(id):
             c.setFont('Helvetica', 9); c.setFillColor(BIANCO)
             c.drawCentredString(w/2, h-14.5*cm, p.score_label or '')
 
-            # Footer
             c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
             c.drawCentredString(w/2, 0.8*cm, f'{company}  {web}  {tel}')
             c.drawCentredString(w/2, 0.2*cm, 'Documento riservato - uso interno')
@@ -387,18 +400,18 @@ def _genera_pdf_interno(id):
     # Mappa statica Google Maps
     gmaps_key = os.environ.get('GMAPS_KEY', '')
     if p.lat and p.lng and gmaps_key:
-        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 280)
+        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 260)
         if mappa_bytes:
             from reportlab.platypus import Image as RLImage
             import io as _io2
             img_buf = _io2.BytesIO(mappa_bytes)
-            # Larghezza massima disponibile
             img_w = W - 4*cm
-            img_h = img_w * 280 / 520  # mantieni proporzione
+            img_h = img_w * 260 / 520
             rl_img = RLImage(img_buf, width=img_w, height=img_h)
             story.append(rl_img)
-            story.append(Spacer(1, 6))
+            story.append(Spacer(1, 8))
 
+    # KPI popolazione + concorrenti
     story.append(kpi_box([
         ('Pop. 3 min',f'{int(p.pop_3min or 0):,}','#3b82f6'),
         ('Pop. 5 min',f'{int(p.pop_5min or 0):,}','#8b5cf6'),
@@ -407,6 +420,8 @@ def _genera_pdf_interno(id):
         ('Concorrenti 1km',str(p.concorrenti_1km or 0),'#f59e0b'),
     ]))
     story.append(Spacer(1,8))
+
+    # Score + fattibilità
     sc=int(p.score_zona or 0)
     scol_hex='#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
     st_sc=Table([[
@@ -421,6 +436,216 @@ def _genera_pdf_interno(id):
         ('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),
         ('LEFTPADDING',(0,0),(-1,-1),10)]))
     story.append(st_sc)
+
+    # ── PAGINA DEMOGRAFICA ISTAT ──────────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(sez('ANALISI DEMOGRAFICA — Dati ISTAT', ''))
+    story.append(Spacer(1, 8))
+
+    # Recupera dati ISTAT per la provincia
+    try:
+        from services.istat import PROVINCE_DATA, calcola_stima_clienti
+        citta_lower = (p.citta or '').lower()
+        dati_prov = None
+        for cod, dati in PROVINCE_DATA.items():
+            if dati.get('nome', '').lower() in citta_lower or citta_lower in dati.get('nome', '').lower():
+                dati_prov = dati
+                break
+        if not dati_prov:
+            # Fallback: usa dati medi nazionali
+            dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
+                         'reddito_medio': 20500, 'densita': 200}
+    except Exception:
+        dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
+                     'reddito_medio': 20500, 'densita': 200}
+
+    eta_media = dati_prov.get('eta_media', 46.0)
+    reddito = dati_prov.get('reddito_medio', 20500)
+    densita = dati_prov.get('densita', 200)
+    pop_3 = int(p.pop_3min or 0)
+    pop_5 = int(p.pop_5min or 0)
+    pop_10 = int(p.pop_10min or 0)
+
+    # Stime clienti giornalieri
+    bacino = pop_5 if pop_5 > 0 else pop_10
+    tasso_base = 0.018
+    # Fattore età: ottimale 30-45 anni
+    if eta_media < 35: fatt_eta = 1.10
+    elif eta_media < 45: fatt_eta = 1.05
+    elif eta_media < 50: fatt_eta = 0.98
+    else: fatt_eta = 0.90
+    # Fattore reddito
+    if reddito < 17000: fatt_reddito = 1.15
+    elif reddito < 22000: fatt_reddito = 1.05
+    elif reddito < 27000: fatt_reddito = 0.95
+    else: fatt_reddito = 0.85
+    clienti_giorno_stima = int(bacino * tasso_base * fatt_eta * fatt_reddito)
+
+    # Segmentazione demografica stimata
+    seg_giovani = int(bacino * 0.22)   # 18-34 anni
+    seg_adulti  = int(bacino * 0.35)   # 35-54 anni
+    seg_senior  = int(bacino * 0.20)   # 55+ anni
+    seg_famiglie= int(bacino * 0.23)   # nuclei familiari
+
+    # Tabella indicatori chiave + mini infografica
+    class DemoPage(Flowable):
+        def __init__(self, width, height_needed):
+            Flowable.__init__(self)
+            self.width = width
+            self.height = height_needed
+        def draw(self):
+            c = self.canv
+            w = self.width
+            # --- Riga 1: 3 card demografiche ---
+            card_w = (w - 2*cm/3) / 3
+            cards = [
+                ('ETA MEDIA', f'{eta_media:.1f} anni',
+                 '#8b5cf6', 'Fonte: ISTAT Censimento 2021'),
+                ('REDDITO MEDIO', f'EUR {reddito:,}',
+                 '#10b981', 'Dichiarazioni MEF 2022'),
+                ('DENSITA ABITATIVA', f'{densita:,} ab/km²',
+                 '#3b82f6', 'Dati provinciali ISTAT'),
+            ]
+            for i, (lbl, val, col, fonte) in enumerate(cards):
+                cx = i * (card_w + cm/3)
+                cy = self.height - 2.8*cm
+                c.setFillColor(colors.HexColor('#f8fafc'))
+                c.roundRect(cx, cy, card_w, 2.4*cm, 6, fill=1, stroke=0)
+                c.setStrokeColor(colors.HexColor(col))
+                c.setLineWidth(2)
+                c.line(cx + 6, cy + 2.4*cm, cx + card_w - 6, cy + 2.4*cm)
+                c.setLineWidth(1)
+                c.setFont('Helvetica', 6.5)
+                c.setFillColor(colors.HexColor('#64748b'))
+                c.drawCentredString(cx + card_w/2, cy + 1.9*cm, lbl)
+                c.setFont('Helvetica-Bold', 11)
+                c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(cx + card_w/2, cy + 1.2*cm, val)
+                c.setFont('Helvetica', 6)
+                c.setFillColor(colors.HexColor('#94a3b8'))
+                c.drawCentredString(cx + card_w/2, cy + 0.5*cm, fonte)
+
+            # --- Riga 2: Bacino d'utenza + Grafico population ---
+            top2 = self.height - 3.4*cm
+            # Titoletto sezione
+            c.setFont('Helvetica-Bold', 8)
+            c.setFillColor(BSCURO)
+            c.drawString(0, top2 - 0.5*cm, 'BACINO DI UTENZA per raggio')
+            # Barre popolazione
+            pop_items = [
+                ('3 min (~400m)', pop_3),
+                ('5 min (~700m)', pop_5),
+                ('10 min (~1.5km)', pop_10),
+            ]
+            bar_colors = ['#3b82f6', '#8b5cf6', '#ec4899']
+            max_pop = max(pop_10, 1)
+            bar_top = top2 - 1.1*cm
+            bar_h = 18
+            bar_gap = 8
+            bar_max_w = w * 0.55
+            for i, (lbl, val) in enumerate(pop_items):
+                by = bar_top - i * (bar_h + bar_gap)
+                bw_actual = bar_max_w * (val / max_pop)
+                # sfondo
+                c.setFillColor(colors.HexColor('#e2e8f0'))
+                c.roundRect(90, by, bar_max_w, bar_h, 3, fill=1, stroke=0)
+                # barra
+                c.setFillColor(colors.HexColor(bar_colors[i]))
+                if bw_actual > 6:
+                    c.roundRect(90, by, bw_actual, bar_h, 3, fill=1, stroke=0)
+                # etichetta sinistra
+                c.setFont('Helvetica', 7)
+                c.setFillColor(colors.HexColor('#64748b'))
+                c.drawRightString(86, by + 5, lbl)
+                # valore
+                c.setFont('Helvetica-Bold', 8)
+                c.setFillColor(colors.HexColor('#0f172a'))
+                c.drawString(96 + bar_max_w, by + 5, f'{val:,}')
+
+            # --- Riga 3: Segmentazione target ---
+            top3 = top2 - (bar_h + bar_gap) * 3 - 1.6*cm
+            c.setFont('Helvetica-Bold', 8)
+            c.setFillColor(BSCURO)
+            c.drawString(0, top3, 'SEGMENTAZIONE TARGET (su pop. 5 min)')
+            seg_top = top3 - 0.7*cm
+            seg_items = [
+                ('Giovani (18-34)', seg_giovani, '#3b82f6', '22%'),
+                ('Adulti (35-54)',  seg_adulti,  '#10b981', '35%'),
+                ('Senior (55+)',    seg_senior,  '#f59e0b', '20%'),
+                ('Nuclei famil.',   seg_famiglie,'#8b5cf6', '23%'),
+            ]
+            seg_w = (w - 1*cm) / 4
+            for i, (lbl, val, col, pct) in enumerate(seg_items):
+                sx = i * (seg_w + cm/4 * 0.33)
+                sy = seg_top - 2.2*cm
+                # card
+                c.setFillColor(colors.HexColor('#f8fafc'))
+                c.roundRect(sx, sy, seg_w - 2, 2.0*cm, 5, fill=1, stroke=0)
+                # cerchio colorato
+                cr = 0.3*cm
+                c.setFillColor(colors.HexColor(col))
+                c.circle(sx + seg_w/2, sy + 1.55*cm, cr, fill=1, stroke=0)
+                # percentuale
+                c.setFont('Helvetica-Bold', 9)
+                c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(sx + seg_w/2, sy + 1.05*cm, pct)
+                # label
+                c.setFont('Helvetica', 6.5)
+                c.setFillColor(colors.HexColor('#64748b'))
+                c.drawCentredString(sx + seg_w/2, sy + 0.6*cm, lbl)
+                # valore
+                c.setFont('Helvetica-Bold', 7)
+                c.setFillColor(colors.HexColor('#0f172a'))
+                c.drawCentredString(sx + seg_w/2, sy + 0.15*cm, f'{val:,}')
+
+            # --- Riga 4: Stima clienti + indicatori wash ---
+            top4 = seg_top - 2.6*cm
+            c.setFont('Helvetica-Bold', 8)
+            c.setFillColor(BSCURO)
+            c.drawString(0, top4, 'POTENZIALE COMMERCIALE STIMATO')
+
+            wash_items = [
+                ('Clienti/giorno stimati', str(clienti_giorno_stima), '#10b981'),
+                ('Clienti/mese (x26gg)',   str(clienti_giorno_stima * 26), '#3b82f6'),
+                ('Età media bacino',       f'{eta_media:.0f} anni', '#8b5cf6'),
+                ('Reddito pro-capite',     f'EUR {reddito:,}', '#f59e0b'),
+                ('Densità ab./km²',        f'{densita:,}', '#ec4899'),
+            ]
+            wash_top = top4 - 0.7*cm
+            wc_w = (w - cm * 0.5) / len(wash_items)
+            for i, (lbl, val, col) in enumerate(wash_items):
+                wx = i * (wc_w + cm * 0.1)
+                wy = wash_top - 1.8*cm
+                c.setFillColor(colors.HexColor('#f8fafc'))
+                c.roundRect(wx, wy, wc_w - 2, 1.6*cm, 4, fill=1, stroke=0)
+                c.setStrokeColor(colors.HexColor(col)); c.setLineWidth(1.5)
+                c.line(wx + 4, wy, wx + wc_w - 6, wy)
+                c.setLineWidth(1)
+                c.setFont('Helvetica-Bold', 9)
+                c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(wx + wc_w/2, wy + 0.9*cm, val)
+                c.setFont('Helvetica', 6)
+                c.setFillColor(colors.HexColor('#64748b'))
+                # wrap label su 2 righe se troppo lungo
+                words = lbl.split()
+                if len(words) > 2:
+                    line1 = ' '.join(words[:2])
+                    line2 = ' '.join(words[2:])
+                    c.drawCentredString(wx + wc_w/2, wy + 0.45*cm, line1)
+                    c.drawCentredString(wx + wc_w/2, wy + 0.12*cm, line2)
+                else:
+                    c.drawCentredString(wx + wc_w/2, wy + 0.25*cm, lbl)
+
+            # nota disclaimer
+            c.setFont('Helvetica', 6.5)
+            c.setFillColor(colors.HexColor('#94a3b8'))
+            c.drawString(0, 0.1*cm,
+                'Stime basate su dati ISTAT Censimento 2021, MEF 2022 e modello domanda BIOLavaTU. I valori sono indicativi.')
+
+    story.append(DemoPage(W - 4*cm, 20.5*cm))
+    story.append(Spacer(1, 10))
+
+    # Analisi AI zona (testo)
     if p.ai_zona:
         story.append(Spacer(1,10))
         story.append(Paragraph('Analisi AI della zona', h2))
