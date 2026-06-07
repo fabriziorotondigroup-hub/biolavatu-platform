@@ -104,15 +104,14 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             story.append(Paragraph(titolo, st('ai_h', fontSize=10,
                 fontName='Helvetica-Bold', textColor=col, spaceBefore=4, spaceAfter=3)))
             continue
-        # Testo con **grassetto**
-        import re
-        # Converti **testo** in <b>testo</b> per ReportLab
-        r_html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', r)
-        # Punti elenco - 
+        # Testo con **grassetto** — converti per ReportLab XML
+        import re as _re
+        r_safe = r.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        r_html = _re.sub(r'[*][*](.+?)[*][*]', r'<b>\1</b>', r_safe)
         if r_html.startswith('- ') or r_html.startswith('• '):
             r_html = '• ' + r_html[2:]
             story.append(Paragraph(r_html, st('ai_li', fontSize=9,
-                leftIndent=10, spaceBefore=2)))
+                leftIndent=12, spaceBefore=2)))
         else:
             story.append(Paragraph(r_html, body))
 
@@ -423,7 +422,7 @@ def _genera_pdf_interno(id):
     # ── CONDIZIONI DI VENDITA ─────────────────────────────────────────────
     if s and s.condizioni_vendita:
         story.append(PageBreak())
-        story.append(sez('CONDIZIONI DI VENDITA','Documento'))
+        story.append(sez('CONDIZIONI DI VENDITA', ''))
         story.append(Spacer(1,6))
         for line in s.condizioni_vendita.split('\n'):
             if line.strip():
