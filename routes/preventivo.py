@@ -90,6 +90,34 @@ def salva():
     utile = incasso - costi
     payback = (capex * 1.22 / utile / 12) if utile > 0 else 0
 
+    # Geocoding server-side se lat/lng mancanti dal frontend
+    _save_lat = float(data.get('lat', 0) or 0)
+    _save_lng = float(data.get('lng', 0) or 0)
+    if (not _save_lat or not _save_lng):
+        _gmaps_key = os.environ.get('GMAPS_KEY', '')
+        _citta = data.get('citta', '')
+        _indirizzo = data.get('indirizzo', '')
+        if _gmaps_key and (_citta or _indirizzo):
+            import urllib.parse as _upl, urllib.request as _ugr
+            for _ga in [
+                f"{_indirizzo}, {_citta}, Italia" if _indirizzo and _citta else None,
+                f"{_citta}, Italia" if _citta else None,
+            ]:
+                if not _ga: continue
+                try:
+                    _gurl = ("https://maps.googleapis.com/maps/api/geocode/json?address="
+                             + _upl.quote_plus(_ga) + "&key=" + _gmaps_key)
+                    _greq = _ugr.Request(_gurl, headers={"User-Agent": "BIOLavaTU"})
+                    with _ugr.urlopen(_greq, timeout=6) as _gr:
+                        _gd = __import__('json').loads(_gr.read())
+                    if _gd.get('results'):
+                        _loc = _gd['results'][0]['geometry']['location']
+                        _save_lat = float(_loc['lat'])
+                        _save_lng = float(_loc['lng'])
+                        break
+                except Exception:
+                    continue
+
     p = Pratica(
         numero=genera_numero(),
         stato='bozza',
@@ -101,8 +129,8 @@ def salva():
         citta=data.get('citta', ''),
         cap=data.get('cap', ''),
         provincia=data.get('provincia', ''),
-        lat=float(data.get('lat', 0) or 0),
-        lng=float(data.get('lng', 0) or 0),
+        lat=_save_lat,
+        lng=_save_lng,
         mq=int(data.get('mq', 60) or 60),
         # Zona
         pop_3min=int(data.get('pop_3min', 0) or 0),
