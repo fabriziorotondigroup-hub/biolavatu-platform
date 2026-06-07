@@ -566,12 +566,56 @@ def zona_analisi():
     demo          = get_demographic_data(citta, provincia)
     eta_media     = demo.get('eta_media', 46.4)
     reddito_medio = demo.get('reddito_medio', 19800)
-    densita       = demo.get('densita', 200)
+    densita_istat = demo.get('densita', 200)
+
+    # ── DENSITÀ REALE da Google Maps (proxy da POI nel raggio) ───────────────
+    # Contiamo i luoghi unici entro 400m come proxy di urbanizzazione reale
+    # Benchmark: centro città = 50+ POI in 400m → densità >3000
+    #            periferia     = 15-30 POI → densità 800-2000
+    #            zona rurale   = <10 POI → densità <500
+    _poi_400m = sum(1 for p in (
+        raw_supermercati + raw_bar_cafe + raw_ristoranti +
+        raw_farmacie + raw_scuole + raw_trasporti + raw_palestre
+    ) if haversine(lat, lng,
+                   p['geometry']['location']['lat'],
+                   p['geometry']['location']['lng']) <= 400)
+
+    # Stima densità reale dal numero di POI entro 400m
+    if   _poi_400m >= 60: densita_reale = 7000
+    elif _poi_400m >= 40: densita_reale = 5000
+    elif _poi_400m >= 25: densita_reale = 3500
+    elif _poi_400m >= 15: densita_reale = 2000
+    elif _poi_400m >= 8:  densita_reale = 1000
+    elif _poi_400m >= 3:  densita_reale = 500
+    else:                  densita_reale = 150
+
+    # Usa il massimo tra ISTAT e stima reale (evita di sottostimare centri urbani)
+    # ma non moltiplicare più di 4× per sicurezza
+    densita = max(densita_istat, min(densita_reale, densita_istat * 4))
 
     assessment = get_market_assessment(
         eta_media, reddito_medio, densita,
         concorrenti_1km, recensioni_zona, gdo_500m
     )
+    # ── PENALITÀ SCORE se bacino demografico insufficiente ────────────────────
+    # Lo score non può essere "Eccellente" se la popolazione è misera
+    _score_raw = assessment['score']
+    _pop_bacino = pop_3min if pop_3min > 0 else int(densita * math.pi * (r3**2) / 1_000_000)
+    if   _pop_bacino < 200:  _score_raw = min(_score_raw, 25)
+    elif _pop_bacino < 500:  _score_raw = min(_score_raw, 40)
+    elif _pop_bacino < 1000: _score_raw = min(_score_raw, 55)
+    elif _pop_bacino < 2000: _score_raw = min(_score_raw, 70)
+    # Penalità concorrenza estrema
+    if concorrenti_500m >= 3: _score_raw = min(_score_raw, 50)
+    if concorrenti_500m >= 5: _score_raw = min(_score_raw, 30)
+    assessment = dict(assessment)
+    assessment['score'] = _score_raw
+    # Ricalcola label
+    if   _score_raw >= 80: assessment['label'] = 'Eccellente'
+    elif _score_raw >= 65: assessment['label'] = 'Buono'
+    elif _score_raw >= 45: assessment['label'] = 'Discreto'
+    elif _score_raw >= 25: assessment['label'] = 'Scarso'
+    else:                   assessment['label'] = 'Critico'
 
     # ── POPOLAZIONE STIMATA ───────────────────────────────────────────────────
     area_3min  = math.pi * (r3  ** 2) / 1_000_000
@@ -1056,5 +1100,6 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
 
