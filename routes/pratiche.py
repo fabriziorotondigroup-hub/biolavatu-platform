@@ -123,8 +123,10 @@ def _genera_pdf_interno(id):
         _st_counter[0] += 1
         uname = f'{name}_{_st_counter[0]}'
         kw.setdefault('fontSize', 9)
-        return ParagraphStyle(uname, fontName='Helvetica',
-                              textColor=SCURO, leading=13, **kw)
+        kw.setdefault('fontName', 'Helvetica')
+        kw.setdefault('textColor', SCURO)
+        kw.setdefault('leading', 13)
+        return ParagraphStyle(uname, **kw)
     h1  = st('h1',  fontSize=13, fontName='Helvetica-Bold', textColor=BSCURO,
               spaceBefore=14, spaceAfter=6)
     h2  = st('h2',  fontSize=10, fontName='Helvetica-Bold', textColor=GRIGIO,
