@@ -241,62 +241,93 @@ def _genera_pdf_interno(id):
 
     # ── COPERTINA ────────────────────────────────────────────────────────────
     class Cover(Flowable):
-        def __init__(self): Flowable.__init__(self); self.width=W-4*cm; self.height=H-4*cm
+        def __init__(self):
+            Flowable.__init__(self)
+            self.width  = W - 4*cm
+            self.height = H - 3*cm
         def draw(self):
-            c=self.canv; w,h=self.width,self.height
-            c.setFillColor(BSCURO); c.roundRect(0,0,w,h,16,fill=1,stroke=0)
-            c.setFillColor(colors.HexColor('#0f2340'))
-            c.roundRect(0,h-7*cm,w,7*cm,16,fill=1,stroke=0)
-            c.rect(0,h-7*cm+14,w,14,fill=1,stroke=0)
-            c.setFont('Helvetica-Bold',40); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2,h-3.0*cm,brand)
-            c.setFont('Helvetica',12); c.setFillColor(colors.HexColor('#93c5fd'))
-            c.drawCentredString(w/2,h-4.0*cm,'LaundryPro Platform  —  Analisi di Fattibilita')
-            c.setStrokeColor(BLU); c.setLineWidth(1.5)
-            c.line(w*0.2,h-4.6*cm,w*0.8,h-4.6*cm)
-            c.setFillColor(BLU); c.roundRect(w*0.2,h-7.2*cm,w*0.6,1.6*cm,10,fill=1,stroke=0)
-            c.setFont('Helvetica-Bold',18); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2,h-6.2*cm,p.numero)
-            c.setFont('Helvetica',8); c.setFillColor(colors.HexColor('#bfdbfe'))
-            c.drawCentredString(w/2,h-6.9*cm,
+            c = self.canv
+            w, h = self.width, self.height
+
+            # Sfondo principale
+            c.setFillColor(BSCURO)
+            c.roundRect(0, 0, w, h, 12, fill=1, stroke=0)
+
+            # Header band
+            c.setFillColor(colors.HexColor('#0a1628'))
+            c.roundRect(0, h-5.5*cm, w, 5.5*cm, 12, fill=1, stroke=0)
+            c.rect(0, h-5.5*cm, w, 0.5*cm, fill=1, stroke=0)
+
+            # Brand — dimensione adattiva
+            brand_txt = brand[:20] if len(brand) > 20 else brand
+            c.setFont('Helvetica-Bold', 28)
+            c.setFillColor(BIANCO)
+            c.drawCentredString(w/2, h-2.2*cm, brand_txt)
+
+            c.setFont('Helvetica', 9)
+            c.setFillColor(colors.HexColor('#93c5fd'))
+            c.drawCentredString(w/2, h-3.0*cm, 'LaundryPro Platform  —  Analisi di Fattibilita')
+
+            # Linea separatrice
+            c.setStrokeColor(BLU); c.setLineWidth(1)
+            c.line(w*0.15, h-3.6*cm, w*0.85, h-3.6*cm)
+
+            # Numero pratica
+            c.setFillColor(BLU)
+            c.roundRect(w*0.2, h-5.8*cm, w*0.6, 1.4*cm, 8, fill=1, stroke=0)
+            c.setFont('Helvetica-Bold', 14); c.setFillColor(BIANCO)
+            c.drawCentredString(w/2, h-5.0*cm, p.numero)
+            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#bfdbfe'))
+            c.drawCentredString(w/2, h-5.55*cm,
                 f'Data: {p.created.strftime("%d/%m/%Y")}  |  Stato: {p.stato.upper()}')
-            cliente=p.cliente
-            c.setFont('Helvetica-Bold',12); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2,h-8.5*cm,
-                cliente.nome_completo if cliente else 'Cliente')
-            c.setFont('Helvetica',9); c.setFillColor(colors.HexColor('#93c5fd'))
-            ind=f'{p.indirizzo}, {p.citta}' if p.indirizzo else p.citta or ''
-            c.drawCentredString(w/2,h-9.2*cm,ind)
-            capex_iva=p.capex*1.22
-            kpis=[
-                ('INVESTIMENTO IVA',f'EUR {capex_iva:,.0f}','#3b82f6'),
-                ('INCASSO/MESE',f'EUR {p.incasso_mese:,.0f}',
-                 '#10b981' if p.incasso_mese>0 else '#ef4444'),
-                ('UTILE/MESE',f'EUR {p.utile_mese:,.0f}',
-                 '#10b981' if p.utile_mese>=0 else '#ef4444'),
+
+            # Cliente e indirizzo
+            cliente = p.cliente
+            nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:40]
+            c.setFont('Helvetica-Bold', 11); c.setFillColor(BIANCO)
+            c.drawCentredString(w/2, h-7.0*cm, nome_cl)
+            ind = f'{p.indirizzo}, {p.citta}' if p.indirizzo else (p.citta or '')
+            ind = ind[:60]  # tronca se troppo lungo
+            c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
+            c.drawCentredString(w/2, h-7.7*cm, ind)
+
+            # KPI boxes — 4 colonne
+            capex_iva = p.capex * 1.22
+            kpis = [
+                ('INVESTIMENTO IVA', f'EUR {capex_iva:,.0f}', '#3b82f6'),
+                ('INCASSO/MESE',     f'EUR {p.incasso_mese:,.0f}',
+                 '#10b981' if p.incasso_mese > 0 else '#ef4444'),
+                ('UTILE/MESE',       f'EUR {p.utile_mese:,.0f}',
+                 '#10b981' if p.utile_mese >= 0 else '#ef4444'),
                 ('PAYBACK',
-                 f'{int(p.payback_mesi/12) if p.payback_mesi else "N/D"} anni','#f59e0b'),
+                 f'{int(p.payback_mesi/12) if p.payback_mesi else "N/D"} anni', '#f59e0b'),
             ]
-            bw=(w-1.2*cm)/4
-            for i,(lbl,val,col) in enumerate(kpis):
-                bx=i*(bw+0.4*cm); by=h-13.5*cm
+            margin = 0.3*cm
+            bw = (w - margin * 3) / 4
+            by = h - 11.2*cm
+            for i, (lbl, val, col) in enumerate(kpis):
+                bx = i * (bw + margin)
                 c.setFillColor(colors.HexColor('#0f2340'))
-                c.roundRect(bx,by,bw,2.4*cm,8,fill=1,stroke=0)
-                c.setFont('Helvetica',7); c.setFillColor(colors.HexColor('#93c5fd'))
-                c.drawCentredString(bx+bw/2,by+1.9*cm,lbl)
-                c.setFont('Helvetica-Bold',11); c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(bx+bw/2,by+1.1*cm,val)
-            sc=int(p.score_zona or 0)
-            scol='#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
-            c.setFont('Helvetica',9); c.setFillColor(colors.HexColor('#93c5fd'))
-            c.drawCentredString(w/2,h-14.8*cm,'SCORE ZONA')
-            c.setFont('Helvetica-Bold',36); c.setFillColor(colors.HexColor(scol))
-            c.drawCentredString(w/2,h-16.2*cm,f'{sc}/100')
-            c.setFont('Helvetica',10); c.setFillColor(BIANCO)
-            c.drawCentredString(w/2,h-17.0*cm,p.score_label or '')
-            c.setFont('Helvetica',8); c.setFillColor(colors.HexColor('#64748b'))
-            c.drawCentredString(w/2,1.2*cm,f'{company}  {web}  {tel}')
-            c.drawCentredString(w/2,0.5*cm,'Documento riservato - uso interno')
+                c.roundRect(bx, by, bw, 2.2*cm, 6, fill=1, stroke=0)
+                c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#93c5fd'))
+                c.drawCentredString(bx+bw/2, by+1.7*cm, lbl)
+                c.setFont('Helvetica-Bold', 9); c.setFillColor(colors.HexColor(col))
+                c.drawCentredString(bx+bw/2, by+0.9*cm, val)
+
+            # Score zona
+            sc = int(p.score_zona or 0)
+            scol = '#10b981' if sc >= 70 else '#f59e0b' if sc >= 45 else '#ef4444'
+            c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#93c5fd'))
+            c.drawCentredString(w/2, h-12.5*cm, 'SCORE ZONA')
+            c.setFont('Helvetica-Bold', 30); c.setFillColor(colors.HexColor(scol))
+            c.drawCentredString(w/2, h-13.8*cm, f'{sc}/100')
+            c.setFont('Helvetica', 9); c.setFillColor(BIANCO)
+            c.drawCentredString(w/2, h-14.5*cm, p.score_label or '')
+
+            # Footer
+            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
+            c.drawCentredString(w/2, 0.8*cm, f'{company}  {web}  {tel}')
+            c.drawCentredString(w/2, 0.2*cm, 'Documento riservato - uso interno')
 
     story.append(Cover()); story.append(PageBreak())
 
