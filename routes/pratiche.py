@@ -379,120 +379,131 @@ def _genera_pdf_interno(id):
             c   = self.canv
             w   = self.width
             h   = self.height
-            nav = C['navy']
-            blu = C['blue']
-            wht = C['white']
-            sky = C['sky']
 
-            # Sfondo totale
-            c.setFillColor(nav)
-            c.roundRect(0, 0, w, h, 10, fill=1, stroke=0)
+            # ── Sfondo bianco/grigio chiaro ──────────────────────────────
+            c.setFillColor(colors.HexColor('#f8fafc'))
+            c.roundRect(0, 0, w, h, 8, fill=1, stroke=0)
 
-            # Banda superiore blu scuro
-            c.setFillColor(colors.HexColor('#060e1f'))
-            c.roundRect(0, h*0.72, w, h*0.28, 10, fill=1, stroke=0)
-            c.rect(0, h*0.72, w, h*0.05, fill=1, stroke=0)
+            # ── Header band blu scuro (30% superiore) ────────────────────
+            c.setFillColor(C['navy'])
+            c.roundRect(0, h*0.70, w, h*0.30, 8, fill=1, stroke=0)
+            c.rect(0, h*0.70, w, h*0.04, fill=1, stroke=0)
+
+            # Accent strip sinistra blu vivo
+            c.setFillColor(C['blue'])
+            c.rect(0, 0, 0.45*cm, h, fill=1, stroke=0)
 
             # Accent strip sinistra
             c.setFillColor(blu)
             c.roundRect(0, 0, 0.5*cm, h, 10, fill=1, stroke=0)
             c.rect(0.5*cm, 0, 0.3*cm, h, fill=1, stroke=0)
 
-            # Brand name
-            c.setFont('Helvetica-Bold', 32)
-            c.setFillColor(wht)
-            c.drawString(1.2*cm, h - 1.8*cm, brand)
+            # ── Brand + tagline nell'header ──────────────────────────
+            c.setFont('Helvetica-Bold', 26)
+            c.setFillColor(colors.white)
+            c.drawString(1.2*cm, h - 1.7*cm, brand)
+            c.setFont('Helvetica', 9)
+            c.setFillColor(C['sky'])
+            c.drawString(1.2*cm, h - 2.35*cm,
+                         'LaundryPro Platform  ·  Analisi di Fattibilità')
 
-            # Tagline
-            c.setFont('Helvetica', 10)
-            c.setFillColor(sky)
-            c.drawString(1.2*cm, h - 2.5*cm, 'LaundryPro Platform  ·  Analisi di Fattibilità')
+            # Linea separatrice
+            c.setStrokeColor(C['blue']); c.setLineWidth(1.5)
+            c.line(1.2*cm, h - 2.85*cm, w - 0.5*cm, h - 2.85*cm)
 
-            # Linea divisoria
-            c.setStrokeColor(blu); c.setLineWidth(1.5)
-            c.line(1.2*cm, h - 3.0*cm, w - 0.5*cm, h - 3.0*cm)
+            # Numero pratica
+            c.setFillColor(C['blue'])
+            c.roundRect(1.2*cm, h - 4.3*cm, w*0.52, 1.1*cm, 5, fill=1, stroke=0)
+            c.setFont('Helvetica-Bold', 14); c.setFillColor(colors.white)
+            c.drawString(1.6*cm, h - 3.65*cm, p.numero)
+            c.setFont('Helvetica', 7.5); c.setFillColor(C['sky'])
+            c.drawString(1.6*cm, h - 4.15*cm,
+                f'{p.created.strftime("%d/%m/%Y")}   ·   {p.stato.upper()}')
 
-            # Badge numero pratica
-            c.setFillColor(blu)
-            c.roundRect(1.2*cm, h - 4.6*cm, w*0.55, 1.2*cm, 6, fill=1, stroke=0)
-            c.setFont('Helvetica-Bold', 15); c.setFillColor(wht)
-            c.drawString(1.6*cm, h - 3.93*cm, p.numero)
-            c.setFont('Helvetica', 8); c.setFillColor(sky)
-            c.drawString(1.6*cm, h - 4.45*cm,
-                f'{p.created.strftime("%d/%m/%Y")}   ·   Stato: {p.stato.upper()}')
+            # ── Sezione cliente su sfondo chiaro ─────────────────────────
+            # Rettangolo bianco per dati cliente
+            c.setFillColor(colors.white)
+            c.roundRect(0.7*cm, h*0.70 - 3.8*cm, w - 0.7*cm, 3.4*cm, 6, fill=1, stroke=0)
+            c.setStrokeColor(C['border']); c.setLineWidth(0.5)
+            c.roundRect(0.7*cm, h*0.70 - 3.8*cm, w - 0.7*cm, 3.4*cm, 6, fill=0, stroke=1)
 
-            # Cliente
             cliente = p.cliente
             nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:42]
-            c.setFont('Helvetica-Bold', 13); c.setFillColor(wht)
-            c.drawString(1.2*cm, h*0.72 - 1.2*cm, nome_cl)
             ind = f'{p.indirizzo}, {p.citta}' if p.indirizzo else (p.citta or '')
-            c.setFont('Helvetica', 9); c.setFillColor(sky)
-            c.drawString(1.2*cm, h*0.72 - 1.9*cm, ind[:65])
-            if p.mq:
-                c.setFont('Helvetica', 8); c.setFillColor(colors.HexColor('#64748b'))
-                c.drawString(1.2*cm, h*0.72 - 2.45*cm, f'Superficie: {p.mq} mq')
 
-            # 4 KPI box
+            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
+            c.drawString(1.2*cm, h*0.70 - 1.0*cm, 'CLIENTE')
+            c.setFont('Helvetica-Bold', 13); c.setFillColor(C['dark'])
+            c.drawString(1.2*cm, h*0.70 - 1.7*cm, nome_cl)
+            c.setFont('Helvetica', 9); c.setFillColor(C['slate'])
+            c.drawString(1.2*cm, h*0.70 - 2.3*cm, ind[:65])
+            if p.mq:
+                c.setFont('Helvetica', 8); c.setFillColor(C['slate'])
+                c.drawString(1.2*cm, h*0.70 - 2.85*cm, f'Superficie: {p.mq} mq')
+
+            # ── 4 KPI box ────────────────────────────────────────────────
             capex_iva = p.capex * 1.22
             kpis = [
-                ('INVESTIMENTO + IVA', f'€ {capex_iva:,.0f}', '#3b82f6'),
+                ('INVESTIMENTO + IVA', f'€ {capex_iva:,.0f}', '#2563eb'),
                 ('INCASSO / MESE',     f'€ {p.incasso_mese:,.0f}',
-                 '#10b981' if p.incasso_mese > 0 else '#ef4444'),
+                 '#059669' if p.incasso_mese > 0 else '#dc2626'),
                 ('UTILE / MESE',       f'€ {p.utile_mese:,.0f}',
-                 '#10b981' if p.utile_mese >= 0 else '#ef4444'),
+                 '#059669' if p.utile_mese >= 0 else '#dc2626'),
                 ('PAYBACK',
                  f'{int(p.payback_mesi/12)} anni' if p.payback_mesi else 'N/D',
-                 '#f59e0b'),
+                 '#d97706'),
             ]
-            gap  = 0.25*cm
-            bw   = (w - 1.2*cm - gap*3) / 4
-            by   = h*0.72 - 5.2*cm
+            gap = 0.3*cm
+            bw  = (w - 0.7*cm - gap*3) / 4
+            by  = h*0.70 - 5.6*cm
             for i,(lbl,val,col) in enumerate(kpis):
-                bx = 1.2*cm + i*(bw+gap)
-                # Card scura
-                c.setFillColor(colors.HexColor('#0a1628'))
-                c.roundRect(bx, by, bw, 2.1*cm, 5, fill=1, stroke=0)
-                # Accent top
-                c.setFillColor(colors.HexColor(col))
-                c.roundRect(bx, by+1.8*cm, bw, 0.3*cm, 3, fill=1, stroke=0)
-                c.rect(bx, by+1.8*cm, bw, 0.15*cm, fill=1, stroke=0)
-                # Value
-                c.setFont('Helvetica-Bold', 9.5); c.setFillColor(colors.HexColor(col))
+                bx = 0.7*cm + i*(bw+gap)
+                # Card bianca con bordo colorato in basso
+                c.setFillColor(colors.white)
+                c.roundRect(bx, by, bw, 2.0*cm, 5, fill=1, stroke=0)
+                c.setStrokeColor(colors.HexColor(col)); c.setLineWidth(2.5)
+                c.line(bx+4, by, bx+bw-4, by)
+                c.setLineWidth(1)
+                # Value grande colorata
+                c.setFont('Helvetica-Bold', 10); c.setFillColor(colors.HexColor(col))
                 c.drawCentredString(bx+bw/2, by+1.15*cm, val)
-                # Label
-                c.setFont('Helvetica', 6.5); c.setFillColor(sky)
-                c.drawCentredString(bx+bw/2, by+0.55*cm, lbl)
+                # Label grigia piccola
+                c.setFont('Helvetica', 6.5); c.setFillColor(C['slate'])
+                c.drawCentredString(bx+bw/2, by+0.5*cm, lbl)
 
-            # Score zona — grande cerchio
+            # ── Score zona cerchio ───────────────────────────────────
             sc   = int(p.score_zona or 0)
-            scol = '#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
-            cx   = 1.2*cm + (w-1.2*cm)*0.78
-            cy   = by - 2.5*cm
-            # Cerchio sfondo
-            c.setFillColor(colors.HexColor('#0a1628'))
-            c.circle(cx, cy, 1.5*cm, fill=1, stroke=0)
-            # Arco colorato (score)
+            scol = '#059669' if sc>=70 else '#d97706' if sc>=45 else '#dc2626'
+            cx   = 0.7*cm + (w - 0.7*cm)*0.80
+            cy   = by - 2.4*cm
+            # Cerchio sfondo grigio chiaro
+            c.setFillColor(colors.HexColor('#f1f5f9'))
+            c.circle(cx, cy, 1.6*cm, fill=1, stroke=0)
+            c.setStrokeColor(colors.HexColor('#e2e8f0')); c.setLineWidth(1)
+            c.circle(cx, cy, 1.6*cm, fill=0, stroke=1)
+            # Arco colorato
             import math
             angle = 360 * sc / 100
-            c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(4)
-            c.arc(cx-1.3*cm, cy-1.3*cm, cx+1.3*cm, cy+1.3*cm,
+            c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(5)
+            c.arc(cx-1.4*cm, cy-1.4*cm, cx+1.4*cm, cy+1.4*cm,
                   startAng=90, extent=-angle)
             # Testo score
-            c.setFont('Helvetica-Bold', 22); c.setFillColor(colors.HexColor(scol))
-            c.drawCentredString(cx, cy+0.0*cm, str(sc))
-            c.setFont('Helvetica', 7); c.setFillColor(sky)
-            c.drawCentredString(cx, cy-0.7*cm, 'score /100')
-            c.setFont('Helvetica-Bold', 8); c.setFillColor(wht)
-            c.drawCentredString(cx, cy-1.2*cm, p.score_label or '')
-            # Label a sinistra del cerchio
-            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
-            c.drawString(1.2*cm, cy+0.4*cm, 'SCORE ZONA')
+            c.setFont('Helvetica-Bold', 24); c.setFillColor(colors.HexColor(scol))
+            c.drawCentredString(cx, cy+0.05*cm, str(sc))
+            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
+            c.drawCentredString(cx, cy-0.65*cm, 'score /100')
+            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['dark'])
+            c.drawCentredString(cx, cy-1.15*cm, p.score_label or '')
+            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
+            c.drawString(0.7*cm, cy+0.5*cm, 'SCORE ZONA')
 
-            # Footer disclaimer
-            c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#334155'))
-            c.drawCentredString(w/2, 0.5*cm, f'{company}  ·  {web}  ·  {tel}')
-            c.drawCentredString(w/2, 0.1*cm, 'Documento riservato — uso interno')
+            # ── Footer ───────────────────────────────────────────────────
+            c.setFillColor(C['navy'])
+            c.rect(0, 0, w, 0.9*cm, fill=1, stroke=0)
+            c.setFont('Helvetica', 7.5); c.setFillColor(colors.white)
+            c.drawCentredString(w/2, 0.55*cm, f'{company}  ·  {web}  ·  {tel}')
+            c.setFont('Helvetica', 6.5); c.setFillColor(C['sky'])
+            c.drawCentredString(w/2, 0.15*cm, 'Documento riservato — uso interno')
 
     story.append(Cover()); story.append(PageBreak())
 
@@ -541,7 +552,26 @@ def _genera_pdf_interno(id):
     gmaps_key = os.environ.get('GMAPS_KEY', '')
     mappa_ok  = False
 
-    if p.lat and p.lng and gmaps_key:
+    # Se mancano le coordinate, prova a geocodificare dalla città
+    _map_lat = float(p.lat or 0)
+    _map_lng = float(p.lng or 0)
+    if (not _map_lat or not _map_lng) and gmaps_key and (p.citta or p.indirizzo):
+        try:
+            import urllib.request as _ugeo, urllib.parse as _upgeo
+            _addr = f"{p.indirizzo}, {p.citta}" if p.indirizzo else p.citta
+            _gurl = (f"https://maps.googleapis.com/maps/api/geocode/json"
+                     f"?address={_upgeo.quote(_addr)}&key={gmaps_key}")
+            with _ugeo.urlopen(_gurl, timeout=6) as _gr:
+                _gdata = __import__('json').loads(_gr.read())
+            if _gdata.get('results'):
+                _loc = _gdata['results'][0]['geometry']['location']
+                _map_lat = _loc['lat']
+                _map_lng = _loc['lng']
+        except Exception:
+            pass
+
+    if _map_lat and _map_lng and gmaps_key:
+        _mlat, _mlng = _map_lat, _map_lng
         _conc_list = []
         try:
             import json as _j2
@@ -552,7 +582,6 @@ def _genera_pdf_interno(id):
         except Exception:
             _conc_list = []
 
-        # Estrai anche attractor points dai pois salvati
         _attr_list = []
         try:
             _attr_list = [x for x in _all_pois if x.get('categoria') == 'attractor'
@@ -560,7 +589,7 @@ def _genera_pdf_interno(id):
                                                'scuola_militare','stazione','vvf')]
         except Exception:
             _attr_list = []
-        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key,
+        mappa_bytes = _get_mappa_statica(_mlat, _mlng, gmaps_key,
                                           width_px=640, height_px=320,
                                           concorrenti=_conc_list,
                                           attractors=_attr_list)
@@ -1216,4 +1245,5 @@ def elimina_allegato(id, idx):
         db.session.commit()
         flash('Allegato eliminato.', 'success')
     return redirect(url_for('pratiche.dettaglio', id=id))
+
 
