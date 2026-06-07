@@ -116,8 +116,8 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
 
 
 
-def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorrenti=None):
-    """Mappa statica Google Maps con marker sede + concorrenti colorati."""
+def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorrenti=None, attractors=None):
+    """Mappa statica Google Maps con marker sede + concorrenti + attractor points."""
     if not lat or not lng or not gmaps_key:
         return None
     try:
@@ -130,6 +130,7 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorr
             f"maptype=roadmap",
             f"markers=color:yellow|size:mid|label:S|{lat},{lng}",
         ]
+        # Concorrenti
         if concorrenti:
             self_sv = [c for c in concorrenti if c.get('tipo') == 'self_service']
             tradi   = [c for c in concorrenti if c.get('tipo') == 'tradizionale']
@@ -137,6 +138,19 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300, concorr
             for group, color, lbl in [(self_sv,'red','C'),(tradi,'orange','T'),(indust,'blue','I')]:
                 if group:
                     locs = '|'.join(f"{c['lat']},{c['lng']}" for c in group[:8])
+                    parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
+        # Attractor points
+        if attractors:
+            univ = [a for a in attractors if a.get('tipo') == 'universita']
+            osp  = [a for a in attractors if a.get('tipo') == 'ospedale']
+            mil  = [a for a in attractors if a.get('tipo') in ('caserma','scuola_militare')]
+            staz = [a for a in attractors if a.get('tipo') == 'stazione']
+            for group, color, lbl in [
+                (univ,'purple','U'), (osp,'green','H'),
+                (mil,'red','M'),    (staz,'blue','Z')
+            ]:
+                if group:
+                    locs = '|'.join(f"{a['lat']},{a['lng']}" for a in group[:5])
                     parts.append(f"markers=color:{color}|size:small|label:{lbl}|{locs}")
         styles = [
             "style=element:geometry|color:0x1d2c4d",
@@ -495,9 +509,18 @@ def _genera_pdf_interno(id):
         except Exception:
             _conc_list = []
 
+        # Estrai anche attractor points dai pois salvati
+        _attr_list = []
+        try:
+            _attr_list = [x for x in _all_pois if x.get('categoria') == 'attractor'
+                          or x.get('tipo') in ('universita','ospedale','caserma',
+                                               'scuola_militare','stazione','vvf')]
+        except Exception:
+            _attr_list = []
         mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key,
                                           width_px=640, height_px=320,
-                                          concorrenti=_conc_list)
+                                          concorrenti=_conc_list,
+                                          attractors=_attr_list)
         if mappa_bytes:
             from reportlab.platypus import Image as RLImage
             import io as _io2
@@ -525,8 +548,12 @@ def _genera_pdf_interno(id):
                         for lbl, n, col in legend_items
                     ]
                     leg_parts.insert(0, Paragraph(
-                        '<font color="#f59e0b">★</font>  Giallo S = Sede proposta',
-                        st('leg0', fontSize=8, textColor=C['text'])
+                        '<font color="#f59e0b">★</font>  Giallo S = Sede  '
+                        '<font color="#800080">●</font> U=Università  '
+                        '<font color="#008000">●</font> H=Ospedale  '
+                        '<font color="#ef4444">●</font> M=Militare  '
+                        '<font color="#3b82f6">●</font> Z=Stazione',
+                        st('leg0', fontSize=7.5, textColor=C['text'])
                     ))
                     # Distribuisci su 4 colonne max
                     while len(leg_parts) < 4:
