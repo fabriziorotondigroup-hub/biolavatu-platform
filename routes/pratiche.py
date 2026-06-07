@@ -879,52 +879,96 @@ def _genera_pdf_interno(id):
 
     # 3 scenari con barra visiva
     class ScenariChart(Flowable):
-        def __init__(self, inc, cos, uti, width):
+        def __init__(self, inc, cos, uti, cli_g, spesa, giorni, width):
             Flowable.__init__(self)
-            self.inc   = inc
-            self.cos   = cos
-            self.uti   = uti
-            self.width = width
-            self.height= 4.5*cm
+            self.inc    = inc
+            self.cos    = cos
+            self.uti    = uti
+            self.cli_g  = cli_g    # clienti/giorno realistico
+            self.spesa  = spesa    # spesa media/visita
+            self.giorni = giorni   # giorni apertura/mese
+            self.width  = width
+            self.height = 6.0*cm
 
         def draw(self):
-            c   = self.canv
-            w   = self.width
+            c = self.canv
+            w = self.width
+            giorni = self.giorni or 30
             sc3 = [
-                ('Pessimistico ×0.60', self.inc*0.60, self.inc*0.60 - self.cos, '#ef4444'),
-                ('Realistico   ×1.00', self.inc,      self.uti,                   '#3b82f6'),
-                ('Ottimistico  ×1.25', self.inc*1.25, self.inc*1.25 - self.cos,   '#10b981'),
+                ('Pessimistico ×0.60', self.cli_g*0.60, self.inc*0.60, self.inc*0.60 - self.cos, '#ef4444'),
+                ('Realistico   ×1.00', self.cli_g,      self.inc,      self.uti,                  '#3b82f6'),
+                ('Ottimistico  ×1.25', self.cli_g*1.25, self.inc*1.25, self.inc*1.25 - self.cos,  '#10b981'),
             ]
             max_inc = max(self.inc*1.25, 1)
-            bh  = 18
-            gap = 10
-            lw  = 4.2*cm
-            bar_w = w * 0.50
-            top = self.height - 0.3*cm
+            bh  = 16
+            gap = 8
+            top = self.height - 0.1*cm
+
+            # Intestazioni colonne
+            col_cli  = 0
+            col_bar  = 2.8*cm
+            col_inc  = col_bar + w*0.38 + 0.3*cm
+            col_uti  = col_inc + 2.2*cm
 
             c.setFont('Helvetica-Bold', 7.5); c.setFillColor(C['slate'])
-            c.drawString(lw, top, 'Incasso/mese')
-            c.drawString(lw + bar_w + 0.5*cm, top, 'Utile/mese')
+            c.drawString(col_cli,  top, 'Scenario')
+            c.drawString(col_bar,  top, 'Clienti/giorno → Incasso/mese')
+            c.drawRightString(w,   top, 'Utile/mese')
 
-            for i,(nome,inc_s,uti_s,col) in enumerate(sc3):
-                by_ = top - 0.6*cm - i*(bh+gap)
-                # Etichetta
-                c.setFont('Helvetica', 8); c.setFillColor(C['dark'])
-                c.drawRightString(lw-4, by_+5, nome)
-                # Barra incasso
-                c.setFillColor(colors.HexColor('#e2e8f0'))
-                c.roundRect(lw, by_, bar_w, bh, 3, fill=1, stroke=0)
-                bw_i = bar_w * (inc_s / max_inc)
+            c.setStrokeColor(C['border']); c.setLineWidth(0.5)
+            c.line(0, top - 0.25*cm, w, top - 0.25*cm)
+
+            for i,(nome,cli_s,inc_s,uti_s,col) in enumerate(sc3):
+                by_ = top - 0.65*cm - i*(bh+gap+4)
+                # Nome scenario
+                c.setFont('Helvetica-Bold' if i==1 else 'Helvetica', 8)
                 c.setFillColor(colors.HexColor(col))
-                c.roundRect(lw, by_, max(4,bw_i), bh, 3, fill=1, stroke=0)
-                c.setFont('Helvetica-Bold', 8); c.setFillColor(colors.HexColor(col))
-                c.drawString(lw + bar_w + 0.3*cm, by_+5, f'€ {inc_s:,.0f}')
-                # Utile (valore numerico)
-                uti_col = '#10b981' if uti_s>=0 else '#ef4444'
-                c.setFont('Helvetica-Bold', 8.5); c.setFillColor(colors.HexColor(uti_col))
-                c.drawString(lw + bar_w + 3.0*cm, by_+5, f'€ {uti_s:,.0f}')
+                c.drawString(col_cli, by_+4, nome)
+                # Clienti/giorno
+                c.setFont('Helvetica', 7.5); c.setFillColor(C['slate'])
+                c.drawString(col_cli, by_-5, f'{cli_s:.1f} clienti/g  ·  €{inc_s/giorni:.1f}/g')
+                # Barra incasso mensile
+                bar_max_w = w * 0.37
+                c.setFillColor(colors.HexColor('#e2e8f0'))
+                c.roundRect(col_bar, by_, bar_max_w, bh, 3, fill=1, stroke=0)
+                bw_i = bar_max_w * (inc_s / max_inc)
+                c.setFillColor(colors.HexColor(col))
+                c.roundRect(col_bar, by_, max(4, bw_i), bh, 3, fill=1, stroke=0)
+                # Valore incasso mensile
+                c.setFont('Helvetica-Bold', 8.5); c.setFillColor(colors.HexColor(col))
+                c.drawString(col_bar + bar_max_w + 0.25*cm, by_+4,
+                             f'€ {inc_s:,.0f}/mese')
+                # Utile mensile
+                uti_col = '#10b981' if uti_s >= 0 else '#ef4444'
+                c.setFont('Helvetica-Bold', 9); c.setFillColor(colors.HexColor(uti_col))
+                c.drawRightString(w, by_+4, f'€ {uti_s:,.0f}')
+                # Separatore leggero
+                if i < 2:
+                    c.setStrokeColor(C['border']); c.setLineWidth(0.3)
+                    c.line(0, by_ - 6, w, by_ - 6)
 
-    story.append(ScenariChart(p.incasso_mese, p.costi_mese, p.utile_mese, PW))
+            # Nota costi fissi
+            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
+            c.drawString(0, 0.1*cm,
+                f'Costi mensili totali: € {self.cos:,.0f}  '
+                f'(fissi: affitto + ammort. + assic.; variabili: energia + acqua scalano con i cicli)')
+
+    # Recupera clienti/giorno e spesa dal dettaglio BP salvato
+    _bp_det = {}
+    try:
+        import json as _j3
+        _bp_det = _j3.loads(p.bp_dettaglio_json) if hasattr(p, 'bp_dettaglio_json') and p.bp_dettaglio_json else {}
+    except Exception:
+        _bp_det = {}
+    _cli_g  = float(_bp_det.get('clienti_giorno', 0) or 0)
+    _spesa  = float(_bp_det.get('spesa_cliente', 0)  or p.incasso_mese / max((_cli_g * 30), 1))
+    _giorni = float(_bp_det.get('giorni_mese', 30)   or 30)
+    # Fallback: stima clienti/giorno da incasso se non salvato
+    if _cli_g == 0 and p.incasso_mese > 0 and _spesa > 0:
+        _cli_g = p.incasso_mese / (_spesa * _giorni)
+
+    story.append(ScenariChart(p.incasso_mese, p.costi_mese, p.utile_mese,
+                               _cli_g, _spesa, _giorni, PW))
     story.append(Spacer(1, 14))
 
     # ─────────────────────────────────────────────────────────────────────────
