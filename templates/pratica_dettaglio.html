@@ -12,12 +12,71 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* ── Rendering analisi AI ─────────────────────────────────────── */
+.ai-render { font-size:13px; line-height:1.7; color:var(--text); }
+.ai-render .ai-h1 { font-size:14px; font-weight:700; margin:14px 0 4px;
+  padding-bottom:4px; border-bottom:2px solid var(--border); color:var(--text-strong,#0f172a); }
+.ai-render .ai-h2 { font-size:12px; font-weight:700; margin:10px 0 3px; color:var(--text-strong,#0f172a); }
+.ai-render .ai-h2.verde  { color:#10b981; }
+.ai-render .ai-h2.rosso  { color:#ef4444; }
+.ai-render .ai-h2.blu    { color:#2563eb; }
+.ai-render .ai-h2.arancio{ color:#f59e0b; }
+.ai-render .ai-li { margin:3px 0 3px 12px; list-style:none; }
+.ai-render .ai-li::before { content:'▸ '; color:#3b82f6; font-size:10px; }
+.ai-render .ai-sep { border:none; border-top:1px solid var(--border); margin:8px 0; }
+.ai-render p { margin:4px 0; }
+
+/* ── Mobile-first responsive ──────────────────────────────────── */
+@media (max-width:575px){
+  .kpi-grid-3 { grid-template-columns:1fr 1fr !important; }
+  .kpi-grid-3 .kpi-3rd { grid-column:1/-1; }
+  .kpi-grid-4 { grid-template-columns:1fr 1fr !important; }
+  .bp-grid-4  { grid-template-columns:1fr 1fr !important; }
+  .col-sinistra { order:1; }
+  .col-destra   { order:2; }
+  #map { height:220px !important; }
+}
+@media (min-width:576px) and (max-width:767px){
+  .kpi-grid-3 { grid-template-columns:repeat(3,1fr) !important; }
+  .kpi-grid-4 { grid-template-columns:1fr 1fr !important; }
+  .bp-grid-4  { grid-template-columns:1fr 1fr !important; }
+}
+@media (min-width:1400px){
+  .ai-render { font-size:14px; }
+}
+
+/* Semaforo */
+.semaforo { width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0 }
+.sem-verde  { background:#10b981 }
+.sem-giallo { background:#f59e0b }
+.sem-rosso  { background:#ef4444 }
+
+/* Badge stato */
+.badge-stato { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600 }
+.stato-bozza     { background:#e2e8f0;color:#64748b }
+.stato-inviato   { background:#dbeafe;color:#2563eb }
+.stato-trattativa{ background:#fef9c3;color:#ca8a04 }
+.stato-firmato   { background:#d1fae5;color:#059669 }
+.stato-perso     { background:#fee2e2;color:#dc2626 }
+
+/* KPI mini */
+.kpi-mini { background:var(--bg3,#f1f5f9);border-radius:8px;padding:10px 8px;text-align:center }
+.kpi-mini .val { font-family:'Syne',sans-serif;font-size:22px;font-weight:700;line-height:1.1 }
+.kpi-mini .lbl { font-size:10px;color:#64748b;margin-top:2px }
+
+/* Progress bar */
+.prog-bar { height:8px;background:var(--bg3,#e2e8f0);border-radius:4px;overflow:hidden;margin-top:6px }
+.prog-fill { height:100%;border-radius:4px;transition:width .4s }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="row g-3">
-  <!-- Colonna sinistra -->
-  <div class="col-lg-8">
+
+  <!-- ═══ COLONNA SINISTRA ═══════════════════════════════════════ -->
+  <div class="col-lg-8 col-sinistra">
+
     <!-- Header pratica -->
     <div class="card mb-3">
       <div class="card-body">
@@ -27,7 +86,10 @@
               <span class="semaforo sem-{{ pratica.semaforo }}"></span>
               <h4 style="margin:0;font-family:'Syne',sans-serif">{{ pratica.cliente.nome_completo if pratica.cliente else '—' }}</h4>
             </div>
-            <div class="text-muted">{{ pratica.indirizzo }}, {{ pratica.citta }}</div>
+            <div class="text-muted" style="font-size:13px">{{ pratica.indirizzo }}, {{ pratica.citta }}</div>
+            {% if pratica.cap or pratica.provincia %}
+            <div class="text-muted" style="font-size:12px">{{ pratica.cap }} {{ pratica.provincia }} {% if pratica.mq %} · {{ pratica.mq }} mq{% endif %}</div>
+            {% endif %}
           </div>
           <div class="text-end">
             <span class="badge-stato stato-{{ pratica.stato }} d-block mb-1">{{ pratica.stato|title }}</span>
@@ -37,52 +99,61 @@
       </div>
     </div>
 
-    <!-- Mappa -->
+    <!-- Mappa Leaflet -->
     {% if pratica.lat and pratica.lng %}
     <div class="card mb-3">
       <div class="card-header"><i class="bi bi-map me-2 text-muted"></i>Mappa zona</div>
       <div class="card-body p-2">
-        <div id="map" style="height:320px;border-radius:10px"></div>
+        <div id="map" style="height:300px;border-radius:10px"></div>
       </div>
     </div>
     {% endif %}
 
-    <!-- Analisi zona -->
+    <!-- Analisi zona KPI -->
     <div class="card mb-3">
       <div class="card-header"><i class="bi bi-geo-alt me-2 text-muted"></i>Analisi zona</div>
       <div class="card-body">
-        <div class="row g-3 text-center mb-3">
-          <div class="col-4">
-            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#3b82f6">{{ pratica.pop_3min|default(0)|int|format_number }}</div>
-            <div style="font-size:11px;color:#64748b">Pop. 3 min</div>
+        <!-- Popolazione: griglia 3 colonne -->
+        <div class="kpi-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+          <div class="kpi-mini">
+            <div class="val" style="color:#3b82f6">{{ pratica.pop_3min|default(0)|int|format_number }}</div>
+            <div class="lbl">Abitanti 3 min</div>
           </div>
-          <div class="col-4">
-            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#8b5cf6">{{ pratica.pop_5min|default(0)|int|format_number }}</div>
-            <div style="font-size:11px;color:#64748b">Pop. 5 min</div>
+          <div class="kpi-mini">
+            <div class="val" style="color:#8b5cf6">{{ pratica.pop_5min|default(0)|int|format_number }}</div>
+            <div class="lbl">Abitanti 5 min</div>
           </div>
-          <div class="col-4">
-            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#ec4899">{{ pratica.pop_10min|default(0)|int|format_number }}</div>
-            <div style="font-size:11px;color:#64748b">Pop. 10 min</div>
+          <div class="kpi-mini kpi-3rd">
+            <div class="val" style="color:#ec4899">{{ pratica.pop_10min|default(0)|int|format_number }}</div>
+            <div class="lbl">Abitanti 10 min</div>
           </div>
         </div>
-        <div class="row g-2">
+        <!-- Concorrenti -->
+        <div class="row g-2 mb-3">
           <div class="col-6">
-            <div class="p-2 rounded" style="background:var(--bg3)">
-              <div class="text-muted" style="font-size:11px">Concorrenti 500m</div>
-              <div style="font-size:18px;font-weight:700;color:#ef4444">{{ pratica.concorrenti_500m or 0 }}</div>
+            <div class="kpi-mini">
+              <div class="val" style="color:#ef4444">{{ pratica.concorrenti_500m or 0 }}</div>
+              <div class="lbl">Concorrenti 500m</div>
             </div>
           </div>
           <div class="col-6">
-            <div class="p-2 rounded" style="background:var(--bg3)">
-              <div class="text-muted" style="font-size:11px">Concorrenti 1km</div>
-              <div style="font-size:18px;font-weight:700;color:#f59e0b">{{ pratica.concorrenti_1km or 0 }}</div>
+            <div class="kpi-mini">
+              <div class="val" style="color:#f59e0b">{{ pratica.concorrenti_1km or 0 }}</div>
+              <div class="lbl">Concorrenti 1km</div>
             </div>
           </div>
         </div>
+
+        <!-- Analisi AI con rendering Markdown -->
         {% if pratica.ai_zona %}
-        <div class="mt-3 p-3 rounded" style="background:var(--bg3);font-size:13px;line-height:1.6;color:var(--text)">
-          <div class="text-muted mb-1" style="font-size:11px;text-transform:uppercase">Analisi AI</div>
-          {{ pratica.ai_zona|replace('\n','<br>')|safe }}
+        <div class="p-3 rounded" style="background:var(--bg3)">
+          <div class="text-muted mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">
+            <i class="bi bi-stars me-1" style="color:#f59e0b"></i>Analisi AI della zona
+          </div>
+          <div class="ai-render" id="ai-zona-render">
+            <!-- renderizzato da JS -->
+            <div class="text-muted" style="font-size:12px">{{ pratica.ai_zona }}</div>
+          </div>
         </div>
         {% endif %}
       </div>
@@ -91,25 +162,39 @@
     <!-- Macchine -->
     <div class="card mb-3">
       <div class="card-header"><i class="bi bi-gear me-2 text-muted"></i>Configurazione macchine</div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead><tr><th>Macchina</th><th>Qtà</th><th>Prezzo unit.</th><th class="text-end">Totale</th></tr></thead>
+      <div class="card-body p-0" style="overflow-x:auto">
+        <table class="table table-sm mb-0" style="min-width:480px">
+          <thead><tr>
+            <th>Macchina</th><th>Modello</th>
+            <th class="text-center">Qtà</th>
+            <th class="text-end">Prezzo unit.</th>
+            <th class="text-end">Totale</th>
+          </tr></thead>
           <tbody>
             {% for m in pratica.get_macchine() %}
             <tr>
               <td>{{ m.nome }}</td>
-              <td>{{ m.qty }}x</td>
-              <td>€{{ "{:,.0f}".format(m.prezzo_effettivo) }}</td>
-              <td class="text-end">€{{ "{:,.0f}".format(m.prezzo_effettivo * m.qty) }}</td>
+              <td style="font-size:12px;color:#64748b">{{ m.modello or '—' }}</td>
+              <td class="text-center">{{ m.qty }}x</td>
+              <td class="text-end">€{{ "{:,.0f}".format(m.prezzo_effettivo) }}</td>
+              <td class="text-end fw-bold">€{{ "{:,.0f}".format(m.prezzo_effettivo * m.qty) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="4" class="text-muted text-center py-3">Nessuna macchina selezionata</td></tr>
+            <tr><td colspan="5" class="text-muted text-center py-3">Nessuna macchina selezionata</td></tr>
             {% endfor %}
           </tbody>
           <tfoot>
             <tr style="border-top:2px solid var(--border)">
-              <td colspan="3" class="text-muted">CAPEX totale</td>
-              <td class="text-end fw-bold" style="color:#3b82f6">€{{ "{:,.0f}".format(pratica.capex) }}</td>
+              <td colspan="4" class="text-muted" style="font-size:11px">Imponibile</td>
+              <td class="text-end" style="color:#64748b">€{{ "{:,.0f}".format(pratica.capex) }}</td>
+            </tr>
+            <tr>
+              <td colspan="4" class="text-muted" style="font-size:11px">IVA 22%</td>
+              <td class="text-end" style="color:#f59e0b">€{{ "{:,.0f}".format(pratica.capex * 0.22) }}</td>
+            </tr>
+            <tr>
+              <td colspan="4" class="fw-bold" style="color:#3b82f6;font-size:12px">TOTALE IVA inclusa</td>
+              <td class="text-end fw-bold" style="color:#3b82f6;font-size:14px">€{{ "{:,.0f}".format(pratica.capex * 1.22) }}</td>
             </tr>
           </tfoot>
         </table>
@@ -118,33 +203,80 @@
 
     <!-- Business Plan -->
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-calculator me-2 text-muted"></i>Business Plan — {{ pratica.scenario|title }}</div>
+      <div class="card-header">
+        <i class="bi bi-calculator me-2 text-muted"></i>
+        Business Plan — <span style="text-transform:capitalize">{{ pratica.scenario or 'realistico' }}</span>
+      </div>
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-3 text-center">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700">€{{ "{:,.0f}".format(pratica.incasso_mese) }}</div>
-            <div style="font-size:11px;color:#64748b">Incasso/mese</div>
+        <div class="bp-grid-4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <div class="kpi-mini">
+            <div class="val">€{{ "{:,.0f}".format(pratica.incasso_mese) }}</div>
+            <div class="lbl">Incasso/mese</div>
           </div>
-          <div class="col-3 text-center">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#ef4444">€{{ "{:,.0f}".format(pratica.costi_mese) }}</div>
-            <div style="font-size:11px;color:#64748b">Costi/mese</div>
+          <div class="kpi-mini">
+            <div class="val" style="color:#ef4444">€{{ "{:,.0f}".format(pratica.costi_mese) }}</div>
+            <div class="lbl">Costi/mese</div>
           </div>
-          <div class="col-3 text-center">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:{{ '#10b981' if pratica.utile_mese >= 0 else '#ef4444' }}">€{{ "{:,.0f}".format(pratica.utile_mese) }}</div>
-            <div style="font-size:11px;color:#64748b">Utile/mese</div>
+          <div class="kpi-mini">
+            <div class="val" style="color:{{ '#10b981' if pratica.utile_mese >= 0 else '#ef4444' }}">
+              €{{ "{:,.0f}".format(pratica.utile_mese) }}
+            </div>
+            <div class="lbl">Utile/mese</div>
           </div>
-          <div class="col-3 text-center">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">{{ pratica.payback_mesi|int }} mesi</div>
-            <div style="font-size:11px;color:#64748b">Payback</div>
+          <div class="kpi-mini">
+            <div class="val" style="color:#f59e0b">{{ pratica.payback_mesi|int }} mesi</div>
+            <div class="lbl">Payback</div>
           </div>
+        </div>
+
+        <!-- 3 scenari visivi -->
+        <div class="mt-3 p-3 rounded" style="background:var(--bg3)">
+          <div class="text-muted mb-2" style="font-size:11px;text-transform:uppercase">Scenari comparativi</div>
+          {% set u = pratica.utile_mese %}
+          {% set sc_data = [
+            ('Pessimistico', u * 0.60, '#ef4444'),
+            ('Realistico',   u,        '#10b981' if u >= 0 else '#ef4444'),
+            ('Ottimistico',  u * 1.25, '#3b82f6'),
+          ] %}
+          {% set max_val = [u * 1.25, 1]|max %}
+          {% for nome, val, col in sc_data %}
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div style="width:80px;font-size:11px;color:#64748b;text-align:right;flex-shrink:0">{{ nome }}</div>
+            <div style="flex:1;height:16px;background:var(--bg2,#e2e8f0);border-radius:4px;overflow:hidden">
+              <div style="width:{{ [((val / max_val * 100)|int), 100]|min if val > 0 else 0 }}%;height:100%;background:{{ col }};border-radius:4px"></div>
+            </div>
+            <div style="width:70px;font-size:12px;font-weight:700;color:{{ col }};text-align:right;flex-shrink:0">
+              €{{ "{:,.0f}".format(val) }}
+            </div>
+          </div>
+          {% endfor %}
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Colonna destra -->
-  <div class="col-lg-4">
-    <!-- Stato -->
+  </div><!-- fine colonna sinistra -->
+
+  <!-- ═══ COLONNA DESTRA ════════════════════════════════════════ -->
+  <div class="col-lg-4 col-destra">
+
+    <!-- Score zona -->
+    {% if pratica.score_zona %}
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-trophy me-2 text-muted"></i>Score zona</div>
+      <div class="card-body text-center">
+        {% set sc = pratica.score_zona|int %}
+        {% set scol = '#10b981' if sc >= 70 else '#f59e0b' if sc >= 45 else '#ef4444' %}
+        <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:{{ scol }};line-height:1">{{ sc }}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">/100</div>
+        <div style="font-size:14px;font-weight:600;margin-top:4px">{{ pratica.score_label }}</div>
+        <div class="prog-bar mt-2">
+          <div class="prog-fill" style="width:{{ sc }}%;background:{{ scol }}"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Stato pratica -->
     <div class="card mb-3">
       <div class="card-header">Stato pratica</div>
       <div class="card-body">
@@ -165,33 +297,20 @@
       <div class="card-body">
         <div class="d-flex align-items-center gap-2 mb-2">
           <span class="semaforo sem-{{ pratica.semaforo }}"></span>
-          <span style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700">{{ pratica.fattibilita }}%</span>
+          <span style="font-family:'Syne',sans-serif;font-size:28px;font-weight:700">{{ pratica.fattibilita }}%</span>
         </div>
-        <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
-          <div style="width:{{ pratica.fattibilita }}%;height:100%;background:{{ '#10b981' if pratica.fattibilita >= 70 else '#f59e0b' if pratica.fattibilita >= 40 else '#ef4444' }};border-radius:4px"></div>
+        <div class="prog-bar mb-2">
+          <div class="prog-fill" style="width:{{ pratica.fattibilita }}%;background:{{ '#10b981' if pratica.fattibilita >= 70 else '#f59e0b' if pratica.fattibilita >= 40 else '#ef4444' }}"></div>
         </div>
-        <form class="mt-2" id="fatt-form">
+        <form id="fatt-form">
           <input type="range" id="fatt-slider" min="0" max="100" value="{{ pratica.fattibilita }}" class="form-range">
-          <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="aggiornàFattibilita({{ pratica.id }})">Aggiorna</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-1"
+            onclick="aggiornàFattibilita({{ pratica.id }})">Aggiorna</button>
         </form>
       </div>
     </div>
 
-    <!-- Score zona -->
-    {% if pratica.score_zona %}
-    <div class="card mb-3">
-      <div class="card-header">Score zona</div>
-      <div class="card-body text-center">
-        <div style="font-family:'Syne',sans-serif;font-size:40px;font-weight:800;color:#3b82f6">{{ pratica.score_zona|int }}</div>
-        <div style="font-size:14px;font-weight:600">{{ pratica.score_label }}</div>
-        <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:8px">
-          <div style="width:{{ pratica.score_zona }}%;height:100%;background:#2563eb;border-radius:4px"></div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Note -->
+    <!-- Note interne -->
     {% if pratica.note_interne %}
     <div class="card mb-3">
       <div class="card-header">Note interne</div>
@@ -212,7 +331,7 @@
           <i class="bi bi-file-pdf me-1"></i> Genera PDF completo
         </a>
         <form method="POST" action="{{ url_for('pratiche.elimina', id=pratica.id) }}"
-          onsubmit="return confirm('Eliminare questa pratica?')">
+          onsubmit="return confirm('Eliminare questa pratica definitivamente?')">
           <button type="submit" class="btn btn-outline-danger btn-sm w-100">
             <i class="bi bi-trash me-1"></i> Elimina
           </button>
@@ -228,18 +347,18 @@
       </div>
       <div class="card-body">
         <p style="font-size:11px;color:#64748b;margin-bottom:10px">
-          Allega planimetrie, schede tecniche, certificazioni. I PDF vengono aggiunti automaticamente al PDF generato.
+          Allega planimetrie, schede tecniche, certificazioni. I PDF vengono aggiunti automaticamente al documento generato.
         </p>
         {% set allegati = pratica.get_allegati() %}
         {% if allegati %}
         <div class="mb-3">
           {% for all in allegati %}
           <div class="d-flex align-items-center justify-content-between p-2 mb-1 rounded" style="background:var(--bg3)">
-            <span style="font-size:12px;color:var(--text)">
+            <span style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">
               {% if all.endswith('.pdf') %}📄{% else %}🖼️{% endif %}
               {{ all.split('_', 3)[-1] if '_' in all else all }}
             </span>
-            <div class="d-flex gap-1">
+            <div class="d-flex gap-1 flex-shrink-0">
               <a href="/static/uploads/{{ all }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Apri">
                 <i class="bi bi-eye"></i>
               </a>
@@ -264,7 +383,8 @@
         </form>
       </div>
     </div>
-  </div>
+
+  </div><!-- fine colonna destra -->
 </div>
 {% endblock %}
 
@@ -273,27 +393,74 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const map = L.map('map').setView([{{ pratica.lat }}, {{ pratica.lng }}], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.marker([{{ pratica.lat }}, {{ pratica.lng }}]).addTo(map).bindPopup('<b>Sede</b>').openPopup();
-// POI
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap'}).addTo(map);
+L.marker([{{ pratica.lat }}, {{ pratica.lng }}]).addTo(map)
+  .bindPopup('<b>Sede proposta</b><br>{{ pratica.indirizzo }}').openPopup();
 {% if pratica.pois_raw %}
 const pois = {{ pratica.pois_raw|safe }};
 const colori = {rosso:'#ef4444',verde:'#10b981',blu:'#3b82f6',arancio:'#f59e0b',viola:'#8b5cf6'};
-pois.forEach(p => {
-  const col = colori[p.colore] || '#888';
-  L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div style="background:${col};width:10px;height:10px;border-radius:50%;border:2px solid white"></div>`})})
-    .addTo(map).bindPopup(`<b>${p.nome}</b><br>${p.tipo}`);
+pois.forEach(poi => {
+  const col = colori[poi.colore] || '#888';
+  L.marker([poi.lat,poi.lng],{icon:L.divIcon({className:'',
+    html:`<div style="background:${col};width:10px;height:10px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`
+  })}).addTo(map).bindPopup(`<b>${poi.nome}</b><br><small>${poi.tipo}</small>`);
 });
 {% endif %}
 </script>
 {% endif %}
+
+<!-- ── Renderer Markdown-like per analisi AI ────────────────── -->
 <script>
+function renderAI(raw, container) {
+  if (!raw || !container) return;
+  const lines = raw.split('\n');
+  let html = '';
+  for (let line of lines) {
+    const r = line.trim();
+    if (!r) { html += '<div style="height:6px"></div>'; continue; }
+    if (r.startsWith('---')) { html += '<hr class="ai-sep">'; continue; }
+    // Titoli ## o #
+    if (r.startsWith('#')) {
+      const lvl = r.startsWith('##') ? 2 : 1;
+      let t = r.replace(/^#+\s*/, '');
+      t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      let cls = `ai-h${lvl}`;
+      const tu = t.toUpperCase();
+      if (tu.includes('FORZA') || tu.includes('POSITIV')) cls += ' verde';
+      else if (tu.includes('RISCHIO') || tu.includes('CRITICA')) cls += ' rosso';
+      else if (tu.includes('ECONOM') || tu.includes('PIANO') || tu.includes('BUSINESS')) cls += ' blu';
+      else if (tu.includes('RACCOMAND') || tu.includes('CONCLUS')) cls += ' arancio';
+      html += `<div class="${cls}">${t}</div>`;
+      continue;
+    }
+    // Bullet
+    let txt = r.startsWith('- ') ? r.slice(2) : r.startsWith('• ') ? r.slice(2) : null;
+    if (txt !== null) {
+      txt = txt.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      html += `<div class="ai-li">${txt}</div>`;
+      continue;
+    }
+    // Paragrafo normale
+    const p = r.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    html += `<p>${p}</p>`;
+  }
+  container.innerHTML = html;
+}
+
+// Dati AI zona grezzi dal server
+{% if pratica.ai_zona %}
+const rawAI = {{ pratica.ai_zona | tojson }};
+renderAI(rawAI, document.getElementById('ai-zona-render'));
+{% endif %}
+
+// Fattibilità slider
 function aggiornàFattibilita(id) {
   const val = document.getElementById('fatt-slider').value;
   fetch(`/pratiche/${id}/fattibilita`, {
     method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body:'fattibilita='+val
-  }).then(()=>location.reload());
+  }).then(r=>r.json()).then(()=>location.reload());
 }
 </script>
 {% endblock %}
