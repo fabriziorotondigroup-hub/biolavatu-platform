@@ -121,6 +121,36 @@ def _render_ai_text(testo, story, st, body, h2, BSCURO, VERDE, ROSSO, ARANCIO, S
             story.append(Paragraph(r_html, body))
 
 
+
+def _get_mappa_statica(lat, lng, gmaps_key, width_px=520, height_px=300):
+    """Scarica mappa statica da Google Maps Static API e restituisce bytes."""
+    if not lat or not lng or not gmaps_key:
+        return None
+    try:
+        import urllib.request as _ur
+        # Mappa con marker centrale rosso + cerchi approssimati (non supportati nativamente)
+        params = (
+            f"center={lat},{lng}"
+            f"&zoom=15"
+            f"&size={width_px}x{height_px}"
+            f"&scale=2"
+            f"&maptype=roadmap"
+            f"&markers=color:red|label:S|{lat},{lng}"
+            f"&style=element:geometry|color:0x1d2c4d"
+            f"&style=element:labels.text.fill|color:0x8ec3b9"
+            f"&style=element:labels.text.stroke|color:0x1a3646"
+            f"&style=feature:road|element:geometry|color:0x304a7d"
+            f"&style=feature:road|element:geometry.stroke|color:0x255763"
+            f"&style=feature:water|element:geometry|color:0x0e1626"
+            f"&key={gmaps_key}"
+        )
+        url = f"https://maps.googleapis.com/maps/api/staticmap?{params}"
+        req = _ur.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
+        with _ur.urlopen(req, timeout=8) as r:
+            return r.read()
+    except Exception:
+        return None
+
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
 def genera_pdf(id):
@@ -353,6 +383,22 @@ def _genera_pdf_interno(id):
 
     # ── ANALISI ZONA ─────────────────────────────────────────────────────────
     story.append(sez('ANALISI ZONA', '')); story.append(Spacer(1,6))
+
+    # Mappa statica Google Maps
+    gmaps_key = os.environ.get('GMAPS_KEY', '')
+    if p.lat and p.lng and gmaps_key:
+        mappa_bytes = _get_mappa_statica(p.lat, p.lng, gmaps_key, 520, 280)
+        if mappa_bytes:
+            from reportlab.platypus import Image as RLImage
+            import io as _io2
+            img_buf = _io2.BytesIO(mappa_bytes)
+            # Larghezza massima disponibile
+            img_w = W - 4*cm
+            img_h = img_w * 280 / 520  # mantieni proporzione
+            rl_img = RLImage(img_buf, width=img_w, height=img_h)
+            story.append(rl_img)
+            story.append(Spacer(1, 6))
+
     story.append(kpi_box([
         ('Pop. 3 min',f'{int(p.pop_3min or 0):,}','#3b82f6'),
         ('Pop. 5 min',f'{int(p.pop_5min or 0):,}','#8b5cf6'),
