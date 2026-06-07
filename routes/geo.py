@@ -906,7 +906,6 @@ def _analizza_quartieri_coords(clat, clng, citta, provincia, step=0.012):
             stima = calcola_stima_clienti(
                 pop_5min=pop_stimata,
                 pop_10min=pop_10min_z,
-                mult_attractor=1.0,
                 densita=densita, concorrenti_500m=n_conc, concorrenti_1km=n_conc,
                 servizi_400m=len(raw_bar)+len(raw_rest)+len(raw_sup),
                 reddito_medio=reddito_medio, recensioni_zona=rec_zona, gdo_500m=gdo_z,
