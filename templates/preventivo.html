@@ -2610,10 +2610,53 @@ function eseguiAnalisi(lat, lng) {
         var sc = d.stima_clienti;
         if(sc) {
           show('stima-block');
-          setTxt('stima_clienti_num', sc.clienti_giorno||0);
+          const cli = sc.clienti_giorno||0;
+          const cc  = cli >= (sc.be_clienti_min||7) ? '#10b981' : cli >= (sc.be_clienti_min||7)*0.5 ? '#f59e0b' : '#ef4444';
+          setTxt('stima_clienti_num', cli.toFixed(1));
+          var elCli = sel('stima_clienti_num');
+          if(elCli) elCli.style.color = cc;
           setTxt('stima_pess', sc.scenario_pessimistico||0);
           setTxt('stima_ott', sc.scenario_ottimistico||0);
           setTxt('stima_mese', (sc.clienti_mese_reale||0).toLocaleString('it'));
+
+          // Indicatore confidenza
+          var conf = d.confidenza || {};
+          var confEl = sel('stima_confidenza');
+          if(confEl && conf.label) {
+            confEl.innerHTML =
+              '<span style="background:'+conf.col+'22;color:'+conf.col+';padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">'+
+              '📊 '+conf.label+' ('+conf.score+'/100)</span>';
+          }
+
+          // Tipo zona
+          var tipoEl = sel('stima_tipo_zona');
+          if(tipoEl && sc.tipo_zona) {
+            const tipoLabels = {residenziale_puro:'🏠 Residenziale puro', misto:'🏘️ Misto res/comm',
+              commerciale:'🏢 Commerciale', industriale:'🏭 Industriale', universitario:'🎓 Universitario'};
+            tipoEl.textContent = tipoLabels[sc.tipo_zona] || sc.tipo_zona;
+          }
+
+          // Stagionalità
+          var stagEl = sel('stima_stagionale');
+          if(stagEl && sc.stagionalita_mese) {
+            const sTag = sc.stagionalita_mese;
+            const sCol = sTag>1.05?'#10b981':sTag<0.90?'#ef4444':'#f59e0b';
+            stagEl.innerHTML = '<span style="color:'+sCol+'">×'+sTag.toFixed(2)+
+              ' stagionalità</span> — '+(sTag>1.05?'periodo di picco':sTag<0.90?'periodo basso':'nella media');
+          }
+
+          // Viabilità
+          var viaEl = sel('stima_viabilita');
+          if(viaEl) {
+            if(sc.is_viable) {
+              viaEl.innerHTML = '<span style="color:#10b981;font-weight:700">✅ Zona potenzialmente viable</span> — '+
+                'supera il break-even minimo di '+(sc.be_clienti_min||0)+' clienti/g';
+            } else {
+              viaEl.innerHTML = '<span style="color:#ef4444;font-weight:700">❌ Zona sotto il break-even</span> — '+
+                'stima '+(sc.be_clienti_min||0)+'+ clienti/g per coprire i costi base';
+            }
+            viaEl.style.display = 'block';
+          }
 
           // Formula completa
           var formulaEl = sel('stima_formula');
