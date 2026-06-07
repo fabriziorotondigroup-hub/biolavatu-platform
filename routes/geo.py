@@ -816,11 +816,12 @@ def esplora_citta():
                                       n_conc, rec_zona, gdo_z)
 
             from services.istat import calcola_stima_clienti
+            r10 = walking_radius(10)
+            pop_10min_z = int(densita * math.pi * (r10 ** 2) / 1_000_000)
             stima = calcola_stima_clienti(
                 pop_5min=pop_stimata,
-                pop_10min=int(densita * math.pi * (walking_radius(10,
+                pop_10min=pop_10min_z,
                 mult_attractor=1.0,
-            )**2) / 1_000_000),
                 densita=densita,
                 concorrenti_500m=n_conc,
                 concorrenti_1km=n_conc,
@@ -900,11 +901,12 @@ def _analizza_quartieri_coords(clat, clng, citta, provincia, step=0.012):
             a = get_market_assessment(eta_media, reddito_medio, densita,
                                       n_conc, rec_zona, gdo_z)
             from services.istat import calcola_stima_clienti
+            r10 = walking_radius(10)
+            pop_10min_z = int(densita * math.pi * (r10 ** 2) / 1_000_000)
             stima = calcola_stima_clienti(
                 pop_5min=pop_stimata,
-                pop_10min=int(densita * math.pi * (walking_radius(10,
+                pop_10min=pop_10min_z,
                 mult_attractor=1.0,
-            )**2) / 1_000_000),
                 densita=densita, concorrenti_500m=n_conc, concorrenti_1km=n_conc,
                 servizi_400m=len(raw_bar)+len(raw_rest)+len(raw_sup),
                 reddito_medio=reddito_medio, recensioni_zona=rec_zona, gdo_500m=gdo_z,
@@ -992,11 +994,12 @@ def esplora_zona():
 
             # Stima clienti/giorno per questa zona specifica
             from services.istat import calcola_stima_clienti
+            r10 = walking_radius(10)
+            pop_10min_z = int(densita * math.pi * (r10 ** 2) / 1_000_000)
             stima = calcola_stima_clienti(
                 pop_5min=pop_stimata,
-                pop_10min=int(densita * math.pi * (walking_radius(10,
+                pop_10min=pop_10min_z,
                 mult_attractor=1.0,
-            )**2) / 1_000_000),
                 densita=densita,
                 concorrenti_500m=n_conc,
                 concorrenti_1km=n_conc,
@@ -1036,3 +1039,4 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
