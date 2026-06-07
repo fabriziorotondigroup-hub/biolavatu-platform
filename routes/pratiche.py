@@ -155,6 +155,7 @@ def _genera_pdf_interno(id):
     doc = SimpleDocTemplate(main_buf, pagesize=A4,
         leftMargin=2*cm, rightMargin=2*cm,
         topMargin=1.6*cm, bottomMargin=1.4*cm,
+        allowSplitting=1,
         onPage=on_page, onLaterPages=on_page)
 
     def sez(titolo, icona=''):
@@ -192,7 +193,7 @@ def _genera_pdf_interno(id):
 
     # ── COPERTINA ────────────────────────────────────────────────────────────
     class Cover(Flowable):
-        def __init__(self): Flowable.__init__(self); self.width=W-4*cm; self.height=H-3.2*cm
+        def __init__(self): Flowable.__init__(self); self.width=W-4*cm; self.height=H-4*cm
         def draw(self):
             c=self.canv; w,h=self.width,self.height
             c.setFillColor(BSCURO); c.roundRect(0,0,w,h,16,fill=1,stroke=0)
