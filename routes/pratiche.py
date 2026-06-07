@@ -393,11 +393,6 @@ def _genera_pdf_interno(id):
             c.setFillColor(C['blue'])
             c.rect(0, 0, 0.45*cm, h, fill=1, stroke=0)
 
-            # Accent strip sinistra
-            c.setFillColor(blu)
-            c.roundRect(0, 0, 0.5*cm, h, 10, fill=1, stroke=0)
-            c.rect(0.5*cm, 0, 0.3*cm, h, fill=1, stroke=0)
-
             # ── Brand + tagline nell'header ──────────────────────────
             c.setFont('Helvetica-Bold', 26)
             c.setFillColor(colors.white)
