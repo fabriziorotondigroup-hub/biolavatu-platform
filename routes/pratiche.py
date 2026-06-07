@@ -244,7 +244,7 @@ def _genera_pdf_interno(id):
         def __init__(self):
             Flowable.__init__(self)
             self.width  = W - 4*cm
-            self.height = H - 3*cm
+            self.height = H - 6*cm  # margini top+bottom+sicurezza
         def draw(self):
             c = self.canv
             w, h = self.width, self.height
