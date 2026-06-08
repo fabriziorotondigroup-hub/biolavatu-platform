@@ -2704,6 +2704,9 @@ function usaZona(lat, lng, citta) {
   // Imposta le coordinate e passa al tab indirizzo
   document.getElementById('f_lat').value = lat;
   document.getElementById('f_lng').value = lng;
+  if(!map) initMap();
+  map.setView([lat, lng], 15); map.invalidateSize();
+  disegnaCerchi(lat, lng);
   document.getElementById('f_citta').value = citta;
   document.getElementById('f_indirizzo').value = citta;
   switchTab('indirizzo');
@@ -2744,6 +2747,9 @@ function geocodifica() {
       if(d.lat) {
         document.getElementById('f_lat').value = d.lat;
         document.getElementById('f_lng').value = d.lng;
+        if(!map) initMap();
+        map.setView([d.lat, d.lng], 15); map.invalidateSize();
+        disegnaCerchi(d.lat, d.lng);
         document.getElementById('geo-status').innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>${d.formatted}`;
         // Autopopola città/provincia/cap se Google li restituisce
         if(d.citta && !document.getElementById('f_citta').value)
@@ -2805,6 +2811,26 @@ function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
+}
+
+// Disegna cerchi 3/5/10 min — chiamato subito al geocoding, indipendente dall'API
+function disegnaCerchi(lat, lng) {
+  if (!map || !lat || !lng) return;
+  if (window._cerchiLayer) {
+    window._cerchiLayer.forEach(function(c){ try{ map.removeLayer(c); }catch(e){} });
+  }
+  window._cerchiLayer = [
+    L.circle([lat,lng],{radius:240, color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.10}).addTo(map).bindPopup('<b>3 min a piedi</b><br>~240m · bacino primario'),
+    L.circle([lat,lng],{radius:400, color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.07}).addTo(map).bindPopup('<b>5 min a piedi</b><br>~400m · bacino secondario'),
+    L.circle([lat,lng],{radius:800, color:'#ec4899',weight:1.5,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('<b>10 min a piedi</b><br>~800m · bacino terziario'),
+    L.circle([lat,lng],{radius:1200,color:'#f59e0b',weight:1,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('<b>15 min</b><br>~1.2km · bacino esteso'),
+  ];
+  if (window._markerSede) { try{ map.removeLayer(window._markerSede); }catch(e){} }
+  window._markerSede = L.marker([lat,lng], {
+    icon: L.divIcon({className:'',
+      html:'<div style="background:#2563eb;color:white;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:16px">📍</div>',
+      iconSize:[32,32], iconAnchor:[16,16]})
+  }).addTo(map).bindPopup('<b>📍 Sede proposta</b>');
 }
 
 // ── ANALISI ZONA ──────────────────────────────────
@@ -3081,10 +3107,7 @@ function eseguiAnalisi(lat, lng) {
           map.setView([lat, lng], 15);
           map.invalidateSize();
 
-          L.circle([lat,lng],{radius:240,color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.08}).addTo(map).bindPopup('3 min a piedi');
-          L.circle([lat,lng],{radius:400,color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.06}).addTo(map).bindPopup('5 min a piedi');
-          L.circle([lat,lng],{radius:800,color:'#ec4899',weight:1,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('10 min a piedi');
-          L.circle([lat,lng],{radius:1000,color:'#f59e0b',weight:2,dashArray:'8,4',fillOpacity:0}).addTo(map).bindPopup('1 km');
+          disegnaCerchi(lat, lng);  // ridisegna/aggiorna cerchi
 
           compDet.forEach(function(c){
             L.circle([c.lat,c.lng],{radius:c.raggio_copertura,color:c.cerchio_colore,weight:2,fillColor:c.cerchio_colore,fillOpacity:0.18}).addTo(map)
@@ -3165,6 +3188,9 @@ function eseguiAnalisi(lat, lng) {
     .catch(function(e) {
       hide('loading-zona');
       console.error('[BIO] ERRORE FETCH:', e.message);
+      var _fl = parseFloat(document.getElementById('f_lat').value);
+      var _flng = parseFloat(document.getElementById('f_lng').value);
+      if (_fl && _flng) { if(!map) initMap(); map.setView([_fl,_flng],15); map.invalidateSize(); disegnaCerchi(_fl,_flng); }
     });
 }
 
