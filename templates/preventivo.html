@@ -3110,11 +3110,13 @@ function eseguiAnalisi(lat, lng) {
           disegnaCerchi(lat, lng);  // ridisegna/aggiorna cerchi
 
           compDet.forEach(function(c){
+            if(!c || !c.lat || !c.lng) return;
             L.circle([c.lat,c.lng],{radius:c.raggio_copertura,color:c.cerchio_colore,weight:2,fillColor:c.cerchio_colore,fillOpacity:0.18}).addTo(map)
               .bindPopup('<b>🏁 '+c.nome+'</b><br>'+c.distanza_m+'m<br><b style="color:'+c.cerchio_colore+'">'+(c.saturazione==='alta'?'🔴 Zona satura':c.saturazione==='media'?'🟠 Attenzione':'🟢 Zona libera')+'</b>');
           });
 
           (d.alta_affluenza||[]).forEach(function(a){
+            if(!a || !a.lat || !a.lng) return;
             L.circle([a.lat,a.lng],{radius:60,color:'#fbbf24',weight:2,fillColor:'#fbbf24',fillOpacity:0.2}).addTo(map).bindPopup('<b>⭐ '+a.nome+'</b>');
           });
 
@@ -3129,6 +3131,7 @@ function eseguiAnalisi(lat, lng) {
             scuola_militare:{col:'#dc2626', icon:'⭐', raggio:300},
           };
           (d.attractor_points||[]).forEach(function(ap){
+            if(!ap || !ap.lat || !ap.lng) return; // salta attractor senza coordinate
             var cfg = attractorCfg[ap.tipo] || {col:'#888', icon:'📍', raggio:200};
             var multPct = ap.mult > 1 ? '+'+Math.round((ap.mult-1)*100)+'%' : '';
             // Cerchio di influenza
@@ -3163,6 +3166,7 @@ function eseguiAnalisi(lat, lng) {
             competitor:'🏁',   altro:'📍'
           };
           (d.pois||[]).forEach(function(p){
+            if(!p || !p.lat || !p.lng) return; // salta POI senza coordinate
             var col = catColori[p.categoria] || '#888';
             var ico = p.icon || catIcone[p.categoria] || '📍';
             var isC = p.categoria === 'competitor';
@@ -3190,6 +3194,9 @@ function eseguiAnalisi(lat, lng) {
         var grouped={};
         (d.pois||[]).forEach(function(p){ if(!grouped[p.categoria]) grouped[p.categoria]=[]; grouped[p.categoria].push(p); });
         var catLabel={supermercato:'🛒 Supermercati',farmacia:'💊 Farmacie',bar_cafe:'☕ Bar/Caffè',ristorante:'🍽️ Ristoranti',istruzione:'🎓 Scuole',trasporti:'🚌 Trasporti',competitor:'🏁 Concorrenti',altro:'💪 Altro'};
+        if(Object.keys(grouped).length === 0) {
+          setHtml('poi-list-container', '<div style="color:#64748b;padding:12px">Nessun punto di interesse trovato nel raggio.</div>');
+        }
         var html='<div class="row g-0">';
         Object.entries(grouped).sort(function(a,b){return b[1].length-a[1].length;}).forEach(function(entry){
           var cat=entry[0], items=entry[1];
