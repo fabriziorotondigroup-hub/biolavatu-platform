@@ -636,14 +636,21 @@ def zona_analisi():
         # ma non moltiplicare più di 4× per sicurezza
         densita = max(densita_istat, min(densita_reale, densita_istat * 4))
 
+        # ── POPOLAZIONE STIMATA (anticipata per usarla nell'assessment) ────────────
+        area_3min  = math.pi * (r3  ** 2) / 1_000_000
+        area_5min  = math.pi * (r5  ** 2) / 1_000_000
+        area_10min = math.pi * (r10 ** 2) / 1_000_000
+        pop_3min   = int(densita * area_3min)
+        pop_5min   = int(densita * area_5min)
+        pop_10min  = int(densita * area_10min)
+
         assessment = get_market_assessment(
             eta_media, reddito_medio, densita,
             concorrenti_1km, recensioni_zona, gdo_500m
         )
         # ── PENALITÀ SCORE se bacino demografico insufficiente ────────────────────
-        # Lo score non può essere "Eccellente" se la popolazione è misera
         _score_raw = assessment['score']
-        _pop_bacino = pop_3min if pop_3min > 0 else int(densita * math.pi * (r3**2) / 1_000_000)
+        _pop_bacino = pop_3min
         if   _pop_bacino < 200:  _score_raw = min(_score_raw, 25)
         elif _pop_bacino < 500:  _score_raw = min(_score_raw, 40)
         elif _pop_bacino < 1000: _score_raw = min(_score_raw, 55)
@@ -659,14 +666,6 @@ def zona_analisi():
         elif _score_raw >= 45: assessment['label'] = 'Discreto'
         elif _score_raw >= 25: assessment['label'] = 'Scarso'
         else:                   assessment['label'] = 'Critico'
-
-        # ── POPOLAZIONE STIMATA ───────────────────────────────────────────────────
-        area_3min  = math.pi * (r3  ** 2) / 1_000_000
-        area_5min  = math.pi * (r5  ** 2) / 1_000_000
-        area_10min = math.pi * (r10 ** 2) / 1_000_000
-        pop_3min   = int(densita * area_3min)
-        pop_5min   = int(densita * area_5min)
-        pop_10min  = int(densita * area_10min)
 
         # ── CASE DI RIPOSO / RSA / CASE DI CURA ────────────────────────────────────
         for p in raw_case_cura:
