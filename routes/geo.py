@@ -336,8 +336,10 @@ def zona_analisi():
 
     def add_pois(places, categoria, colore, icon, max_serv=None):
         nonlocal servizi_400m, recensioni_zona
-        for p in places:
+        for p in (places or []):
             poi = place_to_poi(p, lat, lng, categoria, colore, icon)
+            if poi is None:
+                continue  # salta risultati malformati di Google
             pois.append(poi)
             if max_serv and poi['distanza_m'] <= max_serv:
                 servizi_400m += 1
@@ -1162,6 +1164,7 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
 
 
