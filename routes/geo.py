@@ -384,8 +384,13 @@ def zona_analisi():
                 n_universita += 1
                 attractor_points.append({
                     'tipo': 'universita', 'nome': poi['nome'],
+                    'lat': poi['lat'], 'lng': poi['lng'],
                     'distanza_m': poi['distanza_m'], 'icon': '🎓',
-                    'impatto': 'Alto — studenti senza lavatrice'
+                    'impatto': 'Alto — studenti senza lavatrice',
+                    'mult_caserma': None, 'durata_mesi': None,
+                    'n_allievi': None, 'ha_lavanderia_interna': None,
+                    'note_ricerca': None, 'ricerca_ai_ok': None,
+                    'verifica_richiesta': False,
                 })
 
         for p in raw_caserme:
