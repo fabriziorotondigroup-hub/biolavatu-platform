@@ -920,38 +920,30 @@ body { background: var(--bg); color: var(--text); }
     <div style="font-size:13px;color:#64748b;margin-top:6px">Rilevamento POI, concorrenti e dati demografici</div>
   </div>
 
-  <!-- Navigazione in cima — sempre visibile sopra la mappa -->
-  <div class="d-flex justify-content-between mb-3">
-    <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">
+  <!-- Bottoni navigazione + legenda inline -->
+  <div class="d-flex align-items-center justify-content-between gap-2 mb-1" style="flex-wrap:wrap">
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="goStep(2)">
       <i class="bi bi-arrow-left me-1"></i> Indietro
     </button>
-    <button type="button" class="btn btn-primary" onclick="goStep3Next()">
+    <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;flex:1;padding:0 8px;scrollbar-width:none">
+      <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🔴 Concorrenti</span>
+      <span style="white-space:nowrap;color:#10b981;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(16,185,129,.15);flex-shrink:0">🟢 Supermercati</span>
+      <span style="white-space:nowrap;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(245,158,11,.15);flex-shrink:0">🟠 Bar/Ristoranti</span>
+      <span style="white-space:nowrap;color:#60a5fa;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(59,130,246,.15);flex-shrink:0">🔵 Trasporti</span>
+      <span style="white-space:nowrap;color:#a78bfa;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(167,139,250,.15);flex-shrink:0">🎓 Università</span>
+      <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🏥 Ospedali</span>
+      <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🪖 Caserme</span>
+      <span style="white-space:nowrap;color:#7c3aed;font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(124,58,237,.15);flex-shrink:0">🏠 Case cura</span>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" onclick="goStep3Next()">
       Avanti <i class="bi bi-arrow-right ms-1"></i>
     </button>
   </div>
 
-  <div class="row g-3 mb-3">
-    <!-- MAPPA grande -->
+  <!-- Mappa immediata, zero spazio -->
+  <div class="row g-2">
     <div class="col-12">
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <span style="font-size:15px;font-weight:700"><i class="bi bi-map me-2" style="color:#3b82f6"></i>Mappa zona interattiva</span>
-          <div class="d-flex gap-2 flex-wrap" style="font-size:12px">
-            <span style="background:rgba(239,68,68,.2);color:#ef4444;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3)">🔴 Concorrenti</span>
-            <span style="background:rgba(16,185,129,.2);color:#10b981;padding:3px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.3)">🟢 Supermercati</span>
-            <span style="background:rgba(245,158,11,.2);color:#f59e0b;padding:3px 10px;border-radius:20px;border:1px solid rgba(245,158,11,.3)">🟠 Bar/Ristoranti</span>
-            <span style="background:rgba(59,130,246,.2);color:#60a5fa;padding:3px 10px;border-radius:20px;border:1px solid rgba(59,130,246,.3)">🔵 Trasporti/Stazioni</span>
-            <span style="background:rgba(167,139,250,.2);color:#a78bfa;padding:3px 10px;border-radius:20px;border:1px solid rgba(167,139,250,.3)">🎓 Università</span>
-            <span style="background:rgba(16,185,129,.2);color:#10b981;padding:3px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.3)">🏥 Ospedali</span>
-            <span style="background:rgba(239,68,68,.2);color:#ef4444;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3)">🪖 Caserme/Militare</span>
-            <span style="background:rgba(124,58,237,.2);color:#7c3aed;padding:3px 10px;border-radius:20px;border:1px solid rgba(124,58,237,.3)">🏠 Case di cura/RSA</span>
-            <span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:3px 10px;border-radius:20px;border:1px solid rgba(251,191,36,.3)">⭕ Zone affluenza</span>
-          </div>
-        </div>
-        <div class="card-body p-2">
-          <div id="map" style="height:480px;border-radius:10px;border:1px solid #1e2d45"></div>
-        </div>
-      </div>
+        <div id="map" style="height:480px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
     </div>
 
     <!-- KPI zona -->
