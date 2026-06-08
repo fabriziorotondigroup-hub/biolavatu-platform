@@ -3151,13 +3151,37 @@ function eseguiAnalisi(lat, lng) {
           var sedeIcon = L.divIcon({className:'',html:'<div style="background:#2563eb;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',iconSize:[20,20],iconAnchor:[10,10]});
           L.marker([lat,lng],{icon:sedeIcon}).addTo(map).bindPopup('<b>📍 Sede</b>').openPopup();
 
-          var catColori={supermercato:'#10b981',farmacia:'#3b82f6',bar_cafe:'#f59e0b',ristorante:'#ef4444',istruzione:'#8b5cf6',trasporti:'#06b6d4',competitor:'#dc2626',altro:'#ec4899'};
+          var catColori={
+            supermercato:'#10b981', farmacia:'#3b82f6', bar_cafe:'#f59e0b',
+            ristorante:'#ef4444',   istruzione:'#8b5cf6', trasporti:'#06b6d4',
+            ospedale:'#0891b2',     casa_cura:'#7c3aed',  competitor:'#dc2626',
+            altro:'#ec4899'
+          };
+          var catIcone={
+            supermercato:'🛒', farmacia:'💊', bar_cafe:'☕', ristorante:'🍽️',
+            istruzione:'🎓',   trasporti:'🚌', ospedale:'🏥', casa_cura:'🏠',
+            competitor:'🏁',   altro:'📍'
+          };
           (d.pois||[]).forEach(function(p){
-            var col=catColori[p.categoria]||'#888';
-            var isC=p.categoria==='competitor';
-            var sz=isC?14:9;
-            var icon=L.divIcon({className:'',html:'<div style="background:'+col+';width:'+sz+'px;height:'+sz+'px;border-radius:50%;border:'+(isC?2.5:1.5)+'px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
-            L.marker([p.lat,p.lng],{icon:icon}).addTo(map).bindPopup('<b>'+(p.icon||'')+'</b> '+p.nome+'<br><small>'+p.distanza_m+'m</small>');
+            var col = catColori[p.categoria] || '#888';
+            var ico = p.icon || catIcone[p.categoria] || '📍';
+            var isC = p.categoria === 'competitor';
+            var isH = p.categoria === 'ospedale' || p.categoria === 'casa_cura';
+            // Dimensione: competitor e ospedali più grandi
+            var sz  = isC ? 22 : isH ? 20 : 16;
+            var icon = L.divIcon({
+              className: '',
+              html: '<div style="background:' + col + ';color:white;width:' + sz + 'px;height:' + sz + 'px;' +
+                    'border-radius:50%;border:' + (isC ? '2.5' : '1.5') + 'px solid white;' +
+                    'box-shadow:0 1px 5px rgba(0,0,0,.45);display:flex;align-items:center;' +
+                    'justify-content:center;font-size:' + (sz-6) + 'px">' + ico + '</div>',
+              iconSize: [sz, sz],
+              iconAnchor: [sz/2, sz/2]
+            });
+            var popup = '<b>' + ico + ' ' + p.nome + '</b>' +
+                        '<br><span style="color:#64748b;font-size:11px">' + p.distanza_m + 'm · ' + (p.vicinity||p.categoria) + '</span>' +
+                        (p.rating ? '<br><span style="color:#fbbf24;font-size:11px">⭐ ' + p.rating + '</span>' : '');
+            L.marker([p.lat, p.lng], {icon: icon}).addTo(map).bindPopup(popup);
           });
           console.log('[BIO] mappa OK');
         } catch(mapErr) { console.warn('[BIO] mappa errore (non bloccante):', mapErr.message); }
@@ -3661,6 +3685,7 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
 
 
 
