@@ -232,7 +232,8 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=640, height_px=360,
         req = _ur.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
         with _ur.urlopen(req, timeout=10) as r:
             return r.read()
-    except Exception:
+    except Exception as _me:
+        print(f'[PDF] _get_mappa_statica errore: {type(_me).__name__}: {_me}', flush=True)
         return None
 
 
@@ -594,6 +595,7 @@ def _genera_pdf_interno(id):
                     _loc = _gdata['results'][0]['geometry']['location']
                     _map_lat = float(_loc['lat'])
                     _map_lng = float(_loc['lng'])
+                    print(f'[PDF] Geocoding OK: {_map_lat},{_map_lng}', flush=True)
                     break  # trovato, esci dal loop
             except Exception:
                 continue
@@ -617,10 +619,12 @@ def _genera_pdf_interno(id):
                                                'scuola_militare','stazione','vvf')]
         except Exception:
             _attr_list = []
+        print(f'[PDF] Chiamo mappa statica per {_mlat},{_mlng}', flush=True)
         mappa_bytes = _get_mappa_statica(_mlat, _mlng, gmaps_key,
                                           width_px=640, height_px=320,
                                           concorrenti=_conc_list,
                                           attractors=_attr_list)
+        print(f'[PDF] mappa_bytes: {len(mappa_bytes) if mappa_bytes else None}', flush=True)
         if mappa_bytes:
             from reportlab.platypus import Image as RLImage
             import io as _io2
