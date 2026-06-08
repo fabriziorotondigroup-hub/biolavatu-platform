@@ -71,6 +71,32 @@ def modifica(id):
     return render_template('cliente_form.html', cliente=c)
 
 
+@clienti_bp.route('/clienti/<int:id>/elimina', methods=['POST'])
+@login_required
+def elimina(id):
+    from models.cliente import Cliente
+    c = Cliente.query.get_or_404(id)
+    try:
+        from models.pratica import Pratica
+        # Controlla se ha pratiche collegate
+        n_pratiche = Pratica.query.filter_by(cliente_id=id).count()
+        if n_pratiche > 0:
+            from flask import flash, redirect, url_for
+            flash(f'Impossibile eliminare: il cliente ha {n_pratiche} pratiche collegate.', 'danger')
+            return redirect(url_for('clienti.index'))
+        from app import db
+        db.session.delete(c)
+        db.session.commit()
+        from flask import flash, redirect, url_for
+        flash('Cliente eliminato.', 'success')
+    except Exception as e:
+        from app import db
+        db.session.rollback()
+        from flask import flash, redirect, url_for
+        flash(f'Errore: {e}', 'danger')
+    return redirect(url_for('clienti.index'))
+
+
 @clienti_bp.route('/api/clienti/cerca')
 @login_required
 def cerca():
