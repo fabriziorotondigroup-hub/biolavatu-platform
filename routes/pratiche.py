@@ -499,12 +499,13 @@ def _genera_pdf_interno(id):
             c.circle(cx, cy, 1.6*cm, fill=1, stroke=0)
             c.setStrokeColor(colors.HexColor('#e2e8f0')); c.setLineWidth(1)
             c.circle(cx, cy, 1.6*cm, fill=0, stroke=1)
-            # Arco colorato
-            import math
+            # Arco colorato — proteggi da angle=0 che causa ZeroDivisionError
+            import math as _math
             angle = 360 * sc / 100
-            c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(5)
-            c.arc(cx-1.4*cm, cy-1.4*cm, cx+1.4*cm, cy+1.4*cm,
-                  startAng=90, extent=-angle)
+            if angle > 1:  # disegna arco solo se score > 0
+                c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(5)
+                c.arc(cx-1.4*cm, cy-1.4*cm, cx+1.4*cm, cy+1.4*cm,
+                      startAng=90, extent=-angle)
             # Testo score
             c.setFont('Helvetica-Bold', 24); c.setFillColor(colors.HexColor(scol))
             c.drawCentredString(cx, cy+0.05*cm, str(sc))
