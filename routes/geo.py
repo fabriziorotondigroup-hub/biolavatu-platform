@@ -155,8 +155,11 @@ def is_gdo(place_name: str) -> bool:
 
 
 def place_to_poi(place, lat_c, lng_c, categoria, colore, icon):
-    plat = place['geometry']['location']['lat']
-    plng = place['geometry']['location']['lng']
+    try:
+        plat = place['geometry']['location']['lat']
+        plng = place['geometry']['location']['lng']
+    except (KeyError, TypeError):
+        return None  # risultato malformato
     dist = int(haversine(lat_c, lng_c, plat, plng))
     return {
         'lat': plat, 'lng': plng,
@@ -200,7 +203,10 @@ def geocode():
             })
         return jsonify({'error': 'Indirizzo non trovato'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print(f'[GEO ERROR] {type(e).__name__}: {e}')
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'tipo': type(e).__name__}), 500
 
 
 # ── ANALISI ZONA ──────────────────────────────────────────────────────────────
@@ -367,6 +373,7 @@ def zona_analisi():
 
     for p in raw_universita:
         poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
+        if poi is None: continue
         poi['tipo_attractor'] = 'universita'
         poi['nota'] = 'Studenti fuori sede — alto uso lavanderia'
         pois.append(poi)
@@ -458,6 +465,7 @@ def zona_analisi():
 
     for p in raw_ospedali:
         poi = place_to_poi(p, lat, lng, 'altro', '#0891b2', '🏥')
+        if poi is None: continue
         poi['tipo_attractor'] = 'ospedale'
         poi['nota'] = 'Personale sanitario + visitatori'
         pois.append(poi)
@@ -477,6 +485,7 @@ def zona_analisi():
 
     for p in raw_stazioni:
         poi = place_to_poi(p, lat, lng, 'trasporti', '#0284c7', '🚂')
+        if poi is None: continue
         poi['tipo_attractor'] = 'stazione'
         poi['nota'] = 'Nodo di transito — utenti pendolari'
         pois.append(poi)
@@ -495,6 +504,7 @@ def zona_analisi():
 
     for p in raw_vvf:
         poi = place_to_poi(p, lat, lng, 'altro', '#dc2626', '🚒')
+        if poi is None: continue
         poi['tipo_attractor'] = 'vvf'
         poi['nota'] = 'Vigili del fuoco — turni 24/7, divise lavate frequentemente, personale fisso'
         pois.append(poi)
@@ -651,6 +661,7 @@ def zona_analisi():
     # ── CASE DI RIPOSO / RSA / CASE DI CURA ────────────────────────────────────
     for p in raw_case_cura:
         poi = place_to_poi(p, lat, lng, 'casa_cura', '#7c3aed', '🏠')
+        if poi is None: continue
         poi['tipo_attractor'] = 'casa_cura'
         poi['nota'] = 'Residenti permanenti — alta necessità lavanderia'
         # Evita duplicati (già aggiunti da add_pois)
@@ -1146,6 +1157,7 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
 
 
