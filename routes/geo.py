@@ -752,14 +752,14 @@ def zona_analisi():
             ),
         })
 
-
-    # ── CANONE STIMATO OMI ───────────────────────────────────────────────────────
-
     except Exception as _err:
         import traceback as _tb2
         _tb2.print_exc()
         print(f"[ZONA 500] {type(_err).__name__}: {_err}")
         return jsonify({"error": str(_err), "tipo": type(_err).__name__}), 500
+
+
+    # ── CANONE STIMATO OMI ───────────────────────────────────────────────────────
 
 @geo_bp.route('/api/canone-stimato')
 @login_required
