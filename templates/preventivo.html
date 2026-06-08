@@ -153,6 +153,7 @@ function calcolaContoEco(inv) {
 
   // ── RICAVI (cicli/giorno × 365 × tariffa) ────────────────────────────────
   const lav_p_ann  = v('ce_cic_lav_p') * 365 * v('ce_tar_lav_p');
+  const lav_m_ann  = v('ce_cic_lav_m') * 365 * v('ce_tar_lav_m');
   const lav_g_ann  = v('ce_cic_lav_g') * 365 * v('ce_tar_lav_g');
   const asc_p_ann  = v('ce_cic_asc_p') * 365 * v('ce_tar_asc_p');
   const asc_g_ann  = v('ce_cic_asc_g') * 365 * v('ce_tar_asc_g');
@@ -161,17 +162,18 @@ function calcolaContoEco(inv) {
 
   // Aggiorna quantità annue
   setEl('ce_cic_lav_p_qtann', Math.round(v('ce_cic_lav_p')*365).toLocaleString('it-IT'));
+  setEl('ce_cic_lav_m_qtann', Math.round(v('ce_cic_lav_m')*365).toLocaleString('it-IT'));
   setEl('ce_cic_lav_g_qtann', Math.round(v('ce_cic_lav_g')*365).toLocaleString('it-IT'));
   setEl('ce_cic_asc_p_qtann', Math.round(v('ce_cic_asc_p')*365).toLocaleString('it-IT'));
   setEl('ce_cic_asc_g_qtann', Math.round(v('ce_cic_asc_g')*365).toLocaleString('it-IT'));
   setEl('ce_cic_det_qtann',   Math.round(v('ce_cic_det')  *365).toLocaleString('it-IT'));
 
-  const tot_ricavi = lav_p_ann + lav_g_ann + asc_p_ann + asc_g_ann + det_ann + caffe_ann;
-  const tot_lav_asc = lav_p_ann + lav_g_ann + asc_p_ann + asc_g_ann; // base per energia
+  const tot_ricavi = lav_p_ann + lav_m_ann + lav_g_ann + asc_p_ann + asc_g_ann + det_ann + caffe_ann;
+  const tot_lav_asc = lav_p_ann + lav_m_ann + lav_g_ann + asc_p_ann + asc_g_ann; // base per energia
 
   // Aggiorna importi ricavi
   const ricaviMap = {
-    'ce_cic_lav_p_imp': lav_p_ann, 'ce_cic_lav_g_imp': lav_g_ann,
+    'ce_cic_lav_p_imp': lav_p_ann, 'ce_cic_lav_m_imp': lav_m_ann, 'ce_cic_lav_g_imp': lav_g_ann,
     'ce_cic_asc_p_imp': asc_p_ann, 'ce_cic_asc_g_imp': asc_g_ann,
     'ce_cic_det_imp':   det_ann,   'ce_cic_caffe_imp': caffe_ann,
   };
@@ -275,7 +277,7 @@ function calcolaContoEco(inv) {
   setEl('ce_payback', payback);
 
   // Break-even cicli/giorno (CF annui / margine per ciclo)
-  const tot_cicli_g = v('ce_cic_lav_p') + v('ce_cic_lav_g') + v('ce_cic_asc_p') + v('ce_cic_asc_g');
+  const tot_cicli_g = v('ce_cic_lav_p') + v('ce_cic_lav_m') + v('ce_cic_lav_g') + v('ce_cic_asc_p') + v('ce_cic_asc_g');
   const mar_ciclo   = tot_cicli_g > 0 ? (tot_ricavi - tot_cv) / (tot_cicli_g * 365) : 0;
   const be_cicli    = mar_ciclo > 0 ? (tot_cf / 365 / mar_ciclo).toFixed(1) + ' cicli/g' : '—';
   setEl('ce_be_cicli', be_cicli);
@@ -455,8 +457,10 @@ window._popolaAdvDaZona = function(bp) {
   const el_lav_g = document.getElementById('ce_cic_lav_g');
   const el_asc_p = document.getElementById('ce_cic_asc_p');
   const el_asc_g = document.getElementById('ce_cic_asc_g');
-  if (el_lav_p) el_lav_p.value = Math.max(1, Math.round(c * 0.40));
-  if (el_lav_g) el_lav_g.value = Math.max(0, Math.round(c * 0.25));
+  if (el_lav_p) el_lav_p.value = Math.max(1, Math.round(c * 0.35));
+  const el_lav_m = document.getElementById('ce_cic_lav_m');
+  if (el_lav_m) el_lav_m.value = Math.max(0, Math.round(c * 0.20));
+  if (el_lav_g) el_lav_g.value = Math.max(0, Math.round(c * 0.20));
   if (el_asc_p) el_asc_p.value = Math.max(1, Math.round(c * 0.55));
   if (el_asc_g) el_asc_g.value = Math.max(0, Math.round(c * 0.15));
 
@@ -1831,7 +1835,8 @@ body { background: var(--bg); color: var(--text); }
 
         {% set ce_ricavi = [
           ('Lavaggi piccole (≤9kg)', 'ce_cic_lav_p', 15, 'ce_tar_lav_p', 4.0, false),
-          ('Lavaggi grandi (≥10kg)', 'ce_cic_lav_g', 10, 'ce_tar_lav_g', 6.0, false),
+          ('Lavaggi medie (10-13kg)', 'ce_cic_lav_m', 0, 'ce_tar_lav_m', 6.0, false),
+          ('Lavaggi grandi (≥14kg)', 'ce_cic_lav_g', 10, 'ce_tar_lav_g', 8.0, false),
           ('Asciugature piccole', 'ce_cic_asc_p', 20, 'ce_tar_asc_p', 3.0, false),
           ('Asciugature grandi', 'ce_cic_asc_g', 5, 'ce_tar_asc_g', 4.0, false),
           ('Vendita dosi detersivo', 'ce_cic_det', 12.5, 'ce_tar_det', 0.5, false),
@@ -3529,5 +3534,6 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
 
 
