@@ -389,6 +389,7 @@ def zona_analisi():
 
     for p in raw_caserme:
         poi = place_to_poi(p, lat, lng, 'altro', '#1e40af', '🪖')
+        if poi is None: continue
         nome = poi.get('nome', '').lower()
         # Filtra solo risultati pertinenti
         if not any(k in nome for k in ('caserma','militar','polizi','carabin','eserc',
