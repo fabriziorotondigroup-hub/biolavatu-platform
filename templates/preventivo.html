@@ -1139,9 +1139,9 @@ body { background: var(--bg); color: var(--text); }
               <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800" id="demo_market_score">—</div>
               <div style="font-size:11px;color:#64748b" id="demo_market_label">Potenziale mercato</div>
             </div>
-            <div class="col-12 col-md-2">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Valutazione</div>
-              <div id="demo_notes" style="font-size:11px;line-height:1.8"></div>
+            <div class="col-12 col-md-4">
+              <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">Valutazione</div>
+              <div id="demo_notes" style="font-size:13px;line-height:2.2;font-weight:500"></div>
             </div>
           </div>
         </div>
@@ -3040,7 +3040,10 @@ function eseguiAnalisi(lat, lng) {
           var dms = sel('demo_market_score'); if(dms) dms.style.color=scoreColor;
           setTxt('demo_market_label', d.score_label||'');
           var dml = sel('demo_market_label'); if(dml) dml.style.color=scoreColor;
-          setHtml('demo_notes', (d.score_note||[]).map(function(n){return '<div>'+n+'</div>';}).join(''));
+          setHtml('demo_notes', (d.score_note||[]).map(function(n){
+            var col = n.includes('✅') ? '#34d399' : n.includes('⚠️') ? '#fbbf24' : n.includes('❌') ? '#f87171' : '#e2e8f0';
+            return '<div style="color:'+col+';padding:3px 0;font-size:13px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.05)">'+n+'</div>';
+          }).join(''));
         }
 
         console.log('[BIO] demo set OK');
