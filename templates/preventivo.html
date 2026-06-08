@@ -4,7 +4,8 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
 // ═══════════════════════════════════════════════════════════════════════════
 // BUSINESS PLAN AVANZATO v2 — Fedele all'Excel (collegamenti verificati)
 //
@@ -2187,17 +2188,6 @@ body { background: var(--bg); color: var(--text); }
 </div><!-- fine panel-bp-avanzata -->
 
 <script>
-function setBPTab(tab) {
-  ['inv','ce','pc'].forEach(t => {
-    document.getElementById('bp-tab-'+t).style.display = t===tab ? 'block' : 'none';
-    const btn = document.getElementById('tab-'+t);
-    if (btn) {
-      btn.style.borderBottomColor = t===tab ? '#2563eb' : 'transparent';
-      btn.style.color = t===tab ? '#3b82f6' : '#64748b';
-      btn.style.fontWeight = t===tab ? '700' : '400';
-    }
-  });
-}
 </script>
 
 
@@ -3698,6 +3688,7 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
 
 
 
