@@ -17,6 +17,25 @@ with app.app_context():
     except Exception as e:
         print(f'[INIT] Migration skip (già ok): {e}', flush=True)
 
+    # Migration: aggiungi colonne nuove se mancanti
+    _new_cols = [
+        ('pratiche', 'bp_avanzato_json', 'TEXT'),
+        ('pratiche', 'pop_3min',         'INTEGER DEFAULT 0'),
+        ('pratiche', 'ai_risk',          'TEXT'),
+        ('pratiche', 'allegati_json',    'TEXT'),
+        ('pratiche', 'foto_mappa',       'TEXT'),
+    ]
+    for _tbl, _col, _typ in _new_cols:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text(
+                    f'ALTER TABLE {_tbl} ADD COLUMN IF NOT EXISTS {_col} {_typ}'
+                ))
+                conn.commit()
+        except Exception as _e:
+            print(f'[INIT] Col {_col} skip: {_e}', flush=True)
+    print('[INIT] Migration colonne OK.', flush=True)
+
 
 
     from models.user import User
