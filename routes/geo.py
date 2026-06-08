@@ -460,6 +460,8 @@ def zona_analisi():
             attractor_points.append({
                 'tipo':              tipo_mil,
                 'nome':              poi['nome'],
+                'lat':               poi['lat'],
+                'lng':               poi['lng'],
                 'distanza_m':        poi['distanza_m'],
                 'icon':              '🪖',
                 'impatto':           impatto_nota,
