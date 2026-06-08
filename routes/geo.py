@@ -363,6 +363,7 @@ def zona_analisi():
     n_ospedali   = 0
     n_stazioni   = 0
     n_vvf        = 0
+    n_case_cura  = 0
 
     for p in raw_universita:
         poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
@@ -648,7 +649,6 @@ def zona_analisi():
     pop_10min  = int(densita * area_10min)
 
     # ── CASE DI RIPOSO / RSA / CASE DI CURA ────────────────────────────────────
-    n_case_cura = 0
     for p in raw_case_cura:
         poi = place_to_poi(p, lat, lng, 'casa_cura', '#7c3aed', '🏠')
         poi['tipo_attractor'] = 'casa_cura'
@@ -725,6 +725,7 @@ def zona_analisi():
         'n_ospedali':         n_ospedali,
         'n_stazioni':         n_stazioni,
         'n_vvf':              n_vvf,
+        'n_case_cura':        n_case_cura,
         'verifica_richiesta': any(
             ap.get('verifica_richiesta') for ap in attractor_points
         ),
