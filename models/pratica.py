@@ -75,7 +75,8 @@ class Pratica(db.Model):
 
     # AI testi
     ai_zona = db.Column(db.Text)
-    ai_bp = db.Column(db.Text)
+    ai_bp   = db.Column(db.Text)
+    bp_avanzato_json = db.Column(db.Text)  # JSON con tutti i dati modalità avanzata
     ai_risk = db.Column(db.Text)
 
     # Allegati
