@@ -40,6 +40,44 @@ def genera_numero():
     return candidato
 
 
+def _build_bp_avanzato_json(data):
+    """Raccoglie tutti i campi del BP avanzato dal form e li serializza in JSON."""
+    import json as _json
+    fields = [
+        # Piano Investimenti
+        'inv_formazione','inv_fattibilita','inv_commercialista','inv_notaio',
+        'inv_burocratico','inv_allacciamento','inv_marchio','inv_promozione_av',
+        'inv_inaugurazione','inv_franchising','inv_murarie','inv_insegne',
+        'inv_impianti_idr','inv_illuminazione','inv_climatiz','inv_stereo',
+        'inv_antifurto','inv_arredo','inv_vetrofanie','inv_gettoniere',
+        'inv_scaldacqua','inv_dispenser_det','inv_cambia_monete','inv_telefono',
+        'inv_computer','inv_software','inv_stampante','inv_altre_attr','inv_altri',
+        'inv_anni_mac','inv_perc_fin','inv_tasso','inv_anni_fin','pc_cauzione',
+        # Conto Economico — Ricavi
+        'ce_cic_lav_p','ce_tar_lav_p','ce_cic_lav_m','ce_tar_lav_m',
+        'ce_cic_lav_g','ce_tar_lav_g','ce_cic_asc_p','ce_tar_asc_p',
+        'ce_cic_asc_g','ce_tar_asc_g','ce_cic_det','ce_tar_det',
+        'ce_cic_caffe','ce_tar_caffe',
+        # Costi Variabili
+        'ce_perc_energia','ce_perc_det_cv',
+        # Costi Fissi mensili
+        'ce_cf_affitto_m','ce_cf_riscald','ce_cf_dipendenti','ce_cf_comm',
+        'ce_cf_promo','ce_cf_manut','ce_cf_energia_el_m','ce_cf_telefono_m',
+        'ce_cf_postali','ce_cf_assic','ce_cf_pulizia_m','ce_cf_guardia',
+        'ce_cf_tari','ce_cf_cciaa','ce_cf_associaz','ce_cf_altri_amm',
+        'ce_cf_leasing','ce_cf_interessi','ce_cf_cancel','ce_cf_altro',
+        # Modalità
+        'bp_mode',
+    ]
+    result = {}
+    for f in fields:
+        val = data.get(f)
+        if val is not None and val != '':
+            try: result[f] = float(val)
+            except (ValueError, TypeError): result[f] = val
+    return _json.dumps(result) if result else None
+
+
 @preventivo_bp.route('/preventivo/nuovo', methods=['GET', 'POST'])
 @login_required
 def nuovo():
@@ -161,6 +199,8 @@ def salva():
         ai_zona=data.get('ai_zona', ''),
         ai_bp=data.get('ai_bp', ''),
         note_interne=data.get('note_interne', ''),
+        # Business Plan Avanzato — tutti i campi salvati come JSON
+        bp_avanzato_json=_build_bp_avanzato_json(data),
     )
 
     db.session.add(p)
