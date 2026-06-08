@@ -920,6 +920,16 @@ body { background: var(--bg); color: var(--text); }
     <div style="font-size:13px;color:#64748b;margin-top:6px">Rilevamento POI, concorrenti e dati demografici</div>
   </div>
 
+  <!-- Navigazione in cima — sempre visibile sopra la mappa -->
+  <div class="d-flex justify-content-between mb-3">
+    <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">
+      <i class="bi bi-arrow-left me-1"></i> Indietro
+    </button>
+    <button type="button" class="btn btn-primary" onclick="goStep3Next()">
+      Avanti <i class="bi bi-arrow-right ms-1"></i>
+    </button>
+  </div>
+
   <div class="row g-3 mb-3">
     <!-- MAPPA grande -->
     <div class="col-12">
@@ -1254,10 +1264,6 @@ body { background: var(--bg); color: var(--text); }
 
   </div>
 
-  <div class="d-flex justify-content-between mt-2">
-    <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="button" class="btn btn-primary" onclick="goStep3Next()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
-  </div>
 </div>
 
 <!-- ═══ STEP 3B: SOPRALLUOGO (solo Modalità Investitore) ═══ -->
