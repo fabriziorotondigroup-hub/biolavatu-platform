@@ -19,10 +19,12 @@ function v(id) {
   return el ? (parseFloat(el.value) || 0) : 0;
 }
 function setEl(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (el.tagName === 'INPUT') el.value = val;
-  else el.textContent = val;
+  try {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = val;
+    else el.textContent = val !== undefined && val !== null ? val : '—';
+  } catch(e) {}
 }
 function fmt(n)  { return '€ ' + Math.round(n).toLocaleString('it-IT'); }
 function fmt1(n) { return '€ ' + n.toFixed(1).replace('.', ','); }
@@ -48,6 +50,47 @@ function setBPTab(tab) {
       btn.style.fontWeight = t === tab ? '700' : '400';
     }
   });
+}
+
+function setBPMode(mode) {
+  const isAdv = mode === 'avanzata';
+  document.getElementById('f_bp_mode').value = mode;
+
+  // Toggle pannelli
+  const panRapida = document.getElementById('panel-bp-rapida');
+  const panAvanzata = document.getElementById('panel-bp-avanzata');
+  if (panRapida)   panRapida.style.display   = isAdv ? 'none' : 'block';
+  if (panAvanzata) panAvanzata.style.display = isAdv ? 'block' : 'none';
+
+  // Toggle bottoni
+  const btnR = document.getElementById('btn-bp-rapida');
+  const btnA = document.getElementById('btn-bp-avanzata');
+  if (btnR) {
+    btnR.style.background = isAdv ? 'transparent' : '#2563eb';
+    btnR.style.color      = isAdv ? '#64748b'     : 'white';
+  }
+  if (btnA) {
+    btnA.style.background = isAdv ? '#7c3aed' : 'transparent';
+    btnA.style.color      = isAdv ? 'white'   : '#64748b';
+  }
+
+  // Hint testo
+  const hint = document.getElementById('bp-mode-hint');
+  if (hint) hint.textContent = isAdv
+    ? '📊 Modello Excel — inserisci cicli/giorno e tariffe'
+    : '🚀 Calcolo automatico dalla stima zona';
+
+  // Legenda schema colori
+  const leg = document.getElementById('schema-legenda-bp');
+  if (leg) leg.style.display = isAdv ? 'flex' : 'none';
+
+  // Se avanzata: popola i default dalla zona e ricalcola
+  if (isAdv) {
+    if (window._ultimaBP && window._popolaAdvDaZona) {
+      window._popolaAdvDaZona(window._ultimaBP);
+    }
+    calcolaBusinessPlan();
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -3592,6 +3635,7 @@ function calcolaConfrontoGas(dEL) {
 }
 </script>
 {% endblock %}
+
 
 
 
