@@ -261,6 +261,19 @@ def zona_analisi():
     raw_vvf          = gmaps_nearby(lat, lng, r15, 'fire_station')
     # Ospedali e cliniche: personale + visitatori + degenti
     raw_ospedali     = gmaps_nearby(lat, lng, r15, 'hospital')
+    # Case di riposo, RSA, case di cura: residenti permanenti senza lavatrice
+    raw_case_cura_1  = gmaps_nearby(lat, lng, r15, 'nursing_home')
+    raw_case_cura_2  = gmaps_nearby(lat, lng, r15, 'point_of_interest',
+                                    keyword='casa di riposo RSA residenza anziani casa di cura')
+    # Deduplicazione case di cura
+    _cure_viste = set()
+    raw_case_cura = []
+    for _lst in [raw_case_cura_1, raw_case_cura_2]:
+        for _p in _lst:
+            _pid = _p.get('place_id', _p.get('name', ''))
+            if _pid not in _cure_viste:
+                _cure_viste.add(_pid)
+                raw_case_cura.append(_p)
     # Stazioni ferroviarie: pendolari, turisti, transito
     raw_stazioni     = gmaps_nearby(lat, lng, r10, 'train_station')
 
@@ -332,14 +345,16 @@ def zona_analisi():
             if categoria == 'supermercato' and poi['distanza_m'] <= 500 and is_gdo(poi['nome']):
                 gdo_trovate.append({'nome': poi['nome'], 'distanza_m': poi['distanza_m']})
 
-    add_pois(raw_supermercati, 'supermercato', '#10b981', '🛒', 400)
-    add_pois(raw_convenience,  'supermercato', '#10b981', '🏪', 400)
-    add_pois(raw_farmacie,     'farmacia',     '#3b82f6', '💊', 400)
-    add_pois(raw_bar_cafe,     'bar_cafe',     '#f59e0b', '☕', 400)
-    add_pois(raw_ristoranti,   'ristorante',   '#ef4444', '🍽️', 400)
-    add_pois(raw_scuole,       'istruzione',   '#8b5cf6', '🎓', 400)
-    add_pois(raw_trasporti,    'trasporti',    '#06b6d4', '🚌', 400)
-    add_pois(raw_palestre,     'altro',        '#ec4899', '💪', 400)
+    add_pois(raw_supermercati, 'supermercato',  '#10b981', '🛒',  400)
+    add_pois(raw_convenience,  'supermercato',  '#10b981', '🏪',  400)
+    add_pois(raw_farmacie,     'farmacia',      '#3b82f6', '💊',  400)
+    add_pois(raw_bar_cafe,     'bar_cafe',      '#f59e0b', '☕',  400)
+    add_pois(raw_ristoranti,   'ristorante',    '#ef4444', '🍽️', 400)
+    add_pois(raw_scuole,       'istruzione',    '#8b5cf6', '🎓',  400)
+    add_pois(raw_trasporti,    'trasporti',     '#06b6d4', '🚌',  400)
+    add_pois(raw_palestre,     'altro',         '#ec4899', '💪',  400)
+    add_pois(raw_ospedali,     'ospedale',      '#0891b2', '🏥', 1500)
+    add_pois(raw_case_cura,    'casa_cura',     '#7c3aed', '🏠', 1500)
 
     # ── ANALISI ATTRACTOR POINTS ──────────────────────────────────────────────
     attractor_points = []
@@ -449,8 +464,14 @@ def zona_analisi():
             n_ospedali += 1
             attractor_points.append({
                 'tipo': 'ospedale', 'nome': poi['nome'],
+                'lat': poi['lat'], 'lng': poi['lng'],
                 'distanza_m': poi['distanza_m'], 'icon': '🏥',
-                'impatto': 'Medio-alto — personale e familiari degenti'
+                'impatto': 'Medio-alto — personale sanitario + familiari degenti',
+                'mult_caserma': None, 'durata_mesi': None,
+                'n_allievi': None, 'ha_lavanderia_interna': None,
+                'note_ricerca': 'Ospedale: personale su turni usa lavanderia esterna regolarmente',
+                'ricerca_ai_ok': True,
+                'verifica_richiesta': False,
             })
 
     for p in raw_stazioni:
@@ -462,6 +483,7 @@ def zona_analisi():
             n_stazioni += 1
             attractor_points.append({
                 'tipo': 'stazione', 'nome': poi['nome'],
+                'lat': poi['lat'], 'lng': poi['lng'],
                 'distanza_m': poi['distanza_m'], 'icon': '🚂',
                 'impatto': 'Medio — pendolari e turisti di passaggio',
                 'mult_caserma': None, 'durata_mesi': None,
@@ -624,6 +646,29 @@ def zona_analisi():
     pop_3min   = int(densita * area_3min)
     pop_5min   = int(densita * area_5min)
     pop_10min  = int(densita * area_10min)
+
+    # ── CASE DI RIPOSO / RSA / CASE DI CURA ────────────────────────────────────
+    n_case_cura = 0
+    for p in raw_case_cura:
+        poi = place_to_poi(p, lat, lng, 'casa_cura', '#7c3aed', '🏠')
+        poi['tipo_attractor'] = 'casa_cura'
+        poi['nota'] = 'Residenti permanenti — alta necessità lavanderia'
+        # Evita duplicati (già aggiunti da add_pois)
+        if not any(x.get('nome') == poi['nome'] and x.get('tipo') == 'casa_cura' for x in pois):
+            pois.append(poi)
+        if poi['distanza_m'] <= r15:
+            n_case_cura += 1
+            attractor_points.append({
+                'tipo': 'casa_cura', 'nome': poi['nome'],
+                'lat': poi.get('lat', 0), 'lng': poi.get('lng', 0),
+                'distanza_m': poi['distanza_m'], 'icon': '🏠',
+                'impatto': 'Alto — residenti permanenti senza lavatrice, uso quotidiano',
+                'mult_caserma': None, 'durata_mesi': None,
+                'n_allievi': None, 'ha_lavanderia_interna': None,
+                'note_ricerca': 'RSA/casa di cura: residenti permanenti, uso sistematico lavanderia',
+                'ricerca_ai_ok': True,
+                'verifica_richiesta': False,
+            })
 
     # ── STIMA CLIENTI ─────────────────────────────────────────────────────────
     stima = calcola_stima_clienti(
@@ -1100,6 +1145,7 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
 
 
