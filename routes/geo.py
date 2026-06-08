@@ -564,6 +564,7 @@ def zona_analisi():
     for p, tipo in raw_lavanderie_classified:
         cfg = TIPO_CONFIG[tipo]
         poi = place_to_poi(p, lat, lng, 'competitor', cfg['colore'], cfg['icon'])
+        if poi is None: continue
         poi['tipo_lavanderia'] = tipo
         poi['tipo_label'] = cfg['label']
         pois.append(poi)
