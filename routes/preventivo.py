@@ -447,66 +447,103 @@ def analisi_ai():
     det      = data.get('dettaglio_costi', {}) or {}
     giorni_mese = float(data.get('giorni_mese', 30) or 30)
 
-    prompt = f"""Sei un consulente senior specializzato in apertura di lavanderie self-service in Italia.
-Devi produrre un'analisi professionale, strutturata e onesta — come farebbe un consulente Bocconi/McKinsey.
+    # Costruisce lista POI attractor per il prompt
+    attractor_txt = ''
+    for ap in data.get('attractor_points', []):
+        nome = ap.get('nome', '')
+        tipo = ap.get('tipo', '').replace('_', ' ')
+        dist = ap.get('distanza_m', 0)
+        if nome:
+            attractor_txt += f"  • {nome} ({tipo}, {dist}m)\n"
+    if not attractor_txt:
+        attractor_txt = '  Nessun generatore di domanda strutturale rilevato nel raggio'
 
-═══ LOCATION ═══
-Indirizzo: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')} | Superficie: {data.get('mq',60)} mq
-Popolazione: 5min={int(data.get('pop_5min',0) or 0):,} ab. | 10min={int(data.get('pop_10min',0) or 0):,} ab.
-Densità: {int(data.get('densita',0) or 0):,} ab/km² | Reddito medio: €{int(data.get('reddito_medio',0) or 0):,}/anno
-Concorrenti self-service 500m: {data.get('concorrenti_500m',0)} | Lavanderie 1km: {data.get('concorrenti_1km',0)}
-Score zona: {data.get('score_zona',0)}/100 ({data.get('score_label','')}) | Traffico: {int(data.get('recensioni_zona',0) or 0):,} rec. | GDO 500m: {data.get('gdo_500m',0)}
+    # Lista concorrenti
+    conc_list = data.get('competitors_detail', [])
+    conc_txt = ''
+    for c in conc_list[:8]:
+        conc_txt += f"  • {c.get('nome','')} — {c.get('distanza_m',0)}m — Rating: {c.get('rating','N/D')} — {c.get('tipo_label','lavanderia')} — {c.get('vicinity','')}\n"
+    if not conc_txt:
+        conc_txt = '  Nessun concorrente diretto rilevato nel raggio analizzato'
 
-═══ INVESTIMENTO ═══
-Macchine: {mac_txt}
-CAPEX: €{cap:,.0f} | CAPEX+IVA 22%: €{cap*1.22:,.0f}
-Ammortamento: €{float(det.get('ammortamento',cap/120) or 0):,.0f}/mese (10 anni) | Rata fin.: €{float(det.get('finanziamento',0) or 0):,.0f}/mese
+    prompt = f"""Sei un analista di mercato specializzato nel settore retail e lavanderie self-service.
+Il tuo compito è produrre una LETTURA OGGETTIVA della zona — solo dati, fatti, misurazioni.
+NON dare raccomandazioni, NON dire se aprire o non aprire, NON esprimere giudizi di valore.
+Limitati a descrivere ciò che i dati mostrano, come farebbe un report di analisi territoriale professionale.
 
-═══ TARIFFE IMPOSTATE ═══
-Lav. piccola (≤9kg): €{t_std} | Lav. media (10-13kg): €{t_med} | Lav. grande (≥14kg): €{t_grd}
-Asciugatura: €{t_asc}/ciclo | Clienti che asciugano: {p_asc:.0f}%
-→ Spesa media per visita: €{spe:.2f} (lav. + quota asciugatura)
+═══ DATI LOCATION ═══
+Indirizzo: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')}
+Superficie locale: {data.get('mq',60)} mq
 
-═══ BUSINESS PLAN — SCENARIO REALISTICO ═══
-Clienti stimati: {cli_g:.1f}/giorno → {cli_g*giorni_mese:.0f}/mese
-Ricavi mensili: €{inc:,.0f}
-  di cui costi variabili: €{float(det.get('variabili',0) or 0):,.0f} (energia €{float(det.get('energia',0) or 0):,.0f} | acqua €{float(det.get('acqua',0) or 0):,.0f} | deterg. €{float(det.get('detergenti',0) or 0):,.0f})
-  di cui costi fissi: €{float(det.get('fissi',0) or 0):,.0f} (affitto €{aff:,.0f} | manut/assic/comm €{float(det.get('manutenzione',0) or 0)+float(det.get('assicurazione',0) or 0)+float(det.get('commercialista',0) or 0):,.0f})
-  di cui capitale: €{float(det.get('capitale',0) or 0):,.0f} (ammort. + fin.)
-Totale costi: €{cos:,.0f}
-EBITDA: €{float(data.get('ebitda',inc-cos) or 0):,.0f}/mese
-Utile netto mensile: €{uti:,.0f}
-Payback: {pay:.1f} anni (su CAPEX+IVA)
-Break-even: {be_cli:.0f} clienti/giorno per coprire costi fissi e capitale
+═══ BACINO DEMOGRAFICO ═══
+Popolazione raggiungibile:
+  • 3 minuti a piedi (~240m): {int(data.get('pop_3min',0) or 0):,} abitanti
+  • 5 minuti a piedi (~400m): {int(data.get('pop_5min',0) or 0):,} abitanti
+  • 10 minuti a piedi (~800m): {int(data.get('pop_10min',0) or 0):,} abitanti
+Densità abitativa: {int(data.get('densita',0) or 0):,} ab/km²
+Età media zona: {float(data.get('eta_media',46) or 46):.0f} anni
+Reddito medio dichiarato: €{int(data.get('reddito_medio',0) or 0):,}/anno (fonte MEF)
 
-Scenario pessimistico (×0.60): ricavi €{inc*0.60:,.0f} | utile €{(inc*0.60-cos):,.0f}
-Scenario ottimistico (×1.25): ricavi €{inc*1.25:,.0f} | utile €{(inc*1.25-cos):,.0f}
+═══ FLUSSI E PASSAGGIO PEDONALE ═══
+Indicatore traffico reale (recensioni Google entro 400m): {int(data.get('recensioni_zona',0) or 0):,}
+  [Metodo: somma delle recensioni di tutti i locali commerciali entro 400m —
+   stesso indicatore usato da Lidl/Eurospin/McDonald's per site selection]
+Catene GDO entro 500m: {data.get('gdo_500m',0)} ({data.get('gdo_nomi','nessuna') if data.get('gdo_nomi') else 'nessuna specificata'})
+Score zona complessivo: {data.get('score_zona',0)}/100
 
-═══ ANALISI RICHIESTA (struttura obbligatoria) ═══
+═══ CONCORRENZA DIRETTA E INDIRETTA ═══
+Self-service entro 500m: {data.get('concorrenti_500m',0)}
+Lavanderie totali entro 1km: {data.get('concorrenti_1km',0)}
+Dettaglio operatori rilevati:
+{conc_txt}
 
-## 1. SINTESI LOCATION
-3-4 righe. Cita i numeri. Valuta potenziale demografico vs pressione competitiva.
+═══ GENERATORI DI DOMANDA (Attractor Points) ═══
+Strutture che generano domanda strutturale per lavanderie self-service
+(personale su turni, residenti senza lavatrice, utenti fissi):
+{attractor_txt}
 
-## 2. PUNTI DI FORZA
-2-4 punti concreti con dato a supporto.
+═══ STRUTTURA ECONOMICA ═══
+Configurazione macchine: {mac_txt}
+Investimento: €{cap:,.0f} + IVA 22% = €{cap*1.22:,.0f}
+Stima clienti/giorno dalla zona: {cli_g:.1f}
+Incasso mensile stimato (scenario realistico): €{inc:,.0f}
+Costi mensili totali: €{cos:,.0f}
+Margine mensile stimato: €{uti:,.0f}
+Break-even: {be_cli:.0f} clienti/giorno
 
-## 3. RISCHI E CRITICITÀ
-2-4 rischi concreti. Se i numeri sono negativi, dillo chiaramente.
+═══ STRUTTURA DELL'ANALISI (obbligatoria) ═══
 
-## 4. ANALISI ECONOMICA
-- La spesa media di €{spe:.2f}/visita è realistica per questa zona e queste tariffe?
-- Con {cli_g:.0f} clienti/giorno, i ricavi di €{inc:,.0f}/mese coprono i costi di €{cos:,.0f}/mese?
-- Il break-even di {be_cli:.0f} clienti/giorno è raggiungibile in questa zona con questa concorrenza?
-- Da quando l'attività diventa profittevole? (mese stimato dall'apertura)
-- Confronto tra i 3 scenari.
+## 1. LETTURA DEL BACINO
+Descrivi numericamente il bacino demografico. Riporta la popolazione per fascia di distanza,
+la densità, il profilo reddituale. Confronta con benchmark nazionali se pertinente.
+Non usare aggettivi valutativi. Solo dati e misurazioni.
 
-## 5. RACCOMANDAZIONE
-Scegli UNA e motiva in 3 righe:
-✅ CONSIGLIATO
-⚠️ CONSIGLIATO CON RISERVE — specificare condizioni
-❌ SCONSIGLIATO — specificare cosa cercare di diverso
+## 2. ANALISI DEL PASSAGGIO PEDONALE
+Leggi l'indicatore traffico ({int(data.get('recensioni_zona',0) or 0):,} recensioni entro 400m).
+Interpreta cosa significa in termini di flusso giornaliero stimato.
+Cita la presenza di GDO e cosa implica per il traffico di spesa.
+Descrivi il tipo di zona (residenziale, commerciale, misto, industriale) dai dati disponibili.
 
-Tono: professionale, diretto, numeri precisi. NON essere ottimista per compiacere. Rispondi in italiano."""
+## 3. MAPPA DELLA CONCORRENZA
+Elenca e analizza i concorrenti rilevati: distanza, posizionamento, rating.
+Calcola la densità operatori per abitante (operatori per 1.000 ab.).
+Descrivi la distribuzione geografica della concorrenza rispetto alla sede.
+
+## 4. GENERATORI DI DOMANDA STRUTTURALE
+Elenca e descrivi gli attractor points trovati nel raggio.
+Per ognuno indica: tipo di struttura, distanza, impatto atteso sui flussi
+(es. ospedale = personale su turni, caserma = reclute, università = studenti fuori sede).
+Quantifica dove possibile il numero di persone coinvolte.
+
+## 5. LETTURA ECONOMICA
+Riporta i numeri del business plan senza commentarli in termini di fattibilità.
+Mostra: incasso stimato, costi fissi e variabili, margine, break-even.
+Indica a quanti clienti/giorno corrisponde il break-even rispetto alla stima zona.
+Mostra i tre scenari (pessimistico/realistico/ottimistico) con i valori assoluti.
+
+Tono: report analitico, asciutto, numeri precisi, zero aggettivi valutativi,
+zero raccomandazioni, zero conclusioni su apertura/non apertura.
+Rispondi in italiano. Usa intestazioni Markdown (##). Sii conciso ma completo."""
 
     try:
         message = client.messages.create(
