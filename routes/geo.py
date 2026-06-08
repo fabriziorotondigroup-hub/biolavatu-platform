@@ -606,12 +606,17 @@ def zona_analisi():
     # Benchmark: centro città = 50+ POI in 400m → densità >3000
     #            periferia     = 15-30 POI → densità 800-2000
     #            zona rurale   = <10 POI → densità <500
+    def _safe_dist(p):
+        try:
+            return haversine(lat, lng,
+                             p['geometry']['location']['lat'],
+                             p['geometry']['location']['lng'])
+        except (KeyError, TypeError):
+            return 9999
     _poi_400m = sum(1 for p in (
         raw_supermercati + raw_bar_cafe + raw_ristoranti +
         raw_farmacie + raw_scuole + raw_trasporti + raw_palestre
-    ) if haversine(lat, lng,
-                   p['geometry']['location']['lat'],
-                   p['geometry']['location']['lng']) <= 400)
+    ) if _safe_dist(p) <= 400)
 
     # Stima densità reale dal numero di POI entro 400m
     if   _poi_400m >= 60: densita_reale = 7000
