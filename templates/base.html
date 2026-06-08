@@ -148,126 +148,207 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
 .pagination .page-link { background: var(--bg2) !important; border-color: var(--border) !important; color: #94a3b8 !important; }
 .pagination .page-item.active .page-link { background: var(--primary) !important; color: white !important; }
 
-/* ── RESPONSIVE ────────────────────────────────────────────── */
-/* Dashboard KPI: 2 colonne su mobile */
-@media (max-width: 767px) {
-  .col-md-3 { flex: 0 0 50%; max-width: 50%; }
-  .col-md-4 { flex: 0 0 100%; max-width: 100%; }
-  .col-md-6 { flex: 0 0 100%; max-width: 100%; }
-  .col-lg-4 { flex: 0 0 100%; max-width: 100%; }
-  .col-lg-8 { flex: 0 0 100%; max-width: 100%; }
-}
-@media (max-width: 480px) {
-  .col-md-3 { flex: 0 0 100%; max-width: 100%; }
-}
-/* Hamburger button — visibile solo su mobile */
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE SYSTEM — Mobile · Tablet · Desktop
+   Breakpoints:
+     Mobile:  < 768px
+     Tablet:  768px – 1199px
+     Desktop: ≥ 1200px (default)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Hamburger — solo mobile ─────────────────────────────── */
 .hamburger {
   display: none;
   background: none; border: none; color: var(--text);
   font-size: 22px; cursor: pointer; padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 6px; line-height: 1;
 }
 .hamburger:hover { background: var(--bg3); }
 
-/* Overlay scuro quando sidebar aperta su mobile */
+/* ── Overlay sidebar mobile ──────────────────────────────── */
 .sidebar-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.6);
-  z-index: 99;
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.65); z-index: 199;
 }
 .sidebar-overlay.active { display: block; }
 
-/* TABLET (768px - 1024px) */
-@media (max-width: 1024px) {
-  :root { --sidebar-w: 200px; }
-  .page-body { padding: 20px; }
-  .topbar { padding: 12px 20px; }
-  .kpi-value { font-size: 24px; }
+/* ── Utility classi responsive ───────────────────────────── */
+.table-wrap   { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.hide-mobile  { }
+.hide-tablet  { }
+.show-mobile  { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   TABLET  768px – 1199px
+   ═══════════════════════════════════════════════════════════ */
+@media (min-width: 768px) and (max-width: 1199px) {
+  :root { --sidebar-w: 210px; }
+
+  .page-body  { padding: 18px 20px; }
+  .topbar     { padding: 12px 20px; }
+  .topbar-title { font-size: 17px; }
+
+  /* KPI */
+  .kpi-value  { font-size: 26px; }
+  .kpi-card   { padding: 16px; }
+
+  /* Grid Bootstrap — tablet 2 colonne per col-lg-4/6 */
+  .col-lg-3   { flex: 0 0 50%; max-width: 50%; }
+  .col-lg-4   { flex: 0 0 50%; max-width: 50%; }
+  .col-lg-8   { flex: 0 0 100%; max-width: 100%; }
+
+  /* Wizard */
+  .wizard-steps { gap: 4px !important; }
+  .step-label   { font-size: 10px !important; }
+
+  /* Mappa */
+  #map { height: 300px !important; }
+
+  /* Tabelle */
+  .table-responsive-force { overflow-x: auto; }
 }
 
-/* MOBILE (< 768px) */
+/* ═══════════════════════════════════════════════════════════
+   MOBILE  < 768px
+   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  :root { --sidebar-w: 260px; }
+  :root { --sidebar-w: 270px; }
 
-  /* Sidebar nascosta di default su mobile */
+  /* ── Sidebar ────────────────────────────────────────────── */
   .sidebar {
     transform: translateX(-100%);
-    transition: transform .25s ease;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
     z-index: 200;
     width: var(--sidebar-w) !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,.4);
   }
   .sidebar.open { transform: translateX(0); }
-
-  /* Main content occupa tutto */
   .main-content { margin-left: 0 !important; }
-
-  /* Hamburger visibile */
   .hamburger { display: inline-flex; align-items: center; }
 
-  /* Topbar compatta */
-  .topbar { padding: 10px 16px; }
-  .topbar-title { font-size: 16px; }
+  /* ── Topbar ─────────────────────────────────────────────── */
+  .topbar { padding: 10px 14px; gap: 8px; }
+  .topbar-title { font-size: 15px; }
+  .topbar-actions .btn span { display: none; } /* nascondi testo bottoni topbar */
+  .topbar-actions .btn i  { margin: 0 !important; }
+  .topbar-actions { gap: 6px !important; }
 
-  /* Page body compatto */
-  .page-body { padding: 14px; }
+  /* ── Page body ──────────────────────────────────────────── */
+  .page-body { padding: 12px; }
 
-  /* KPI cards su 2 colonne */
-  .kpi-row { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-  .kpi-value { font-size: 22px; }
-  .kpi-label { font-size: 11px; }
+  /* ── Cards ──────────────────────────────────────────────── */
+  .card-body   { padding: 12px; }
+  .card-header { padding: 10px 14px; font-size: 13px; }
 
-  /* Tabelle scrollabili */
-  .table-responsive-force { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table { min-width: 600px; }
+  /* ── KPI cards ──────────────────────────────────────────── */
+  .kpi-row { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .kpi-value { font-size: 20px; }
+  .kpi-label { font-size: 10px; }
+  .kpi-card  { padding: 12px 10px; }
+  .kpi-icon  { width: 36px; height: 36px; font-size: 16px; }
 
-  /* Form full width */
-  .form-control, .form-select, .btn { font-size: 16px !important; } /* evita zoom iOS */
+  /* ── Grid Bootstrap override ────────────────────────────── */
+  .col-md-3, .col-md-4, .col-md-6,
+  .col-lg-3, .col-lg-4, .col-lg-6,
+  .col-lg-8, .col-xl-3, .col-xl-4 {
+    flex: 0 0 100%; max-width: 100%;
+  }
+  /* 2 colonne per KPI piccoli */
+  .col-6 { flex: 0 0 50%; max-width: 50%; }
 
-  /* Card padding ridotto */
-  .card-body { padding: 14px; }
-  .card-header { padding: 12px 14px; }
+  /* ── Form ───────────────────────────────────────────────── */
+  .form-control,
+  .form-select,
+  input[type="number"],
+  input[type="text"],
+  input[type="email"] {
+    font-size: 16px !important; /* evita zoom iOS */
+    padding: 10px 12px;
+  }
+  .form-label { font-size: 11px !important; }
+  .input-group-text { font-size: 13px; }
 
-  /* Nascondi testo labels nella nav */
-  .nav-link span.nav-text { display: inline; }
+  /* ── Bottoni ────────────────────────────────────────────── */
+  .btn { font-size: 14px; padding: 8px 14px; }
+  .btn-lg { font-size: 15px !important; padding: 11px 18px !important; }
 
-  /* Wizard steps compatti */
-  .step-num { width: 28px !important; height: 28px !important; font-size: 12px !important; }
-  .step-label { font-size: 10px !important; }
-}
+  /* ── Tabelle ────────────────────────────────────────────── */
+  .table-responsive-force,
+  .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table { min-width: 480px; font-size: 13px; }
+  .table > :not(caption) > * > * { padding: 8px 10px; }
+  .table thead th { font-size: 10px; padding: 8px 10px; }
 
-/* SMALL MOBILE (< 480px) */
-@media (max-width: 480px) {
-  .kpi-row { grid-template-columns: 1fr !important; }
-  .topbar-title { font-size: 14px; }
-  .btn-lg { font-size: 14px !important; padding: 10px 16px !important; }
-}
-
-/* ── WIZARD MOBILE ─────────────────────────────────────────── */
-@media (max-width: 767px) {
-  /* Steps wizard: scroll orizzontale */
+  /* ── Wizard ─────────────────────────────────────────────── */
   .wizard-steps {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap !important;
-    padding-bottom: 8px;
-    gap: 4px !important;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important; padding-bottom: 6px;
+    gap: 0 !important; margin: 0 -12px; padding-left: 12px;
+    scrollbar-width: none;
   }
-  .step {
-    min-width: 70px;
-    flex-shrink: 0;
-  }
-  .step-label { font-size: 9px !important; }
-  .step-num { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+  .wizard-steps::-webkit-scrollbar { display: none; }
+  .step { min-width: 64px; flex-shrink: 0; }
+  .step-num   { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+  .step-label { font-size: 9px !important; margin-top: 3px !important; }
 
-  /* Mappa analisi zona — altezza ridotta */
-  #map { height: 250px !important; }
+  /* ── Mappa zona ─────────────────────────────────────────── */
+  #map { height: 220px !important; border-radius: 8px; }
 
-  /* Bottoni azione full-width su mobile */
-  .d-flex.justify-content-between {
-    flex-direction: column;
-    gap: 8px;
+  /* ── Row d-flex non impilare sempre ────────────────────── */
+  /* Solo quando serve, usa .stack-mobile */
+  .stack-mobile { flex-direction: column !important; }
+  .stack-mobile > * { width: 100% !important; }
+
+  /* ── PDF button ─────────────────────────────────────────── */
+  .btn-pdf-mobile { position: fixed; bottom: 20px; right: 16px; z-index: 50;
+    border-radius: 50px; padding: 12px 20px; box-shadow: 0 4px 20px rgba(37,99,235,.4); }
+
+  /* ── Utility ────────────────────────────────────────────── */
+  .hide-mobile  { display: none !important; }
+  .show-mobile  { display: block !important; }
+  .text-mobile-sm { font-size: 12px !important; }
+
+  /* ── Pratiche lista ─────────────────────────────────────── */
+  .pratiche-row-mobile {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 4px;
   }
+
+  /* ── Analisi zona ───────────────────────────────────────── */
+  .analisi-grid { grid-template-columns: 1fr 1fr !important; }
+  .stima-numero { font-size: 38px !important; }
+
+  /* ── Dashboard ──────────────────────────────────────────── */
+  .dashboard-row { flex-direction: column; gap: 10px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SMALL MOBILE  < 480px
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .page-body { padding: 8px; }
+  .card-body { padding: 10px; }
+  .kpi-row { grid-template-columns: 1fr 1fr !important; }
+  .kpi-value { font-size: 18px; }
+  .topbar-title { font-size: 14px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn { font-size: 13px; padding: 7px 12px; }
+  #map { height: 180px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LARGE DESKTOP  ≥ 1400px
+   ═══════════════════════════════════════════════════════════ */
+@media (min-width: 1400px) {
+  :root { --sidebar-w: 260px; }
+  .page-body { padding: 32px 36px; }
+  .topbar { padding: 16px 36px; }
+  .topbar-title { font-size: 22px; }
+  .kpi-value { font-size: 36px; }
+  .card-body { padding: 24px; }
+  .card-header { padding: 18px 24px; }
+  .table > :not(caption) > * > * { padding: 14px 18px; }
+}
   .d-flex.justify-content-between .btn {
     width: 100%;
   }
@@ -433,3 +514,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
+
