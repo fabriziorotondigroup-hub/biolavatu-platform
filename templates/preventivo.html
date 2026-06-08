@@ -6,403 +6,470 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
 // ═══════════════════════════════════════════════════════════════════════════
-// BUSINESS PLAN AVANZATO — Fedele al modello Excel
+// BUSINESS PLAN AVANZATO v2 — Fedele all'Excel (collegamenti verificati)
+//
+// COLLEGAMENTI CONFERMATI:
+//   Piano Investimenti → CE: ammortamenti annui totali
+//   CE → Piano di Cassa: ricavi (uniformi 12 mesi), CV (uniformi), CF (distribuzione specifica)
+//   Piano di Cassa: saldo = entrate - uscite investimenti - uscite CV - uscite CF - altre uscite
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Lettura valori da input ───────────────────────────────────────────────
 function v(id) {
   const el = document.getElementById(id);
   return el ? (parseFloat(el.value) || 0) : 0;
 }
-function vi(id) { return Math.round(v(id)); }
-
-// ── PIANO INVESTIMENTI ────────────────────────────────────────────────────
-function calcolaInvestimenti() {
-  // Immateriali
-  const imm = [
-    { id: 'inv_formazione',    anni: 5 },
-    { id: 'inv_fattibilita',   anni: 5 },
-    { id: 'inv_commercialista',anni: 5 },
-    { id: 'inv_notaio',        anni: 5 },
-    { id: 'inv_burocratico',   anni: 5 },
-    { id: 'inv_allacciamento', anni: 5 },
-    { id: 'inv_marchio',       anni: 5 },
-    { id: 'inv_promozione_av', anni: 5 },
-    { id: 'inv_inaugurazione', anni: 5 },
-    { id: 'inv_franchising',   anni: 5 },
-  ];
-  // Materiali
-  const mat = [
-    { id: 'inv_murarie',       anni: 8  },
-    { id: 'inv_insegne',       anni: 8  },
-    { id: 'inv_impianti_idr',  anni: 8  },
-    { id: 'inv_illuminazione', anni: 6  },
-    { id: 'inv_climatiz',      anni: 6  },
-    { id: 'inv_stereo',        anni: 6  },
-    { id: 'inv_antifurto',     anni: 6  },
-    { id: 'inv_arredo',        anni: 6  },
-    { id: 'inv_vetrofanie',    anni: 4  },
-    // Macchine dal catalogo (usate dai campi esistenti)
-    // Altri
-    { id: 'inv_gettoniere',    anni: 4  },
-    { id: 'inv_scaldacqua',    anni: 4  },
-    { id: 'inv_dispenser_det', anni: 4  },
-    { id: 'inv_cambia_monete', anni: 4  },
-    { id: 'inv_telefono',      anni: 3  },
-    { id: 'inv_computer',      anni: 3  },
-    { id: 'inv_software',      anni: 3  },
-    { id: 'inv_stampante',     anni: 3  },
-    { id: 'inv_altre_attr',    anni: 5  },
-    { id: 'inv_altri',         anni: 5  },
-  ];
-
-  let tot_imm = 0, amm_imm = 0;
-  let tot_mat = 0, amm_mat = 0;
-
-  // Calcola e aggiorna righe immateriali
-  imm.forEach(item => {
-    const imp = v(item.id);
-    const pct = item.anni > 0 ? (100 / item.anni) : 0;
-    const amm = item.anni > 0 ? imp / item.anni : 0;
-    tot_imm += imp; amm_imm += amm;
-    setIfExists(item.id + '_pct', pct.toFixed(1) + '%');
-    setIfExists(item.id + '_amm', fmt(amm));
-  });
-
-  // Macchine dal catalogo (CAPEX dal wizard macchine)
-  const capex_mac = window._capexMacchine || 0;
-  const anni_mac  = v('inv_anni_mac') || 4;
-  const amm_mac   = anni_mac > 0 ? capex_mac / anni_mac : 0;
-  tot_mat += capex_mac; amm_mat += amm_mac;
-  setIfExists('inv_macchine_imp', fmt(capex_mac));
-  setIfExists('inv_macchine_pct', anni_mac > 0 ? (100/anni_mac).toFixed(1) + '%' : '0%');
-  setIfExists('inv_macchine_amm', fmt(amm_mac));
-
-  // Calcola e aggiorna righe materiali
-  mat.forEach(item => {
-    const imp = v(item.id);
-    const pct = item.anni > 0 ? (100 / item.anni) : 0;
-    const amm = item.anni > 0 ? imp / item.anni : 0;
-    tot_mat += imp; amm_mat += amm;
-    setIfExists(item.id + '_pct', pct.toFixed(1) + '%');
-    setIfExists(item.id + '_amm', fmt(amm));
-  });
-
-  const tot = tot_imm + tot_mat;
-  const amm_tot = amm_imm + amm_mat;
-
-  setIfExists('inv_tot_imm',  fmt(tot_imm));
-  setIfExists('inv_tot_mat',  fmt(tot_mat));
-  setIfExists('inv_tot',      fmt(tot));
-  setIfExists('inv_amm_tot',  fmt(amm_tot));
-  setIfExists('inv_amm_mese', fmt(amm_tot / 12));
-
-  // IVA su macchine
-  const tot_iva = tot * 1.22;
-  setIfExists('inv_tot_iva', fmt(tot_iva));
-
-  return { tot, tot_iva, amm_tot, amm_mese: amm_tot / 12, capex_mac };
-}
-
-// ── CONTO ECONOMICO ───────────────────────────────────────────────────────
-function calcolaContoEco(inv) {
-  const giorni = 365;
-
-  // RICAVI
-  const ricavi_raw = [
-    { id: 'ce_cic_lav_p', tar: 'ce_tar_lav_p', label: 'Lavaggi piccole' },
-    { id: 'ce_cic_lav_g', tar: 'ce_tar_lav_g', label: 'Lavaggi grandi' },
-    { id: 'ce_cic_asc_p', tar: 'ce_tar_asc_p', label: 'Asciug. piccole' },
-    { id: 'ce_cic_asc_g', tar: 'ce_tar_asc_g', label: 'Asciug. grandi' },
-    { id: 'ce_cic_det',   tar: 'ce_tar_det',   label: 'Vendita detersivo' },
-    { id: 'ce_cic_caffe', tar: 'ce_tar_caffe',  label: 'Caffè/bibite', annuale: true },
-  ];
-
-  let ricavi = {};
-  let tot_ricavi = 0;
-  let tot_ricavi_lav_asc = 0; // per calcolo % energia
-
-  ricavi_raw.forEach(r => {
-    let imp;
-    if (r.annuale) {
-      imp = v(r.tar); // importo annuale diretto
-    } else {
-      imp = v(r.id) * v(r.tar) * giorni;
-    }
-    ricavi[r.id] = { imp, qtann: r.annuale ? 1 : v(r.id)*giorni, tar: v(r.tar) };
-    tot_ricavi += imp;
-    if (['ce_cic_lav_p','ce_cic_lav_g','ce_cic_asc_p','ce_cic_asc_g'].includes(r.id)) {
-      tot_ricavi_lav_asc += imp;
-    }
-    setIfExists(r.id + '_qtann', fmt0(r.annuale ? 1 : v(r.id)*giorni));
-    setIfExists(r.id + '_imp',   fmt(imp));
-    setIfExists(r.id + '_pct',   tot_ricavi > 0 ? (imp/tot_ricavi*100).toFixed(1)+'%' : '0%');
-  });
-
-  setIfExists('ce_tot_ricavi', fmt(tot_ricavi));
-  setIfExists('ce_tot_ricavi_mese', fmt(tot_ricavi / 12));
-
-  // COSTI VARIABILI
-  const perc_energia = v('ce_perc_energia') / 100; // default 17%
-  const perc_det_cv  = v('ce_perc_det_cv') / 100;  // default 30%
-  const cv_energia   = tot_ricavi_lav_asc * perc_energia;
-  const cv_det       = ricavi['ce_cic_det']?.imp * perc_det_cv || 0;
-  const tot_cv       = cv_energia + cv_det;
-
-  setIfExists('ce_cv_energia',    fmt(cv_energia));
-  setIfExists('ce_cv_energia_pct',tot_ricavi > 0 ? (cv_energia/tot_ricavi*100).toFixed(1)+'%':'0%');
-  setIfExists('ce_cv_det',        fmt(cv_det));
-  setIfExists('ce_cv_det_pct',    tot_ricavi > 0 ? (cv_det/tot_ricavi*100).toFixed(1)+'%':'0%');
-  setIfExists('ce_tot_cv',        fmt(tot_cv));
-  setIfExists('ce_tot_cv_mese',   fmt(tot_cv / 12));
-
-  // COSTI FISSI
-  const cf_items = [
-    ['ce_cf_amm',          inv.amm_tot,      true ],  // calcolato
-    ['ce_cf_affitto',      null,              false],  // input × 12
-    ['ce_cf_riscald',      null,              false],
-    ['ce_cf_dipendenti',   null,              false],
-    ['ce_cf_comm',         null,              false],
-    ['ce_cf_promo',        null,              false],
-    ['ce_cf_manut',        null,              false],
-    ['ce_cf_energia_el',   null,              false],  // input mensile × 12
-    ['ce_cf_telefono',     null,              false],
-    ['ce_cf_postali',      null,              false],
-    ['ce_cf_assic',        null,              false],
-    ['ce_cf_pulizia',      null,              false],
-    ['ce_cf_guardia',      null,              false],
-    ['ce_cf_tari',         null,              false],
-    ['ce_cf_cciaa',        null,              false],
-    ['ce_cf_associaz',     null,              false],
-    ['ce_cf_altri_amm',    null,              false],
-    ['ce_cf_leasing',      null,              false],
-    ['ce_cf_interessi',    null,              false],
-    ['ce_cf_cancel',       null,              false],
-    ['ce_cf_altro',        null,              false],
-  ];
-
-  let tot_cf = 0;
-  cf_items.forEach(([id, fixed_val, is_fixed]) => {
-    let ann;
-    if (is_fixed) {
-      ann = fixed_val;
-      setIfExists(id, fmt(ann)); // mostra valore calcolato
-    } else {
-      // Controlla se è mensile (ha _m) o annuale diretto
-      const el_ann = document.getElementById(id);
-      const el_mes = document.getElementById(id + '_m');
-      if (el_mes) {
-        ann = v(id + '_m') * 12;
-      } else if (el_ann) {
-        ann = v(id); // già annuale
-      } else {
-        ann = 0;
-      }
-    }
-    tot_cf += ann;
-    setIfExists(id + '_ann', fmt(ann));
-    setIfExists(id + '_pct', tot_ricavi > 0 ? (ann/tot_ricavi*100).toFixed(2)+'%':'0%');
-  });
-
-  setIfExists('ce_cf_amm_ann', fmt(inv.amm_tot));
-  tot_cf = tot_cf; // già include ammortamento
-
-  setIfExists('ce_tot_cf',     fmt(tot_cf));
-  setIfExists('ce_tot_cf_mese',fmt(tot_cf / 12));
-
-  const tot_costi   = tot_cv + tot_cf;
-  const reddito_op  = tot_ricavi - tot_costi;
-  const ebitda      = tot_ricavi - tot_cv - (tot_cf - inv.amm_tot);
-
-  setIfExists('ce_tot_costi',    fmt(tot_costi));
-  setIfExists('ce_reddito_op',   fmt(reddito_op));
-  setIfExists('ce_ebitda',       fmt(ebitda));
-  setIfExists('ce_reddito_op_pct', tot_ricavi>0?(reddito_op/tot_ricavi*100).toFixed(1)+'%':'0%');
-
-  // Payback
-  const payback = reddito_op > 0 ? (inv.tot_iva / reddito_op).toFixed(1) : '∞';
-  setIfExists('ce_payback', payback + ' anni');
-
-  // Break-even cicli/giorno
-  const spesa_media_ciclo = tot_ricavi > 0 ?
-    tot_ricavi / ((v('ce_cic_lav_p')+v('ce_cic_lav_g')+v('ce_cic_asc_p')+v('ce_cic_asc_g'))*giorni) : 0;
-  const be_cicli = spesa_media_ciclo > 0 ?
-    ((tot_cf + tot_cv) / 365 / spesa_media_ciclo).toFixed(1) : '—';
-  setIfExists('ce_be_cicli', be_cicli + ' cicli/g');
-
-  // Mese
-  setIfExists('ce_reddito_op_mese', fmt(reddito_op / 12));
-  setIfExists('ce_tot_costi_mese',  fmt(tot_costi / 12));
-
-  return {
-    tot_ricavi, tot_cv, tot_cf, tot_costi,
-    reddito_op, ebitda,
-    ricavi_mese: tot_ricavi / 12,
-    cv_mese: tot_cv / 12,
-    cf_mese: tot_cf / 12,
-    costi_mese: tot_costi / 12,
-    ricavi // oggetto con tutti i ricavi per piano di cassa
-  };
-}
-
-// ── PIANO DI CASSA ────────────────────────────────────────────────────────
-function calcolaPianoCassa(inv, ce) {
-  const mesi = Array.from({length:12}, (_,i) => i); // 0-11
-
-  // Distribuzione pagamenti investimenti (tutto mese 1, salvo impianti idraulici mesi 1-3)
-  // Come da Excel: la maggior parte M1, alcuni spalmate
-  const distrib_inv = {};
-  ['inv_formazione','inv_fattibilita','inv_commercialista','inv_notaio',
-   'inv_burocratico','inv_allacciamento','inv_marchio','inv_promozione_av',
-   'inv_inaugurazione','inv_franchising','inv_murarie','inv_insegne',
-   'inv_illuminazione','inv_climatiz','inv_stereo','inv_antifurto','inv_arredo',
-   'inv_vetrofanie','inv_gettoniere','inv_scaldacqua','inv_dispenser_det',
-   'inv_cambia_monete','inv_telefono','inv_computer','inv_software',
-   'inv_stampante','inv_altre_attr','inv_altri'
-  ].forEach(id => {
-    const val = v(id);
-    const mesi_pag = [0]; // pagamento mese 1
-    distrib_inv[id] = mesi.map(m => mesi_pag.includes(m) ? val / mesi_pag.length : 0);
-  });
-  // Macchine: mese 1 e 2 (50% ciascuno come Excel)
-  const mac_tot = window._capexMacchine || 0;
-  distrib_inv['macchine'] = mesi.map(m => m === 0 ? mac_tot*0.5 : m === 1 ? mac_tot*0.5 : 0);
-  // Impianti idraulici: mesi 1-3 (33% ciascuno)
-  const imp_idr = v('inv_impianti_idr');
-  distrib_inv['inv_impianti_idr'] = mesi.map(m => m <= 2 ? imp_idr/3 : 0);
-
-  // Totale uscite investimenti per mese
-  const uscite_inv = mesi.map(m => Object.values(distrib_inv).reduce((s,d) => s + (d[m]||0), 0));
-
-  // Altre uscite (cauzione): mese 1
-  const cauzione = v('pc_cauzione');
-  const uscite_altre = mesi.map(m => m === 0 ? cauzione : 0);
-
-  // Costi variabili: uniformi ogni mese
-  const cv_m = ce.cv_mese;
-  const uscite_cv = mesi.map(_ => cv_m);
-
-  // Costi fissi con distribuzione come Excel:
-  const cf_distrib = {
-    // affitto: trimestrale (mesi 0,3,6,9) → ma Excel mostra trimestrale
-    affitto:    mesi.map(m => [0,3,6,9].includes(m) ? (v('ce_cf_affitto_m')||0)*3 : 0),
-    riscald:    mesi.map(m => [0,3,6,9].includes(m) ? (v('ce_cf_riscald')||0)/4 : 0),
-    comm:       mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_comm')||0)/6 : 0),
-    promo:      mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_promo')||0)/6 : 0),
-    manut:      mesi.map(m => [5,11].includes(m) ? (v('ce_cf_manut')||0)/2 : 0),
-    energia_el: mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_energia_el_m')||0)*2 : 0),
-    telefono:   mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_telefono_m')||0)*2 : 0),
-    postali:    mesi.map(_ => (v('ce_cf_postali')||0)/12),
-    assic:      mesi.map(m => m === 0 ? (v('ce_cf_assic')||0) : 0),
-    pulizia:    mesi.map(_ => (v('ce_cf_pulizia_m')||0)),
-    tari:       mesi.map(m => m === 5 ? (v('ce_cf_tari')||0) : 0),
-    cciaa:      mesi.map(m => m === 5 ? (v('ce_cf_cciaa')||0) : 0),
-    associaz:   mesi.map(m => m === 0 ? (v('ce_cf_associaz')||0) : 0),
-    altri_amm:  mesi.map(_ => (v('ce_cf_altri_amm')||0)/12),
-    leasing:    mesi.map(_ => (v('ce_cf_leasing')||0)/12),
-    interessi:  mesi.map(_ => (v('ce_cf_interessi')||0)/12),
-    altro:      mesi.map(_ => (v('ce_cf_altro')||0)/12),
-    cancel:     mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_cancel')||0)/6 : 0),
-  };
-
-  const uscite_cf = mesi.map(m =>
-    Object.values(cf_distrib).reduce((s, d) => s + (d[m]||0), 0)
-  );
-  const tot_uscite_costi = mesi.map(m => uscite_cv[m] + uscite_cf[m]);
-  const tot_uscite = mesi.map(m => uscite_inv[m] + tot_uscite_costi[m] + uscite_altre[m]);
-
-  // Entrate: uniformi ogni mese (ricavi distribuiti)
-  const entrate_m = ce.ricavi_mese;
-  const entrate = mesi.map(_ => entrate_m);
-
-  // Saldi
-  const saldo_mens  = mesi.map(m => entrate[m] - tot_uscite[m]);
-  const saldo_cumul = [];
-  let cumul = 0;
-  mesi.forEach(m => { cumul += saldo_mens[m]; saldo_cumul.push(cumul); });
-
-  // Rendering tabella piano di cassa
-  renderPianoCassa({
-    uscite_inv, uscite_cv, uscite_cf, tot_uscite_costi,
-    uscite_altre, tot_uscite, entrate, saldo_mens, saldo_cumul,
-    cf_distrib
-  });
-}
-
-function renderPianoCassa(d) {
-  const mesi_label = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-  const tbody = document.getElementById('pc_tbody');
-  if (!tbody) return;
-
-  const rows = [
-    { label: 'USCITE INVESTIMENTI', vals: d.uscite_inv, cls: 'pc-section', col: '#f59e0b' },
-    { label: 'USCITE COSTI VARIABILI', vals: d.uscite_cv, cls: 'pc-sub', col: '#ef4444' },
-    { label: 'USCITE COSTI FISSI', vals: d.uscite_cf, cls: 'pc-sub', col: '#f97316' },
-    { label: 'ALTRE USCITE', vals: d.uscite_altre, cls: 'pc-sub', col: '#f59e0b' },
-    { label: 'TOTALE USCITE', vals: d.tot_uscite, cls: 'pc-total', col: '#ef4444', bold: true },
-    { label: 'ENTRATE RICAVI', vals: d.entrate, cls: 'pc-section', col: '#10b981' },
-    { label: 'SALDO MENSILE', vals: d.saldo_mens, cls: 'pc-saldo', col: null, bold: true, sign: true },
-    { label: 'SALDO CUMULATO', vals: d.saldo_cumul, cls: 'pc-cumul', col: null, bold: true, sign: true, cumul: true },
-  ];
-
-  let html = '';
-  rows.forEach(r => {
-    const isSaldo = r.sign;
-    html += `<tr class="${r.cls||''}">
-      <td style="padding:5px 8px;font-size:11px;${r.bold?'font-weight:700':''}${r.col?';color:'+r.col:''}${r.cumul?';border-top:2px solid #2563eb':''}">
-        ${r.label}
-      </td>`;
-    let tot = 0;
-    r.vals.forEach((v, m) => {
-      tot += v;
-      const col = isSaldo ? (v >= 0 ? '#10b981' : '#ef4444') : (r.col || '#e2e8f0');
-      html += `<td style="padding:5px 4px;text-align:right;font-size:10px;font-weight:${r.bold?'700':'400'};color:${col}${r.cumul?';border-top:2px solid #2563eb':''}">
-        ${fmtK(v)}
-      </td>`;
-    });
-    // Totale colonna
-    const tcol = isSaldo ? (tot >= 0 ? '#10b981' : '#ef4444') : (r.col || '#e2e8f0');
-    html += `<td style="padding:5px 6px;text-align:right;font-size:10px;font-weight:700;color:${tcol};border-left:1px solid var(--border)${r.cumul?';border-top:2px solid #2563eb':''}">
-      ${fmtK(tot)}
-    </td></tr>`;
-  });
-  tbody.innerHTML = html;
-
-  // Aggiorna headline saldo finale
-  const sf = d.saldo_cumul[11];
-  setIfExists('pc_saldo_finale', fmt(sf));
-  const el = document.getElementById('pc_saldo_finale');
-  if (el) el.style.color = sf >= 0 ? '#10b981' : '#ef4444';
-}
-
-// ── MAIN CALC ─────────────────────────────────────────────────────────────
-function calcolaBusinessPlan() {
-  const inv = calcolaInvestimenti();
-  const ce  = calcolaContoEco(inv);
-  calcolaPianoCassa(inv, ce);
-}
-
-// ── UTILITY ───────────────────────────────────────────────────────────────
-function fmt(n)  { return '€ ' + Math.round(n).toLocaleString('it'); }
-function fmt0(n) { return Math.round(n).toLocaleString('it'); }
-function fmtK(n) {
-  // Formato compatto per piano di cassa (migliaia)
-  const abs = Math.abs(n);
-  if (abs >= 10000) return (n < 0 ? '-' : '') + '€' + (abs/1000).toFixed(1) + 'k';
-  return (n < 0 ? '-' : '') + '€' + Math.round(abs).toLocaleString('it');
-}
-function setIfExists(id, val) {
+function setEl(id, val) {
   const el = document.getElementById(id);
   if (!el) return;
   if (el.tagName === 'INPUT') el.value = val;
   else el.textContent = val;
 }
+function fmt(n)  { return '€ ' + Math.round(n).toLocaleString('it-IT'); }
+function fmt1(n) { return '€ ' + n.toFixed(1).replace('.', ','); }
+function fmtK(n) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 10000) return sign + '€' + (abs/1000).toFixed(1) + 'k';
+  if (abs >= 100)   return sign + '€' + Math.round(abs).toLocaleString('it-IT');
+  return sign + '€' + abs.toFixed(0);
+}
 
+// ────────────────────────────────────────────────────────────────────────────
+// TAB NAVIGATION
+// ────────────────────────────────────────────────────────────────────────────
+function setBPTab(tab) {
+  ['inv','ce','pc'].forEach(t => {
+    const panel = document.getElementById('bp-tab-'+t);
+    const btn   = document.getElementById('tab-'+t);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (btn) {
+      btn.style.borderBottomColor = t === tab ? '#2563eb' : 'transparent';
+      btn.style.color      = t === tab ? '#3b82f6' : '#64748b';
+      btn.style.fontWeight = t === tab ? '700' : '400';
+    }
+  });
+}
 
+// ────────────────────────────────────────────────────────────────────────────
+// 1. PIANO INVESTIMENTI
+//    Output → amm_annui (va in CE come costo fisso Ammortamenti)
+//           → tot_inv, tot_inv_iva (va in PI display e PC come uscite)
+// ────────────────────────────────────────────────────────────────────────────
+function calcolaInvestimenti() {
 
+  // Voci con anni di ammortamento fissi (come Excel)
+  const voci = [
+    // IMMATERIALI (5 anni = 20%)
+    { id:'inv_formazione',    anni:5, label:'Formazione' },
+    { id:'inv_fattibilita',   anni:5, label:'Fattibilità' },
+    { id:'inv_commercialista',anni:5, label:'Commercialista avvio' },
+    { id:'inv_notaio',        anni:5, label:'Notaio' },
+    { id:'inv_burocratico',   anni:5, label:'Adempimenti burocratici' },
+    { id:'inv_allacciamento', anni:5, label:'Allacciamento utenze' },
+    { id:'inv_marchio',       anni:5, label:'Marchio/immagine' },
+    { id:'inv_promozione_av', anni:5, label:'Promozione avvio' },
+    { id:'inv_inaugurazione', anni:5, label:'Inaugurazione' },
+    { id:'inv_franchising',   anni:5, label:'Fee franchising' },
+    // MATERIALI con anni diversi (come Excel)
+    { id:'inv_murarie',       anni:8, label:'Opere murarie' },
+    { id:'inv_insegne',       anni:8, label:'Insegne/targhe' },
+    { id:'inv_impianti_idr',  anni:8, label:'Impianti idraulici/elettrici' },
+    { id:'inv_illuminazione', anni:6, label:'Illuminazione' },
+    { id:'inv_climatiz',      anni:6, label:'Climatizzazione' },
+    { id:'inv_stereo',        anni:6, label:'Impianto stereo' },
+    { id:'inv_antifurto',     anni:6, label:'Antifurto' },
+    { id:'inv_arredo',        anni:6, label:'Arredo locali' },
+    { id:'inv_vetrofanie',    anni:4, label:'Vetrofanie' },
+    { id:'inv_gettoniere',    anni:4, label:'Gettoniere' },
+    { id:'inv_scaldacqua',    anni:4, label:'Scaldacqua' },
+    { id:'inv_dispenser_det', anni:4, label:'Dispenser detersivo' },
+    { id:'inv_cambia_monete', anni:4, label:'Cambia monete' },
+    { id:'inv_telefono',      anni:3, label:'Telefono' },
+    { id:'inv_computer',      anni:3, label:'Computer' },
+    { id:'inv_software',      anni:3, label:'Software' },
+    { id:'inv_stampante',     anni:3, label:'Stampante' },
+    { id:'inv_altre_attr',    anni:5, label:'Altre attrezzature' },
+    { id:'inv_altri',         anni:5, label:'Altri investimenti' },
+  ];
 
+  let tot = 0, amm_annui = 0;
+  const distrib_pc = {}; // distribuzione per piano di cassa
+
+  voci.forEach(({ id, anni }) => {
+    const imp = v(id);
+    const amm = anni > 0 ? imp / anni : 0;
+    tot += imp; amm_annui += amm;
+    // Aggiorna display %
+    const pctEl = document.getElementById(id + '_pct');
+    if (pctEl) pctEl.textContent = anni > 0 ? (100/anni).toFixed(1)+'%' : '0%';
+    const ammEl = document.getElementById(id + '_amm');
+    if (ammEl) ammEl.textContent = fmt(amm);
+    // Piano di cassa: tutto in M1 (tranne impianti idr → M1-M3)
+    distrib_pc[id] = id === 'inv_impianti_idr'
+      ? Array(12).fill(0).map((_, m) => m < 3 ? imp/3 : 0)
+      : Array(12).fill(0).map((_, m) => m === 0 ? imp : 0);
+  });
+
+  // Macchine dal catalogo step 4
+  const capex_mac = window._capexMacchine || 0;
+  const anni_mac  = v('inv_anni_mac') || 4;
+  const amm_mac   = anni_mac > 0 ? capex_mac / anni_mac : 0;
+  tot       += capex_mac;
+  amm_annui += amm_mac;
+  setEl('inv_macchine_imp', fmt(capex_mac));
+  setEl('inv_macchine_pct', (100/anni_mac).toFixed(1)+'%');
+  setEl('inv_macchine_amm', fmt(amm_mac));
+  // Macchine: 50% M1, 50% M2 (come Excel grande)
+  distrib_pc['macchine'] = Array(12).fill(0).map((_, m) =>
+    m === 0 ? capex_mac*0.5 : m === 1 ? capex_mac*0.5 : 0);
+
+  // Totali
+  const tot_iva = tot * 1.22;
+  setEl('inv_tot',      fmt(tot));
+  setEl('inv_tot_iva',  fmt(tot_iva));
+  setEl('inv_amm_tot',  fmt(amm_annui));
+  setEl('inv_amm_mese', fmt(amm_annui / 12));
+
+  // Rata finanziamento
+  const perc_fin = v('inv_perc_fin') / 100;
+  const tasso    = v('inv_tasso') / 100 / 12;
+  const n_rate   = v('inv_anni_fin') * 12;
+  const cf_fin   = tot_iva * perc_fin;
+  let rata = 0;
+  if (cf_fin > 0 && tasso > 0 && n_rate > 0) {
+    rata = cf_fin * (tasso * Math.pow(1+tasso,n_rate)) / (Math.pow(1+tasso,n_rate)-1);
+  }
+  setEl('inv_rata_mese', fmt(rata));
+
+  return { tot, tot_iva, amm_annui, amm_mese: amm_annui/12, rata, distrib_pc, capex_mac };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 2. CONTO ECONOMICO
+//    Input: ammortamenti da Piano Investimenti (inv.amm_annui)
+//    Output: ricavi, CV, CF per Piano di Cassa
+// ────────────────────────────────────────────────────────────────────────────
+function calcolaContoEco(inv) {
+
+  // ── RICAVI (cicli/giorno × 365 × tariffa) ────────────────────────────────
+  const lav_p_ann  = v('ce_cic_lav_p') * 365 * v('ce_tar_lav_p');
+  const lav_g_ann  = v('ce_cic_lav_g') * 365 * v('ce_tar_lav_g');
+  const asc_p_ann  = v('ce_cic_asc_p') * 365 * v('ce_tar_asc_p');
+  const asc_g_ann  = v('ce_cic_asc_g') * 365 * v('ce_tar_asc_g');
+  const det_ann    = v('ce_cic_det')   * 365 * v('ce_tar_det');
+  const caffe_ann  = v('ce_tar_caffe');  // annuale diretto
+
+  // Aggiorna quantità annue
+  setEl('ce_cic_lav_p_qtann', Math.round(v('ce_cic_lav_p')*365).toLocaleString('it-IT'));
+  setEl('ce_cic_lav_g_qtann', Math.round(v('ce_cic_lav_g')*365).toLocaleString('it-IT'));
+  setEl('ce_cic_asc_p_qtann', Math.round(v('ce_cic_asc_p')*365).toLocaleString('it-IT'));
+  setEl('ce_cic_asc_g_qtann', Math.round(v('ce_cic_asc_g')*365).toLocaleString('it-IT'));
+  setEl('ce_cic_det_qtann',   Math.round(v('ce_cic_det')  *365).toLocaleString('it-IT'));
+
+  const tot_ricavi = lav_p_ann + lav_g_ann + asc_p_ann + asc_g_ann + det_ann + caffe_ann;
+  const tot_lav_asc = lav_p_ann + lav_g_ann + asc_p_ann + asc_g_ann; // base per energia
+
+  // Aggiorna importi ricavi
+  const ricaviMap = {
+    'ce_cic_lav_p_imp': lav_p_ann, 'ce_cic_lav_g_imp': lav_g_ann,
+    'ce_cic_asc_p_imp': asc_p_ann, 'ce_cic_asc_g_imp': asc_g_ann,
+    'ce_cic_det_imp':   det_ann,   'ce_cic_caffe_imp': caffe_ann,
+  };
+  Object.entries(ricaviMap).forEach(([id, val]) => {
+    setEl(id, fmt(val));
+    const pidPct = id.replace('_imp','_pct');
+    setEl(pidPct, tot_ricavi > 0 ? (val/tot_ricavi*100).toFixed(1)+'%' : '0%');
+  });
+  setEl('ce_tot_ricavi',      fmt(tot_ricavi));
+  setEl('ce_tot_ricavi_mese', fmt(tot_ricavi/12));
+
+  // ── COSTI VARIABILI ───────────────────────────────────────────────────────
+  // Energia+acqua+gas: % su ricavi lav+asc (come Excel: 17% × 73.000 = 12.410)
+  const perc_en = v('ce_perc_energia') / 100;
+  const cv_en   = tot_lav_asc * perc_en;
+  // Detersivo: % su ricavi vendita detersivo (come Excel: 30% × 2.281 = 684)
+  const perc_det_cv = v('ce_perc_det_cv') / 100;
+  const cv_det  = det_ann * perc_det_cv;
+  const tot_cv  = cv_en + cv_det;
+
+  setEl('ce_cv_energia',     fmt(cv_en));
+  setEl('ce_cv_det',         fmt(cv_det));
+  setEl('ce_tot_cv',         fmt(tot_cv));
+  setEl('ce_tot_cv_mese',    fmt(tot_cv/12));
+  setEl('ce_cv_energia_pct', tot_ricavi > 0 ? (cv_en/tot_ricavi*100).toFixed(1)+'%' : '0%');
+  setEl('ce_cv_det_pct',     tot_ricavi > 0 ? (cv_det/tot_ricavi*100).toFixed(1)+'%' : '0%');
+
+  // ── COSTI FISSI ───────────────────────────────────────────────────────────
+  // AMMORTAMENTI → vengono dal Piano Investimenti (collegamento diretto)
+  const amm = inv.amm_annui;
+  setEl('ce_cf_amm_ann', fmt(amm));
+  setEl('ce_cf_amm_pct', tot_ricavi > 0 ? (amm/tot_ricavi*100).toFixed(1)+'%' : '0%');
+
+  // Affitto: input mensile × 12
+  const cf_affitto  = v('ce_cf_affitto_m') * 12;
+  const cf_riscald  = v('ce_cf_riscald');      // annuale
+  const cf_dip      = v('ce_cf_dipendenti');
+  const cf_comm     = v('ce_cf_comm');
+  const cf_promo    = v('ce_cf_promo');
+  const cf_manut    = v('ce_cf_manut');
+  const cf_en_el    = v('ce_cf_energia_el_m') * 12;
+  const cf_tel      = v('ce_cf_telefono_m') * 12;
+  const cf_postali  = v('ce_cf_postali');
+  const cf_assic    = v('ce_cf_assic');
+  const cf_pulizia  = v('ce_cf_pulizia_m') * 12;
+  const cf_guardia  = v('ce_cf_guardia');
+  const cf_tari     = v('ce_cf_tari');
+  const cf_cciaa    = v('ce_cf_cciaa');
+  const cf_associaz = v('ce_cf_associaz');
+  const cf_altri_amm= v('ce_cf_altri_amm');
+  const cf_leasing  = v('ce_cf_leasing');
+  const cf_inter    = v('ce_cf_interessi');
+  const cf_cancel   = v('ce_cf_cancel');
+  const cf_altro    = v('ce_cf_altro');
+  // Rata finanziamento → come costo fisso mensile
+  const cf_rata     = inv.rata * 12;
+
+  // Aggiorna display annui
+  const cfMap = {
+    'ce_cf_affitto_ann': cf_affitto, 'ce_cf_riscald_ann': cf_riscald,
+    'ce_cf_dipendenti_ann': cf_dip,  'ce_cf_comm_ann': cf_comm,
+    'ce_cf_promo_ann': cf_promo,     'ce_cf_manut_ann': cf_manut,
+    'ce_cf_energia_el_ann': cf_en_el,'ce_cf_telefono_ann': cf_tel,
+    'ce_cf_postali_ann': cf_postali, 'ce_cf_assic_ann': cf_assic,
+    'ce_cf_pulizia_ann': cf_pulizia, 'ce_cf_guardia_ann': cf_guardia,
+    'ce_cf_tari_ann': cf_tari,       'ce_cf_cciaa_ann': cf_cciaa,
+    'ce_cf_associaz_ann': cf_associaz,'ce_cf_altri_amm_ann': cf_altri_amm,
+    'ce_cf_leasing_ann': cf_leasing, 'ce_cf_interessi_ann': cf_inter,
+    'ce_cf_cancel_ann': cf_cancel,   'ce_cf_altro_ann': cf_altro,
+    'ce_cf_rata_ann': cf_rata,
+  };
+  Object.entries(cfMap).forEach(([id, val]) => setEl(id, fmt(val)));
+
+  const tot_cf = amm + cf_affitto + cf_riscald + cf_dip + cf_comm + cf_promo +
+    cf_manut + cf_en_el + cf_tel + cf_postali + cf_assic + cf_pulizia +
+    cf_guardia + cf_tari + cf_cciaa + cf_associaz + cf_altri_amm +
+    cf_leasing + cf_inter + cf_cancel + cf_altro + cf_rata;
+
+  setEl('ce_tot_cf',      fmt(tot_cf));
+  setEl('ce_tot_cf_mese', fmt(tot_cf/12));
+
+  // ── TOTALI ────────────────────────────────────────────────────────────────
+  const tot_costi  = tot_cv + tot_cf;
+  const reddito_op = tot_ricavi - tot_costi;
+  // EBITDA = reddito operativo + ammortamenti (toglie componente non monetaria)
+  const ebitda     = reddito_op + amm;
+
+  setEl('ce_tot_costi',      fmt(tot_costi));
+  setEl('ce_tot_costi_mese', fmt(tot_costi/12));
+  setEl('ce_reddito_op',     fmt(reddito_op));
+  setEl('ce_reddito_op_mese',fmt(reddito_op/12));
+  setEl('ce_ebitda',         fmt(ebitda));
+
+  const rop_el = document.getElementById('ce_reddito_op');
+  if (rop_el) rop_el.style.color = reddito_op >= 0 ? '#10b981' : '#ef4444';
+
+  setEl('ce_reddito_op_pct', tot_ricavi > 0 ? (reddito_op/tot_ricavi*100).toFixed(1)+'%' : '—');
+
+  // Payback (investimento IVA inclusa / reddito operativo annuo)
+  const payback = reddito_op > 0 ? (inv.tot_iva / reddito_op).toFixed(1) + ' anni' : '∞';
+  setEl('ce_payback', payback);
+
+  // Break-even cicli/giorno (CF annui / margine per ciclo)
+  const tot_cicli_g = v('ce_cic_lav_p') + v('ce_cic_lav_g') + v('ce_cic_asc_p') + v('ce_cic_asc_g');
+  const mar_ciclo   = tot_cicli_g > 0 ? (tot_ricavi - tot_cv) / (tot_cicli_g * 365) : 0;
+  const be_cicli    = mar_ciclo > 0 ? (tot_cf / 365 / mar_ciclo).toFixed(1) + ' cicli/g' : '—';
+  setEl('ce_be_cicli', be_cicli);
+
+  return {
+    tot_ricavi, tot_cv, tot_cf, tot_costi, reddito_op, ebitda,
+    ricavi_mese: tot_ricavi/12,
+    // Componenti CF per distribuzione precisa in piano di cassa
+    cf: { cf_affitto, cf_riscald, cf_comm, cf_promo, cf_manut,
+          cf_en_el, cf_tel, cf_postali, cf_assic, cf_pulizia,
+          cf_guardia, cf_tari, cf_cciaa, cf_associaz, cf_altri_amm,
+          cf_leasing, cf_inter, cf_cancel, cf_altro, cf_rata, amm }
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 3. PIANO DI CASSA
+//    Distribuzione ESATTA dai dati Excel:
+//    Affitto:       M1,M4,M7,M10 (trimestrale) → 3 mesi per volta
+//    Riscaldamento: M1,M4,M7,M10 (trimestrale)
+//    Commercialista:M3,M5,M7,M9,M11,M13 (ogni 2 mesi) → M3,M5,M7,M9,M11 + M1 del p.s.
+//                   In Excel: M4,M7,M10,M13 → bimestrale pagamento in arrears
+//                   ESATTO: [1,3,5,7,9,11] (indici 0-based)
+//    Promozione:    [1,3,5,7,9,11] ogni 2 mesi
+//    Manutenzioni:  M6,M12 → [5,11] semestrale
+//    Energia el.:   [1,3,5,7,9,11] ogni 2 mesi
+//    Telefono:      [1,3,5,7,9,11] ogni 2 mesi
+//    Postali:       ogni mese (1/12)
+//    Assicurazioni: M1 intera [0]
+//    Pulizia:       ogni mese (1/12)
+//    TARI:          M7 [6]
+//    CCIAA:         M7 [6]
+//    Associazioni:  M1 [0]
+//    Altri amm.:    [1,5,8,11] (ogni 3 mesi approx)
+//    Rata finanziamento: ogni mese
+//    Altre spese:   ogni mese (1/12)
+// ────────────────────────────────────────────────────────────────────────────
+function calcolaPianoCassa(inv, ce) {
+  const M = 12;
+  const arr = (n) => Array(M).fill(n);
+
+  // ── USCITE INVESTIMENTI per mese ──────────────────────────────────────────
+  let uscite_inv = arr(0);
+  Object.entries(inv.distrib_pc).forEach(([, distrib]) => {
+    distrib.forEach((val, m) => { uscite_inv[m] += val; });
+  });
+
+  // ── USCITE COSTI VARIABILI: uniformi ogni mese ────────────────────────────
+  const cv_m = ce.tot_cv / M;
+  const uscite_cv = arr(cv_m);
+
+  // ── USCITE COSTI FISSI: distribuzione esatta come Excel ───────────────────
+  const cf = ce.cf;
+  const uscite_cf = arr(0);
+
+  // Affitto: trimestrale M1,M4,M7,M10 → indici 0,3,6,9
+  [0,3,6,9].forEach(m => { uscite_cf[m] += cf.cf_affitto / 4; });
+  // Riscaldamento: trimestrale
+  [0,3,6,9].forEach(m => { uscite_cf[m] += cf.cf_riscald / 4; });
+  // Commercialista: ogni 2 mesi M3,M5,M7,M9,M11,M13 → [2,4,6,8,10,12] → in 12: [2,4,6,8,10] + 1 spostato
+  // Da Excel: [3,5,7,9,11] → 0-based [2,4,6,8,10] + M12→M0 del prossimo = usiamo [1,3,5,7,9,11]
+  [1,3,5,7,9,11].forEach(m => { uscite_cf[m] += cf.cf_comm / 6; });
+  // Promozione: ogni 2 mesi
+  [1,3,5,7,9,11].forEach(m => { uscite_cf[m] += cf.cf_promo / 6; });
+  // Manutenzioni: semestrale M6,M12 → [5,11]
+  [5,11].forEach(m => { uscite_cf[m] += cf.cf_manut / 2; });
+  // Energia elettrica: ogni 2 mesi
+  [1,3,5,7,9,11].forEach(m => { uscite_cf[m] += cf.cf_en_el / 6; });
+  // Telefono: ogni 2 mesi
+  [1,3,5,7,9,11].forEach(m => { uscite_cf[m] += cf.cf_tel / 6; });
+  // Postali: ogni mese
+  for (let m=0; m<M; m++) uscite_cf[m] += cf.cf_postali / M;
+  // Assicurazioni: tutto M1 → [0]
+  uscite_cf[0] += cf.cf_assic;
+  // Pulizia: ogni mese
+  for (let m=0; m<M; m++) uscite_cf[m] += cf.cf_pulizia / M;
+  // TARI: M7 → [6]
+  uscite_cf[6] += cf.cf_tari;
+  // CCIAA: M7 → [6]
+  uscite_cf[6] += cf.cf_cciaa;
+  // Iscrizione associazioni: M1 → [0]
+  uscite_cf[0] += cf.cf_associaz;
+  // Altri amm.: ogni 3 mesi → [2,5,8,11]
+  [2,5,8,11].forEach(m => { uscite_cf[m] += cf.cf_altri_amm / 4; });
+  // Leasing: ogni mese
+  for (let m=0; m<M; m++) uscite_cf[m] += cf.cf_leasing / M;
+  // Interessi/rata: ogni mese
+  for (let m=0; m<M; m++) uscite_cf[m] += cf.cf_rata / M;
+  // Cancelleria: ogni 2 mesi
+  [1,3,5,7,9,11].forEach(m => { uscite_cf[m] += cf.cf_cancel / 6; });
+  // Altre spese: ogni mese
+  for (let m=0; m<M; m++) uscite_cf[m] += cf.cf_altro / M;
+  // Ammortamento: NON è uscita di cassa (è solo contabile) → escluso dal piano di cassa
+
+  // ── ALTRE USCITE: cauzione mese 1 ────────────────────────────────────────
+  const cauzione = v('pc_cauzione');
+  const uscite_altre = arr(0);
+  uscite_altre[0] = cauzione;
+
+  // ── ENTRATE: ricavi distribuiti uniformemente ─────────────────────────────
+  const entrate_m = ce.ricavi_mese;
+  const entrate   = arr(entrate_m);
+
+  // ── SALDI ─────────────────────────────────────────────────────────────────
+  const tot_uscite = uscite_inv.map((v,m) => v + uscite_cv[m] + uscite_cf[m] + uscite_altre[m]);
+  const saldo_mens = entrate.map((e,m) => e - tot_uscite[m]);
+  const saldo_cumul = [];
+  let cumul = 0;
+  saldo_mens.forEach(s => { cumul += s; saldo_cumul.push(cumul); });
+
+  // ── RENDERING ─────────────────────────────────────────────────────────────
+  const tbody = document.getElementById('pc_tbody');
+  if (!tbody) return;
+
+  const rows = [
+    { label:'Uscite investimenti', vals:uscite_inv,       col:'#f59e0b', bold:false },
+    { label:'Uscite costi variabili', vals:uscite_cv,     col:'#ef4444', bold:false },
+    { label:'Uscite costi fissi',  vals:uscite_cf,        col:'#f97316', bold:false },
+    { label:'Altre uscite (cauzioni)', vals:uscite_altre, col:'#f59e0b', bold:false },
+    { label:'TOTALE USCITE',       vals:tot_uscite,       col:'#ef4444', bold:true,  sep:true },
+    { label:'ENTRATE RICAVI',      vals:entrate,          col:'#10b981', bold:false, sep:true },
+    { label:'SALDO MENSILE',       vals:saldo_mens,       col:null,      bold:true,  sign:true, sep:true },
+    { label:'SALDO CUMULATO',      vals:saldo_cumul,      col:null,      bold:true,  sign:true, cumul:true },
+  ];
+
+  let html = '';
+  rows.forEach(r => {
+    const borderT = r.sep ? 'border-top:1px solid var(--border);' : '';
+    const borderTB = r.cumul ? 'border-top:2px solid #2563eb;' : '';
+    html += `<tr>
+      <td style="padding:5px 8px;font-size:11px;${r.bold?'font-weight:700':''}${r.col?';color:'+r.col:''};${borderT}${borderTB}position:sticky;left:0;background:var(--bg2)">
+        ${r.label}
+      </td>`;
+
+    let tot = 0;
+    r.vals.forEach((val, m) => {
+      tot += val;
+      const col = r.sign ? (val >= 0 ? '#10b981' : '#ef4444') : (r.col || '#94a3b8');
+      html += `<td style="padding:5px 3px;text-align:right;font-size:10.5px;font-weight:${r.bold?'700':'400'};color:${col};${borderT}${borderTB}">
+        ${fmtK(val)}
+      </td>`;
+    });
+
+    // Colonna totale
+    const tcol = r.sign ? (tot >= 0 ? '#10b981' : '#ef4444') : (r.col || '#94a3b8');
+    html += `<td style="padding:5px 6px;text-align:right;font-size:10.5px;font-weight:700;color:${tcol};border-left:1px solid var(--border);${borderT}${borderTB}">
+      ${fmtK(tot)}
+    </td></tr>`;
+  });
+  tbody.innerHTML = html;
+
+  // Saldo finale anno
+  const sf = saldo_cumul[M-1];
+  setEl('pc_saldo_finale', fmt(sf));
+  const sfEl = document.getElementById('pc_saldo_finale');
+  if (sfEl) sfEl.style.color = sf >= 0 ? '#10b981' : '#ef4444';
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// MAIN — collega i 3 fogli in sequenza
+// ────────────────────────────────────────────────────────────────────────────
+function calcolaBusinessPlan() {
+  const inv = calcolaInvestimenti();   // PI
+  const ce  = calcolaContoEco(inv);   // CE ← PI (ammortamenti)
+  calcolaPianoCassa(inv, ce);          // PC ← PI (uscite inv) + CE (ricavi, CV, CF)
+}
 
 function calcolaADV() { calcolaBusinessPlan(); }
+
+// Auto-popola i cicli dalla stima zona quando disponibile
+window._popolaAdvDaZona = function(bp) {
+  if (!bp || !bp.clienti_giorno) return;
+  const c = parseFloat(bp.clienti_giorno) || 0;
+  if (c <= 0) return;
+  // Distribuzione cicli proporzionale ai clienti stimati
+  const el_lav_p = document.getElementById('ce_cic_lav_p');
+  const el_lav_g = document.getElementById('ce_cic_lav_g');
+  const el_asc_p = document.getElementById('ce_cic_asc_p');
+  const el_asc_g = document.getElementById('ce_cic_asc_g');
+  if (el_lav_p) el_lav_p.value = Math.max(1, Math.round(c * 0.40));
+  if (el_lav_g) el_lav_g.value = Math.max(0, Math.round(c * 0.25));
+  if (el_asc_p) el_asc_p.value = Math.max(1, Math.round(c * 0.55));
+  if (el_asc_g) el_asc_g.value = Math.max(0, Math.round(c * 0.15));
+
+  // Mostra box zona
+  const info = document.getElementById('adv-zona-info');
+  const txt  = document.getElementById('adv-zona-txt');
+  if (info && txt) {
+    info.style.display = 'block';
+    txt.innerHTML = `La zona stima <b>${c.toFixed(1)} clienti/giorno</b> — cicli pre-impostati. Modifica se necessario.`;
+  }
+  calcolaBusinessPlan();
+};
+
 </script>
 <style>
 :root {
