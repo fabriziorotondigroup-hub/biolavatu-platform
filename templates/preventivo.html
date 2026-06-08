@@ -3496,7 +3496,10 @@ function calcolaBP() {
       if(formulaGiorni) formulaGiorni.textContent = giorni_m;
       // Nota contestuale
       if(formulaNote) {
-        if(cli < 1) {
+        if(cli === 0) {
+          formulaNote.innerHTML = '⚠️ <b>Fai prima l'analisi zona (Step 3)</b> per ottenere la stima clienti — oppure inserisci tu i dati nel campo Affitto/Costi.';
+          formulaNote.style.color = '#f59e0b';
+        } else if(cli < 1) {
           formulaNote.innerHTML = `⚠️ Meno di 1 cliente al giorno — mediamente <b>1 ogni ${(1/cli).toFixed(0)} giorni</b>. Zona a domanda molto bassa.`;
           formulaNote.style.color = '#ef4444';
         } else if(cli < 5) {
