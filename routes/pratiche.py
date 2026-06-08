@@ -129,13 +129,17 @@ def _geocodifica_indirizzo(indirizzo, citta, gmaps_key):
             url = ("https://maps.googleapis.com/maps/api/geocode/json?address="
                    + _up.quote_plus(addr) + "&key=" + gmaps_key)
             req = _ur2.Request(url, headers={"User-Agent": "BIOLavaTU-PDF"})
-            with _ur2.urlopen(req, timeout=6) as r:
-                data = __import__('json').loads(r.read())
+            with _ur2.urlopen(req, timeout=8) as r:
+                raw = r.read()
+                data = __import__('json').loads(raw)
+            print(f'[GEO] {addr} → status={data.get("status")} results={len(data.get("results",[]))}', flush=True)
             if data.get('results'):
                 loc = data['results'][0]['geometry']['location']
                 return float(loc['lat']), float(loc['lng'])
-        except Exception:
+        except Exception as _ge:
+            print(f'[GEO] errore per {addr}: {_ge}', flush=True)
             continue
+    print(f'[GEO] Nessun risultato per tutti i tentativi: {tentativi}', flush=True)
     return None, None
 
 
@@ -576,29 +580,12 @@ def _genera_pdf_interno(id):
     _map_lat = float(p.lat or 0)
     _map_lng = float(p.lng or 0)
     if (not _map_lat or not _map_lng) and gmaps_key:
-        # Prova prima con indirizzo completo, poi solo città
-        _geo_attempts = []
-        if p.indirizzo and p.citta:
-            _geo_attempts.append(f"{p.indirizzo}, {p.citta}, Italia")
-        if p.citta:
-            _geo_attempts.append(f"{p.citta}, Italia")
-        for _geo_addr in _geo_attempts:
-            try:
-                import urllib.parse as _upgeo
-                _gurl = ("https://maps.googleapis.com/maps/api/geocode/json"
-                         "?address=" + _upgeo.quote_plus(_geo_addr)
-                         + "&key=" + gmaps_key)
-                _greq = ur.Request(_gurl, headers={"User-Agent": "BIOLavaTU-PDF"})
-                with ur.urlopen(_greq, timeout=8) as _gr:
-                    _gdata = __import__('json').loads(_gr.read())
-                if _gdata.get('results'):
-                    _loc = _gdata['results'][0]['geometry']['location']
-                    _map_lat = float(_loc['lat'])
-                    _map_lng = float(_loc['lng'])
-                    print(f'[PDF] Geocoding OK: {_map_lat},{_map_lng}', flush=True)
-                    break  # trovato, esci dal loop
-            except Exception:
-                continue
+        print(f'[PDF] lat/lng mancanti, provo geocoding per {p.indirizzo}, {p.citta}', flush=True)
+        _map_lat, _map_lng = _geocodifica_indirizzo(p.indirizzo, p.citta, gmaps_key)
+        if _map_lat:
+            print(f'[PDF] Geocoding OK: {_map_lat},{_map_lng}', flush=True)
+        else:
+            print(f'[PDF] Geocoding FALLITO — nessuna coordinata disponibile', flush=True)
 
     if _map_lat and _map_lng and gmaps_key:
         _mlat, _mlng = _map_lat, _map_lng
