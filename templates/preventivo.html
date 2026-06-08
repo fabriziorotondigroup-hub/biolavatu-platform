@@ -2196,9 +2196,11 @@ body { background: var(--bg); color: var(--text); }
 </script>
 
 
-  <div class="d-flex justify-content-between mt-3">
-    <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
-    <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1\"></i></button>
+  <div style="position:sticky;bottom:0;z-index:50;background:var(--bg1);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:12px">
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+      <button type="button" class="btn btn-primary" onclick="goStep(6); aggiornaRiepilogo()">Avanti <i class="bi bi-arrow-right ms-1"></i></button>
+    </div>
   </div>
 </div>
 
