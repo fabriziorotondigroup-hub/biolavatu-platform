@@ -890,6 +890,7 @@ body { background: var(--bg); color: var(--text); }
             <span style="background:rgba(167,139,250,.2);color:#a78bfa;padding:3px 10px;border-radius:20px;border:1px solid rgba(167,139,250,.3)">🎓 Università</span>
             <span style="background:rgba(16,185,129,.2);color:#10b981;padding:3px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.3)">🏥 Ospedali</span>
             <span style="background:rgba(239,68,68,.2);color:#ef4444;padding:3px 10px;border-radius:20px;border:1px solid rgba(239,68,68,.3)">🪖 Caserme/Militare</span>
+            <span style="background:rgba(124,58,237,.2);color:#7c3aed;padding:3px 10px;border-radius:20px;border:1px solid rgba(124,58,237,.3)">🏠 Case di cura/RSA</span>
             <span style="background:rgba(251,191,36,.2);color:#fbbf24;padding:3px 10px;border-radius:20px;border:1px solid rgba(251,191,36,.3)">⭕ Zone affluenza</span>
           </div>
         </div>
@@ -3055,6 +3056,7 @@ function eseguiAnalisi(lat, lng) {
           var attractorCfg = {
             universita:     {col:'#8b5cf6', icon:'🎓', raggio:300},
             ospedale:       {col:'#10b981', icon:'🏥', raggio:300},
+            casa_cura:      {col:'#7c3aed', icon:'🏠', raggio:250},
             stazione:       {col:'#3b82f6', icon:'🚉', raggio:200},
             vvf:            {col:'#f59e0b', icon:'🚒', raggio:200},
             caserma:        {col:'#ef4444', icon:'🪖', raggio:250},
