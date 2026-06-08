@@ -5,281 +5,404 @@
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-// ═══════════════════════════════════════════════════════════════
-// MODALITÀ BUSINESS PLAN AVANZATA
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// BUSINESS PLAN AVANZATO — Fedele al modello Excel
+// ═══════════════════════════════════════════════════════════════════════════
 
-function setBPMode(mode) {
-  document.getElementById('f_bp_mode').value = mode;
-  const isAdv = mode === 'avanzata';
-
-  document.getElementById('panel-bp-rapida').style.display  = isAdv ? 'none' : 'block';
-  document.getElementById('panel-bp-avanzata').style.display = isAdv ? 'block' : 'none';
-
-  const btnR = document.getElementById('btn-bp-rapida');
-  const btnA = document.getElementById('btn-bp-avanzata');
-  btnR.style.background = isAdv ? 'transparent' : '#2563eb';
-  btnR.style.color       = isAdv ? '#64748b'     : 'white';
-  btnA.style.background = isAdv ? '#7c3aed'     : 'transparent';
-  btnA.style.color       = isAdv ? 'white'       : '#64748b';
-
-  const hint = document.getElementById('bp-mode-hint');
-  hint.textContent = isAdv
-    ? '📊 Inserisci i cicli/giorno previsti — calcolo identico al tuo Excel'
-    : '🚀 Calcolo automatico dalla domanda di zona';
-
-  if(isAdv) {
-    // Popola default dalla zona se disponibile
-    const bp = window._ultimaBP || {};
-    if(bp.clienti_giorno > 0) {
-      const info = document.getElementById('adv-zona-info');
-      const txt  = document.getElementById('adv-zona-txt');
-      if(info && txt) {
-        info.style.display = 'block';
-        txt.innerHTML = `La zona stima <b>${bp.clienti_giorno} clienti/giorno</b> — ` +
-          `puoi usare questo come punto di partenza o inserire la tua previsione.`;
-      }
-      // Suggerisci cicli proporzionali ai clienti stimati
-      const c = bp.clienti_giorno;
-      const n_std = parseInt(document.getElementById('adv_cicli_std').value)||0;
-      // Solo se non modificati dall'utente, aggiorna i hint
-      ['adv_hint_std','adv_hint_med'].forEach(function(id) {
-        const el = document.getElementById(id);
-        if(el) el.textContent = `Zona: ~${Math.round(c*0.6)} cicli/g stimati`;
-      });
-      // Mostra confronto
-      document.getElementById('adv-confronto-card').style.display = 'block';
-    }
-    calcolaADV();
-  }
-}
-
-function _v(id) {
+// ── Lettura valori da input ───────────────────────────────────────────────
+function v(id) {
   const el = document.getElementById(id);
   return el ? (parseFloat(el.value) || 0) : 0;
 }
+function vi(id) { return Math.round(v(id)); }
 
-function calcolaADV() {
-  const giorni = _v('adv_giorni') || 26;
-  const ore    = _v('adv_ore') || 13;
-
-  // ── RICAVI LAVAGGI ──────────────────────────────────────────
-  const rev_std = _v('adv_cicli_std') * _v('adv_tar_std') * giorni;
-  const rev_med = _v('adv_cicli_med') * _v('adv_tar_med') * giorni;
-  const rev_grd = _v('adv_cicli_grd') * _v('adv_tar_grd') * giorni;
-  const rev_lav = rev_std + rev_med + rev_grd;
-
-  // ── RICAVI ASCIUGATURE ──────────────────────────────────────
-  // cicli/giorno × cicli_per_asciug × tariffa × giorni
-  const rev_asc_p = _v('adv_cicli_asc_p') * _v('adv_cicli_asc_p_num') * _v('adv_tar_asc_p') * giorni;
-  const rev_asc_g = _v('adv_cicli_asc_g') * _v('adv_cicli_asc_g_num') * _v('adv_tar_asc_g') * giorni;
-  const rev_asc   = rev_asc_p + rev_asc_g;
-
-  // ── RICAVI EXTRA ────────────────────────────────────────────
-  const rev_det   = _v('adv_det_cicli') * _v('adv_det_prezzo') * giorni;
-  const rev_caffe = _v('adv_caffe_mese');
-  const rev_extra = rev_det + rev_caffe;
-
-  const rev_tot = rev_lav + rev_asc + rev_extra;
-
-  // Aggiorna label ricavi parziali
-  const fmt = n => '€' + Math.round(n).toLocaleString('it') + '/mese';
-  const setTxt = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
-  setTxt('adv_rev_std',   `→ €${Math.round(rev_std).toLocaleString('it')}/mese`);
-  setTxt('adv_rev_med',   `→ €${Math.round(rev_med).toLocaleString('it')}/mese`);
-  setTxt('adv_rev_grd',   `→ €${Math.round(rev_grd).toLocaleString('it')}/mese`);
-  setTxt('adv_rev_asc_p', `→ €${Math.round(rev_asc_p).toLocaleString('it')}/mese`);
-  setTxt('adv_rev_asc_g', `→ €${Math.round(rev_asc_g).toLocaleString('it')}/mese`);
-  setTxt('adv_rev_extra', `Detersivo €${Math.round(rev_det).toLocaleString('it')} + Caffè €${Math.round(rev_caffe).toLocaleString('it')} = €${Math.round(rev_extra).toLocaleString('it')}/mese`);
-
-  // ── COSTI VARIABILI ─────────────────────────────────────────
-  const cv_energia = (rev_lav + rev_asc) * _v('adv_perc_energia') / 100;
-  const cv_det     = rev_det * _v('adv_perc_det') / 100;
-  const cv_tot     = cv_energia + cv_det;
-  setTxt('adv_costi_var_det', `Energia/acqua: €${Math.round(cv_energia).toLocaleString('it')} · Detersivi: €${Math.round(cv_det).toLocaleString('it')}`);
-
-  // ── COSTI FISSI ─────────────────────────────────────────────
-  const cf_ids = ['adv_cf_affitto','adv_cf_riscald','adv_cf_comm','adv_cf_promo',
-                  'adv_cf_manut','adv_cf_energia','adv_cf_assic','adv_cf_pulizia',
-                  'adv_cf_cancel','adv_cf_cciaa','adv_cf_personale','adv_cf_altro'];
-  const cf_tot = cf_ids.reduce((s,id) => s + _v(id), 0);
-  setTxt('adv_tot_fissi', `€${Math.round(cf_tot).toLocaleString('it')}`);
-
-  // ── INVESTIMENTI + AMMORTAMENTO ─────────────────────────────
-  // Macchine dal catalogo (dal form base)
-  let capex_mac = 0;
-  (window._ultimaMacchine || []).forEach(function(m) {
-    capex_mac += (parseFloat(m.prezzo_effettivo || m.prezzo || 0)) * (parseInt(m.qty) || 1);
-  });
-  const anni_mac  = _v('adv_anni_mac') || 4;
-  const amm_mac   = capex_mac / anni_mac / 12;
-
-  // Investimenti extra
-  const inv_ids = ['adv_inv_murarie','adv_inv_impianti','adv_inv_insegne','adv_inv_illum',
-                   'adv_inv_arredo','adv_inv_antifurto','adv_inv_gettoniere',
-                   'adv_inv_allaccia','adv_inv_promo','adv_inv_altro'];
-  let amm_extra = 0;
-  let capex_extra = 0;
-  inv_ids.forEach(function(id) {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const val  = parseFloat(el.value) || 0;
-    const anni = parseFloat(el.dataset.anni) || 5;
-    capex_extra += val;
-    amm_extra   += val / anni / 12;
-  });
-  const amm_tot   = amm_mac + amm_extra;
-  const capex_tot = capex_mac + capex_extra;
-  const capex_iva = capex_tot * 1.22;
-
-  // Finanziamento
-  const pf = _v('adv_perc_fin') / 100;
-  const ti = _v('adv_tasso') / 100;
-  const ap = _v('adv_anni_prest');
-  let rata = 0;
-  const cf_fin = capex_iva * pf;
-  if(cf_fin > 0 && ap > 0) {
-    const r = ti/12, n = ap*12;
-    rata = cf_fin * (r*Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
-  }
-  const costi_cap = amm_tot + rata;
-
-  // ── TOTALI ──────────────────────────────────────────────────
-  const costi_tot = cv_tot + cf_tot + costi_cap;
-  const ebitda    = rev_tot - cv_tot - cf_tot;
-  const utile     = rev_tot - costi_tot;
-  const payback_a = utile > 0 ? (capex_iva / utile / 12) : 0;
-
-  // Clienti equivalenti (cicli lav totali / giorni)
-  const cicli_lav_g = _v('adv_cicli_std') + _v('adv_cicli_med') + _v('adv_cicli_grd');
-  const be_cicli    = costi_tot > 0 && giorni > 0
-    ? (cf_tot + costi_cap) / (rev_tot / Math.max(cicli_lav_g*giorni,1)) / giorni
-    : 0;
-
-  // ── CONTO ECONOMICO ─────────────────────────────────────────
-  const rows_eco = [
-    ['RICAVI TOTALI/mese',    rev_tot,   '#10b981', true],
-    ['  di cui lavaggi',      rev_lav,   '#34d399', false],
-    ['  di cui asciugature',  rev_asc,   '#34d399', false],
-    ['  di cui extra',        rev_extra, '#34d399', false],
-    ['Costi variabili',      -cv_tot,    '#ef4444', false],
-    ['Costi fissi',          -cf_tot,    '#f97316', false],
-    ['Ammortamento',         -amm_tot,   '#f59e0b', false],
-    ['Rata finanziamento',   -rata,      '#f59e0b', false],
-    ['EBITDA',               ebitda,     ebitda>=0?'#10b981':'#ef4444', true],
-    ['UTILE NETTO/mese',     utile,      utile>=0?'#10b981':'#ef4444', true],
-    ['Payback',              payback_a,  '#f59e0b', true, ' anni'],
+// ── PIANO INVESTIMENTI ────────────────────────────────────────────────────
+function calcolaInvestimenti() {
+  // Immateriali
+  const imm = [
+    { id: 'inv_formazione',    anni: 5 },
+    { id: 'inv_fattibilita',   anni: 5 },
+    { id: 'inv_commercialista',anni: 5 },
+    { id: 'inv_notaio',        anni: 5 },
+    { id: 'inv_burocratico',   anni: 5 },
+    { id: 'inv_allacciamento', anni: 5 },
+    { id: 'inv_marchio',       anni: 5 },
+    { id: 'inv_promozione_av', anni: 5 },
+    { id: 'inv_inaugurazione', anni: 5 },
+    { id: 'inv_franchising',   anni: 5 },
   ];
-  let html_eco = '';
-  rows_eco.forEach(function(r) {
-    const [lbl, val, col, bold, suf] = r;
-    const suffix = suf || '/mese';
-    const vstr = Math.abs(val) > 0.01
-      ? (val < 0 ? '-€' : '€') + Math.abs(Math.round(val)).toLocaleString('it') + (lbl==='Payback'?' anni':'/mese')
-      : '—';
-    html_eco += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:11px;color:${bold?'#e2e8f0':'#94a3b8'};${bold?'font-weight:700':''}${lbl.startsWith('  ')?';padding-left:12px':''}">${lbl.trim()}</span>
-      <span style="font-size:${bold?'13':'11'}px;font-weight:${bold?'700':'400'};color:${col}">${vstr}</span>
-    </div>`;
-  });
-  html_eco += `<div style="margin-top:8px;padding:6px 8px;background:rgba(37,99,235,0.1);border-radius:6px;font-size:11px">
-    <span style="color:#64748b">Investimento totale:</span>
-    <b style="color:#3b82f6"> €${Math.round(capex_tot).toLocaleString('it')} + IVA = €${Math.round(capex_iva).toLocaleString('it')}</b>
-  </div>`;
-  const eco = document.getElementById('adv-conto-eco');
-  if(eco) eco.innerHTML = html_eco;
-
-  // ── CONFRONTO ZONA ──────────────────────────────────────────
-  const bp = window._ultimaBP || {};
-  const zona_cli = parseFloat(bp.clienti_giorno) || 0;
-  if(zona_cli > 0 && cicli_lav_g > 0) {
-    document.getElementById('adv-confronto-card').style.display = 'block';
-    const diff_pct = Math.round((cicli_lav_g - zona_cli) / zona_cli * 100);
-    const colCmp   = diff_pct > 50 ? '#ef4444' : diff_pct > 0 ? '#f59e0b' : '#10b981';
-    document.getElementById('adv-confronto-body').innerHTML =
-      `<div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="color:#64748b">Cicli/giorno nel tuo BP:</span>
-        <b style="color:#e2e8f0">${cicli_lav_g}</b>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="color:#64748b">Clienti/giorno stimati zona:</span>
-        <b style="color:#8b5cf6">${zona_cli.toFixed(1)}</b>
-      </div>
-      <div style="padding:6px 10px;border-radius:6px;background:rgba(${diff_pct>50?'239,68,68':diff_pct>0?'245,158,11':'16,185,129'},0.15);margin-top:4px;font-size:12px;color:${colCmp}">
-        ${diff_pct > 50
-          ? `⚠️ Il tuo piano prevede <b>${diff_pct}% in più</b> rispetto alla domanda stimata. Verifica se realistico.`
-          : diff_pct > 0
-          ? `ℹ️ Piano <b>${diff_pct}% sopra</b> la stima zona — ottimistico ma possibile.`
-          : `✅ Piano in linea o sotto la stima zona.`
-        }
-      </div>`;
-  }
-
-  // ── PIANO DI CASSA 12 MESI ──────────────────────────────────
-  // Mese 1: include investimento; mesi 2-12: solo operatività
-  let html_cassa = '';
-  const voci_cassa = [
-    ['Ricavi',         rev_tot,   '#10b981'],
-    ['Costi variabili',-cv_tot,   '#ef4444'],
-    ['Costi fissi',   -cf_tot,   '#f97316'],
-    ['Ammort.+Rata',  -costi_cap,'#f59e0b'],
-    ['Saldo mensile',  utile,     utile>=0?'#10b981':'#ef4444'],
+  // Materiali
+  const mat = [
+    { id: 'inv_murarie',       anni: 8  },
+    { id: 'inv_insegne',       anni: 8  },
+    { id: 'inv_impianti_idr',  anni: 8  },
+    { id: 'inv_illuminazione', anni: 6  },
+    { id: 'inv_climatiz',      anni: 6  },
+    { id: 'inv_stereo',        anni: 6  },
+    { id: 'inv_antifurto',     anni: 6  },
+    { id: 'inv_arredo',        anni: 6  },
+    { id: 'inv_vetrofanie',    anni: 4  },
+    // Macchine dal catalogo (usate dai campi esistenti)
+    // Altri
+    { id: 'inv_gettoniere',    anni: 4  },
+    { id: 'inv_scaldacqua',    anni: 4  },
+    { id: 'inv_dispenser_det', anni: 4  },
+    { id: 'inv_cambia_monete', anni: 4  },
+    { id: 'inv_telefono',      anni: 3  },
+    { id: 'inv_computer',      anni: 3  },
+    { id: 'inv_software',      anni: 3  },
+    { id: 'inv_stampante',     anni: 3  },
+    { id: 'inv_altre_attr',    anni: 5  },
+    { id: 'inv_altri',         anni: 5  },
   ];
-  voci_cassa.forEach(function(vc) {
-    const [lbl, val, col] = vc;
-    const isSaldo = lbl === 'Saldo mensile';
-    let row = `<tr style="${isSaldo?'border-top:2px solid var(--border);font-weight:700':''}">
-      <td style="padding:4px 8px;font-size:10px;color:${col};${isSaldo?'font-weight:700':''};white-space:nowrap">${lbl}</td>`;
-    let cumul = 0;
-    for(let m=1; m<=12; m++) {
-      const v = m===1 && isSaldo ? (val - capex_iva) : val;
-      cumul += v;
-      const vstr = (v>=0?'':'−') + '€' + Math.abs(Math.round(v)).toLocaleString('it');
-      const vcol = v >= 0 ? '#10b981' : '#ef4444';
-      row += `<td style="padding:4px;text-align:right;font-size:10px;color:${isSaldo?vcol:col}">${vstr}</td>`;
+
+  let tot_imm = 0, amm_imm = 0;
+  let tot_mat = 0, amm_mat = 0;
+
+  // Calcola e aggiorna righe immateriali
+  imm.forEach(item => {
+    const imp = v(item.id);
+    const pct = item.anni > 0 ? (100 / item.anni) : 0;
+    const amm = item.anni > 0 ? imp / item.anni : 0;
+    tot_imm += imp; amm_imm += amm;
+    setIfExists(item.id + '_pct', pct.toFixed(1) + '%');
+    setIfExists(item.id + '_amm', fmt(amm));
+  });
+
+  // Macchine dal catalogo (CAPEX dal wizard macchine)
+  const capex_mac = window._capexMacchine || 0;
+  const anni_mac  = v('inv_anni_mac') || 4;
+  const amm_mac   = anni_mac > 0 ? capex_mac / anni_mac : 0;
+  tot_mat += capex_mac; amm_mat += amm_mac;
+  setIfExists('inv_macchine_imp', fmt(capex_mac));
+  setIfExists('inv_macchine_pct', anni_mac > 0 ? (100/anni_mac).toFixed(1) + '%' : '0%');
+  setIfExists('inv_macchine_amm', fmt(amm_mac));
+
+  // Calcola e aggiorna righe materiali
+  mat.forEach(item => {
+    const imp = v(item.id);
+    const pct = item.anni > 0 ? (100 / item.anni) : 0;
+    const amm = item.anni > 0 ? imp / item.anni : 0;
+    tot_mat += imp; amm_mat += amm;
+    setIfExists(item.id + '_pct', pct.toFixed(1) + '%');
+    setIfExists(item.id + '_amm', fmt(amm));
+  });
+
+  const tot = tot_imm + tot_mat;
+  const amm_tot = amm_imm + amm_mat;
+
+  setIfExists('inv_tot_imm',  fmt(tot_imm));
+  setIfExists('inv_tot_mat',  fmt(tot_mat));
+  setIfExists('inv_tot',      fmt(tot));
+  setIfExists('inv_amm_tot',  fmt(amm_tot));
+  setIfExists('inv_amm_mese', fmt(amm_tot / 12));
+
+  // IVA su macchine
+  const tot_iva = tot * 1.22;
+  setIfExists('inv_tot_iva', fmt(tot_iva));
+
+  return { tot, tot_iva, amm_tot, amm_mese: amm_tot / 12, capex_mac };
+}
+
+// ── CONTO ECONOMICO ───────────────────────────────────────────────────────
+function calcolaContoEco(inv) {
+  const giorni = 365;
+
+  // RICAVI
+  const ricavi_raw = [
+    { id: 'ce_cic_lav_p', tar: 'ce_tar_lav_p', label: 'Lavaggi piccole' },
+    { id: 'ce_cic_lav_g', tar: 'ce_tar_lav_g', label: 'Lavaggi grandi' },
+    { id: 'ce_cic_asc_p', tar: 'ce_tar_asc_p', label: 'Asciug. piccole' },
+    { id: 'ce_cic_asc_g', tar: 'ce_tar_asc_g', label: 'Asciug. grandi' },
+    { id: 'ce_cic_det',   tar: 'ce_tar_det',   label: 'Vendita detersivo' },
+    { id: 'ce_cic_caffe', tar: 'ce_tar_caffe',  label: 'Caffè/bibite', annuale: true },
+  ];
+
+  let ricavi = {};
+  let tot_ricavi = 0;
+  let tot_ricavi_lav_asc = 0; // per calcolo % energia
+
+  ricavi_raw.forEach(r => {
+    let imp;
+    if (r.annuale) {
+      imp = v(r.tar); // importo annuale diretto
+    } else {
+      imp = v(r.id) * v(r.tar) * giorni;
     }
-    row += '</tr>';
-    html_cassa += row;
+    ricavi[r.id] = { imp, qtann: r.annuale ? 1 : v(r.id)*giorni, tar: v(r.tar) };
+    tot_ricavi += imp;
+    if (['ce_cic_lav_p','ce_cic_lav_g','ce_cic_asc_p','ce_cic_asc_g'].includes(r.id)) {
+      tot_ricavi_lav_asc += imp;
+    }
+    setIfExists(r.id + '_qtann', fmt0(r.annuale ? 1 : v(r.id)*giorni));
+    setIfExists(r.id + '_imp',   fmt(imp));
+    setIfExists(r.id + '_pct',   tot_ricavi > 0 ? (imp/tot_ricavi*100).toFixed(1)+'%' : '0%');
   });
-  // Riga saldo cumulato
-  html_cassa += `<tr style="border-top:2px solid #2563eb">
-    <td style="padding:4px 8px;font-size:10px;color:#3b82f6;font-weight:700">Saldo cumulato</td>`;
-  let cumul = -capex_iva;
-  for(let m=1; m<=12; m++) {
-    cumul += utile;
-    const vcol = cumul >= 0 ? '#10b981' : '#ef4444';
-    html_cassa += `<td style="padding:4px;text-align:right;font-size:10px;color:${vcol};font-weight:700">${(cumul>=0?'':'-')}€${Math.abs(Math.round(cumul)).toLocaleString('it')}</td>`;
-  }
-  html_cassa += '</tr>';
-  const cassa_body = document.getElementById('adv-cassa-body');
-  if(cassa_body) cassa_body.innerHTML = html_cassa;
 
-  // Salva per riepilogo/AI
-  window._ultimaBP_adv = {
-    rev_tot, rev_lav, rev_asc, rev_extra,
-    cv_tot, cf_tot, costi_cap, costi_tot,
-    ebitda, utile, capex_tot, capex_iva, payback_a,
-    cicli_lav_g, giorni
+  setIfExists('ce_tot_ricavi', fmt(tot_ricavi));
+  setIfExists('ce_tot_ricavi_mese', fmt(tot_ricavi / 12));
+
+  // COSTI VARIABILI
+  const perc_energia = v('ce_perc_energia') / 100; // default 17%
+  const perc_det_cv  = v('ce_perc_det_cv') / 100;  // default 30%
+  const cv_energia   = tot_ricavi_lav_asc * perc_energia;
+  const cv_det       = ricavi['ce_cic_det']?.imp * perc_det_cv || 0;
+  const tot_cv       = cv_energia + cv_det;
+
+  setIfExists('ce_cv_energia',    fmt(cv_energia));
+  setIfExists('ce_cv_energia_pct',tot_ricavi > 0 ? (cv_energia/tot_ricavi*100).toFixed(1)+'%':'0%');
+  setIfExists('ce_cv_det',        fmt(cv_det));
+  setIfExists('ce_cv_det_pct',    tot_ricavi > 0 ? (cv_det/tot_ricavi*100).toFixed(1)+'%':'0%');
+  setIfExists('ce_tot_cv',        fmt(tot_cv));
+  setIfExists('ce_tot_cv_mese',   fmt(tot_cv / 12));
+
+  // COSTI FISSI
+  const cf_items = [
+    ['ce_cf_amm',          inv.amm_tot,      true ],  // calcolato
+    ['ce_cf_affitto',      null,              false],  // input × 12
+    ['ce_cf_riscald',      null,              false],
+    ['ce_cf_dipendenti',   null,              false],
+    ['ce_cf_comm',         null,              false],
+    ['ce_cf_promo',        null,              false],
+    ['ce_cf_manut',        null,              false],
+    ['ce_cf_energia_el',   null,              false],  // input mensile × 12
+    ['ce_cf_telefono',     null,              false],
+    ['ce_cf_postali',      null,              false],
+    ['ce_cf_assic',        null,              false],
+    ['ce_cf_pulizia',      null,              false],
+    ['ce_cf_guardia',      null,              false],
+    ['ce_cf_tari',         null,              false],
+    ['ce_cf_cciaa',        null,              false],
+    ['ce_cf_associaz',     null,              false],
+    ['ce_cf_altri_amm',    null,              false],
+    ['ce_cf_leasing',      null,              false],
+    ['ce_cf_interessi',    null,              false],
+    ['ce_cf_cancel',       null,              false],
+    ['ce_cf_altro',        null,              false],
+  ];
+
+  let tot_cf = 0;
+  cf_items.forEach(([id, fixed_val, is_fixed]) => {
+    let ann;
+    if (is_fixed) {
+      ann = fixed_val;
+      setIfExists(id, fmt(ann)); // mostra valore calcolato
+    } else {
+      // Controlla se è mensile (ha _m) o annuale diretto
+      const el_ann = document.getElementById(id);
+      const el_mes = document.getElementById(id + '_m');
+      if (el_mes) {
+        ann = v(id + '_m') * 12;
+      } else if (el_ann) {
+        ann = v(id); // già annuale
+      } else {
+        ann = 0;
+      }
+    }
+    tot_cf += ann;
+    setIfExists(id + '_ann', fmt(ann));
+    setIfExists(id + '_pct', tot_ricavi > 0 ? (ann/tot_ricavi*100).toFixed(2)+'%':'0%');
+  });
+
+  setIfExists('ce_cf_amm_ann', fmt(inv.amm_tot));
+  tot_cf = tot_cf; // già include ammortamento
+
+  setIfExists('ce_tot_cf',     fmt(tot_cf));
+  setIfExists('ce_tot_cf_mese',fmt(tot_cf / 12));
+
+  const tot_costi   = tot_cv + tot_cf;
+  const reddito_op  = tot_ricavi - tot_costi;
+  const ebitda      = tot_ricavi - tot_cv - (tot_cf - inv.amm_tot);
+
+  setIfExists('ce_tot_costi',    fmt(tot_costi));
+  setIfExists('ce_reddito_op',   fmt(reddito_op));
+  setIfExists('ce_ebitda',       fmt(ebitda));
+  setIfExists('ce_reddito_op_pct', tot_ricavi>0?(reddito_op/tot_ricavi*100).toFixed(1)+'%':'0%');
+
+  // Payback
+  const payback = reddito_op > 0 ? (inv.tot_iva / reddito_op).toFixed(1) : '∞';
+  setIfExists('ce_payback', payback + ' anni');
+
+  // Break-even cicli/giorno
+  const spesa_media_ciclo = tot_ricavi > 0 ?
+    tot_ricavi / ((v('ce_cic_lav_p')+v('ce_cic_lav_g')+v('ce_cic_asc_p')+v('ce_cic_asc_g'))*giorni) : 0;
+  const be_cicli = spesa_media_ciclo > 0 ?
+    ((tot_cf + tot_cv) / 365 / spesa_media_ciclo).toFixed(1) : '—';
+  setIfExists('ce_be_cicli', be_cicli + ' cicli/g');
+
+  // Mese
+  setIfExists('ce_reddito_op_mese', fmt(reddito_op / 12));
+  setIfExists('ce_tot_costi_mese',  fmt(tot_costi / 12));
+
+  return {
+    tot_ricavi, tot_cv, tot_cf, tot_costi,
+    reddito_op, ebitda,
+    ricavi_mese: tot_ricavi / 12,
+    cv_mese: tot_cv / 12,
+    cf_mese: tot_cf / 12,
+    costi_mese: tot_costi / 12,
+    ricavi // oggetto con tutti i ricavi per piano di cassa
   };
 }
 
-// Popola i default della modalità avanzata con i dati dalla zona
-window._popolaAdvDaZona = function(bp) {
-  if(!bp || !bp.clienti_giorno) return;
-  const c = parseFloat(bp.clienti_giorno) || 0;
-  // Distribuisci i clienti stimati sui cicli per taglia (proporzione tipica)
-  const el_std = document.getElementById('adv_cicli_std');
-  const el_med = document.getElementById('adv_cicli_med');
-  const el_grd = document.getElementById('adv_cicli_grd');
-  if(el_std && c > 0) el_std.value = Math.max(1, Math.round(c * 0.45));
-  if(el_med && c > 0) el_med.value = Math.max(0, Math.round(c * 0.30));
-  if(el_grd && c > 0) el_grd.value = Math.max(0, Math.round(c * 0.25));
-  // Asciugature: ~70% dei clienti asciuga
-  const el_asc = document.getElementById('adv_cicli_asc_p');
-  if(el_asc && c > 0) el_asc.value = Math.max(1, Math.round(c * 0.70));
-};
+// ── PIANO DI CASSA ────────────────────────────────────────────────────────
+function calcolaPianoCassa(inv, ce) {
+  const mesi = Array.from({length:12}, (_,i) => i); // 0-11
+
+  // Distribuzione pagamenti investimenti (tutto mese 1, salvo impianti idraulici mesi 1-3)
+  // Come da Excel: la maggior parte M1, alcuni spalmate
+  const distrib_inv = {};
+  ['inv_formazione','inv_fattibilita','inv_commercialista','inv_notaio',
+   'inv_burocratico','inv_allacciamento','inv_marchio','inv_promozione_av',
+   'inv_inaugurazione','inv_franchising','inv_murarie','inv_insegne',
+   'inv_illuminazione','inv_climatiz','inv_stereo','inv_antifurto','inv_arredo',
+   'inv_vetrofanie','inv_gettoniere','inv_scaldacqua','inv_dispenser_det',
+   'inv_cambia_monete','inv_telefono','inv_computer','inv_software',
+   'inv_stampante','inv_altre_attr','inv_altri'
+  ].forEach(id => {
+    const val = v(id);
+    const mesi_pag = [0]; // pagamento mese 1
+    distrib_inv[id] = mesi.map(m => mesi_pag.includes(m) ? val / mesi_pag.length : 0);
+  });
+  // Macchine: mese 1 e 2 (50% ciascuno come Excel)
+  const mac_tot = window._capexMacchine || 0;
+  distrib_inv['macchine'] = mesi.map(m => m === 0 ? mac_tot*0.5 : m === 1 ? mac_tot*0.5 : 0);
+  // Impianti idraulici: mesi 1-3 (33% ciascuno)
+  const imp_idr = v('inv_impianti_idr');
+  distrib_inv['inv_impianti_idr'] = mesi.map(m => m <= 2 ? imp_idr/3 : 0);
+
+  // Totale uscite investimenti per mese
+  const uscite_inv = mesi.map(m => Object.values(distrib_inv).reduce((s,d) => s + (d[m]||0), 0));
+
+  // Altre uscite (cauzione): mese 1
+  const cauzione = v('pc_cauzione');
+  const uscite_altre = mesi.map(m => m === 0 ? cauzione : 0);
+
+  // Costi variabili: uniformi ogni mese
+  const cv_m = ce.cv_mese;
+  const uscite_cv = mesi.map(_ => cv_m);
+
+  // Costi fissi con distribuzione come Excel:
+  const cf_distrib = {
+    // affitto: trimestrale (mesi 0,3,6,9) → ma Excel mostra trimestrale
+    affitto:    mesi.map(m => [0,3,6,9].includes(m) ? (v('ce_cf_affitto_m')||0)*3 : 0),
+    riscald:    mesi.map(m => [0,3,6,9].includes(m) ? (v('ce_cf_riscald')||0)/4 : 0),
+    comm:       mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_comm')||0)/6 : 0),
+    promo:      mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_promo')||0)/6 : 0),
+    manut:      mesi.map(m => [5,11].includes(m) ? (v('ce_cf_manut')||0)/2 : 0),
+    energia_el: mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_energia_el_m')||0)*2 : 0),
+    telefono:   mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_telefono_m')||0)*2 : 0),
+    postali:    mesi.map(_ => (v('ce_cf_postali')||0)/12),
+    assic:      mesi.map(m => m === 0 ? (v('ce_cf_assic')||0) : 0),
+    pulizia:    mesi.map(_ => (v('ce_cf_pulizia_m')||0)),
+    tari:       mesi.map(m => m === 5 ? (v('ce_cf_tari')||0) : 0),
+    cciaa:      mesi.map(m => m === 5 ? (v('ce_cf_cciaa')||0) : 0),
+    associaz:   mesi.map(m => m === 0 ? (v('ce_cf_associaz')||0) : 0),
+    altri_amm:  mesi.map(_ => (v('ce_cf_altri_amm')||0)/12),
+    leasing:    mesi.map(_ => (v('ce_cf_leasing')||0)/12),
+    interessi:  mesi.map(_ => (v('ce_cf_interessi')||0)/12),
+    altro:      mesi.map(_ => (v('ce_cf_altro')||0)/12),
+    cancel:     mesi.map(m => [1,3,5,7,9,11].includes(m) ? (v('ce_cf_cancel')||0)/6 : 0),
+  };
+
+  const uscite_cf = mesi.map(m =>
+    Object.values(cf_distrib).reduce((s, d) => s + (d[m]||0), 0)
+  );
+  const tot_uscite_costi = mesi.map(m => uscite_cv[m] + uscite_cf[m]);
+  const tot_uscite = mesi.map(m => uscite_inv[m] + tot_uscite_costi[m] + uscite_altre[m]);
+
+  // Entrate: uniformi ogni mese (ricavi distribuiti)
+  const entrate_m = ce.ricavi_mese;
+  const entrate = mesi.map(_ => entrate_m);
+
+  // Saldi
+  const saldo_mens  = mesi.map(m => entrate[m] - tot_uscite[m]);
+  const saldo_cumul = [];
+  let cumul = 0;
+  mesi.forEach(m => { cumul += saldo_mens[m]; saldo_cumul.push(cumul); });
+
+  // Rendering tabella piano di cassa
+  renderPianoCassa({
+    uscite_inv, uscite_cv, uscite_cf, tot_uscite_costi,
+    uscite_altre, tot_uscite, entrate, saldo_mens, saldo_cumul,
+    cf_distrib
+  });
+}
+
+function renderPianoCassa(d) {
+  const mesi_label = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const tbody = document.getElementById('pc_tbody');
+  if (!tbody) return;
+
+  const rows = [
+    { label: 'USCITE INVESTIMENTI', vals: d.uscite_inv, cls: 'pc-section', col: '#f59e0b' },
+    { label: 'USCITE COSTI VARIABILI', vals: d.uscite_cv, cls: 'pc-sub', col: '#ef4444' },
+    { label: 'USCITE COSTI FISSI', vals: d.uscite_cf, cls: 'pc-sub', col: '#f97316' },
+    { label: 'ALTRE USCITE', vals: d.uscite_altre, cls: 'pc-sub', col: '#f59e0b' },
+    { label: 'TOTALE USCITE', vals: d.tot_uscite, cls: 'pc-total', col: '#ef4444', bold: true },
+    { label: 'ENTRATE RICAVI', vals: d.entrate, cls: 'pc-section', col: '#10b981' },
+    { label: 'SALDO MENSILE', vals: d.saldo_mens, cls: 'pc-saldo', col: null, bold: true, sign: true },
+    { label: 'SALDO CUMULATO', vals: d.saldo_cumul, cls: 'pc-cumul', col: null, bold: true, sign: true, cumul: true },
+  ];
+
+  let html = '';
+  rows.forEach(r => {
+    const isSaldo = r.sign;
+    html += `<tr class="${r.cls||''}">
+      <td style="padding:5px 8px;font-size:11px;${r.bold?'font-weight:700':''}${r.col?';color:'+r.col:''}${r.cumul?';border-top:2px solid #2563eb':''}">
+        ${r.label}
+      </td>`;
+    let tot = 0;
+    r.vals.forEach((v, m) => {
+      tot += v;
+      const col = isSaldo ? (v >= 0 ? '#10b981' : '#ef4444') : (r.col || '#e2e8f0');
+      html += `<td style="padding:5px 4px;text-align:right;font-size:10px;font-weight:${r.bold?'700':'400'};color:${col}${r.cumul?';border-top:2px solid #2563eb':''}">
+        ${fmtK(v)}
+      </td>`;
+    });
+    // Totale colonna
+    const tcol = isSaldo ? (tot >= 0 ? '#10b981' : '#ef4444') : (r.col || '#e2e8f0');
+    html += `<td style="padding:5px 6px;text-align:right;font-size:10px;font-weight:700;color:${tcol};border-left:1px solid var(--border)${r.cumul?';border-top:2px solid #2563eb':''}">
+      ${fmtK(tot)}
+    </td></tr>`;
+  });
+  tbody.innerHTML = html;
+
+  // Aggiorna headline saldo finale
+  const sf = d.saldo_cumul[11];
+  setIfExists('pc_saldo_finale', fmt(sf));
+  const el = document.getElementById('pc_saldo_finale');
+  if (el) el.style.color = sf >= 0 ? '#10b981' : '#ef4444';
+}
+
+// ── MAIN CALC ─────────────────────────────────────────────────────────────
+function calcolaBusinessPlan() {
+  const inv = calcolaInvestimenti();
+  const ce  = calcolaContoEco(inv);
+  calcolaPianoCassa(inv, ce);
+}
+
+// ── UTILITY ───────────────────────────────────────────────────────────────
+function fmt(n)  { return '€ ' + Math.round(n).toLocaleString('it'); }
+function fmt0(n) { return Math.round(n).toLocaleString('it'); }
+function fmtK(n) {
+  // Formato compatto per piano di cassa (migliaia)
+  const abs = Math.abs(n);
+  if (abs >= 10000) return (n < 0 ? '-' : '') + '€' + (abs/1000).toFixed(1) + 'k';
+  return (n < 0 ? '-' : '') + '€' + Math.round(abs).toLocaleString('it');
+}
+function setIfExists(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.tagName === 'INPUT') el.value = val;
+  else el.textContent = val;
+}
 
 
+
+
+
+function calcolaADV() { calcolaBusinessPlan(); }
 </script>
 <style>
 :root {
@@ -1391,402 +1514,520 @@ body { background: var(--bg); color: var(--text); }
   <!-- ══════════════════════════════════════════════════════ -->
   <!-- MODALITÀ AVANZATA (modello Excel)                       -->
   <!-- ══════════════════════════════════════════════════════ -->
-  <div id="panel-bp-avanzata" style="display:none">
+  <!-- ═══════════════════════════════════════════════════════════════════
+     BUSINESS PLAN AVANZATO — 3 sezioni collassabili
+     ═══════════════════════════════════════════════════════════════════ -->
 
-    <!-- Info zona (auto) -->
-    <div id="adv-zona-info" style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;display:none">
-      <i class="bi bi-geo-alt me-2" style="color:#3b82f6"></i>
-      <span id="adv-zona-txt" style="color:#93c5fd"></span>
-    </div>
+<div id="panel-bp-avanzata" style="display:none">
 
-    <div class="row g-3">
+<!-- Banner zona -->
+<div id="adv-zona-info" style="display:none;background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px">
+  <i class="bi bi-geo-alt me-2" style="color:#3b82f6"></i>
+  <span id="adv-zona-txt" style="color:#93c5fd"></span>
+</div>
 
-      <!-- ── COL 1: RICAVI ───────────────────────── -->
-      <div class="col-lg-4">
+<!-- Tab navigation -->
+<div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+  <button type="button" class="bp-tab active" onclick="setBPTab('inv')"
+    id="tab-inv" style="padding:8px 16px;border:none;border-bottom:2px solid #2563eb;background:none;color:#3b82f6;font-weight:700;font-size:13px;cursor:pointer">
+    📊 Piano Investimenti
+  </button>
+  <button type="button" class="bp-tab" onclick="setBPTab('ce')"
+    id="tab-ce" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:none;color:#64748b;font-size:13px;cursor:pointer">
+    💰 Conto Economico
+  </button>
+  <button type="button" class="bp-tab" onclick="setBPTab('pc')"
+    id="tab-pc" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:none;color:#64748b;font-size:13px;cursor:pointer">
+    📅 Piano di Cassa
+  </button>
+</div>
 
-        <!-- LAVAGGI -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.3)">
-            <i class="bi bi-droplet me-2" style="color:#3b82f6"></i>
-            <b style="color:#93c5fd">RICAVI — Lavaggi</b>
-          </div>
-          <div class="card-body">
-            <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:8px">
-              Cicli/giorno: stimati dalla zona, modificabili
-            </div>
+<!-- ══════════════════════════════════════════════════════
+     TAB 1: PIANO INVESTIMENTI
+     ══════════════════════════════════════════════════════ -->
+<div id="bp-tab-inv">
+<div class="card">
+  <div class="card-header" style="background:rgba(37,99,235,0.1)">
+    <b style="color:#93c5fd">📊 PIANO DEGLI INVESTIMENTI</b>
+    <span style="font-size:11px;color:#64748b;margin-left:8px">Durata ammortamento × % → Quota annua</span>
+  </div>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-sm mb-0" style="min-width:700px;font-size:12px">
+      <thead>
+        <tr style="background:rgba(37,99,235,0.15)">
+          <th style="padding:8px 10px;width:38%">Voce di investimento</th>
+          <th style="padding:8px 6px;text-align:center;width:6%">N.</th>
+          <th style="padding:8px 6px;text-align:right;width:12%">Importo €</th>
+          <th style="padding:8px 6px;text-align:center;width:8%">Anni amm.</th>
+          <th style="padding:8px 6px;text-align:right;width:8%">% amm.</th>
+          <th style="padding:8px 6px;text-align:right;width:14%">Amm. annuo €</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- IMMATERIALI -->
+        <tr style="background:rgba(139,92,246,0.08)">
+          <td colspan="6" style="padding:6px 10px;font-weight:700;color:#8b5cf6;font-size:11px">
+            INVESTIMENTI IMMATERIALI
+          </td>
+        </tr>
+        {% set inv_imm = [
+          ('Formazione e documentazione', 'inv_formazione', '', 0, 5),
+          ('Piano di fattibilità', 'inv_fattibilita', '', 500, 5),
+          ('Commercialista avvio', 'inv_commercialista', '', 0, 5),
+          ('Notaio', 'inv_notaio', '', 0, 5),
+          ('Adempimenti burocratici', 'inv_burocratico', '', 150, 5),
+          ('Allacciamento utenze', 'inv_allacciamento', '', 1300, 5),
+          ('Marchio e immagine', 'inv_marchio', '', 0, 5),
+          ('Promozione di avvio', 'inv_promozione_av', '', 800, 5),
+          ('Festa di inaugurazione', 'inv_inaugurazione', '', 500, 5),
+          ("Fee franchising", 'inv_franchising', '', 0, 5),
+        ] %}
+        {% for lbl, fid, n, default, anni in inv_imm %}
+        <tr class="inv-row">
+          <td style="padding:5px 10px;color:#cbd5e1">{{ lbl }}</td>
+          <td style="padding:5px 6px;text-align:center">
+            <input type="number" min="0" step="1" id="{{ fid }}_n" value="{{ 1 if n else '' }}"
+              style="width:40px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:center;font-size:11px;padding:2px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;text-align:right">
+            <input type="number" min="0" step="50" id="{{ fid }}" value="{{ default }}"
+              style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;text-align:center;color:#64748b">{{ anni }}</td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b" id="{{ fid }}_pct">{{ (100/anni)|round(1) }}%</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#8b5cf6" id="{{ fid }}_amm">
+            € {{ (default/anni)|round(0)|int }}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr style="background:rgba(139,92,246,0.12);border-top:1px solid rgba(139,92,246,0.3)">
+          <td colspan="2" style="padding:6px 10px;font-weight:700;color:#a78bfa;font-size:11px">TOTALE IMMATERIALI</td>
+          <td style="padding:6px 6px;text-align:right;font-weight:700;color:#a78bfa" id="inv_tot_imm">€ 3,250</td>
+          <td colspan="2"></td>
+          <td style="padding:6px 6px;text-align:right;font-weight:700;color:#a78bfa" id="inv_amm_imm">—</td>
+        </tr>
 
-            <!-- Lavatrici piccole -->
-            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
-              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici piccole (≤9kg)</div>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
-                  <input type="number" step="1" min="0" max="200" id="adv_cicli_std" name="adv_cicli_std"
-                    class="form-control form-control-sm adv-input" value="15"
-                    oninput="calcolaADV()">
-                  <div style="font-size:9px;color:#8b5cf6;margin-top:2px" id="adv_hint_std"></div>
-                </div>
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
-                  <input type="number" step="0.5" min="1" id="adv_tar_std" name="adv_tar_std"
-                    class="form-control form-control-sm adv-input" value="6.00"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_std">—</div>
-            </div>
+        <!-- MATERIALI -->
+        <tr style="background:rgba(37,99,235,0.08)">
+          <td colspan="6" style="padding:6px 10px;font-weight:700;color:#3b82f6;font-size:11px">
+            INVESTIMENTI MATERIALI
+          </td>
+        </tr>
 
-            <!-- Lavatrici medie -->
-            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
-              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici medie (10-13kg)</div>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
-                  <input type="number" step="1" min="0" max="200" id="adv_cicli_med" name="adv_cicli_med"
-                    class="form-control form-control-sm adv-input" value="10"
-                    oninput="calcolaADV()">
-                  <div style="font-size:9px;color:#8b5cf6;margin-top:2px" id="adv_hint_med"></div>
-                </div>
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
-                  <input type="number" step="0.5" min="1" id="adv_tar_med" name="adv_tar_med"
-                    class="form-control form-control-sm adv-input" value="8.00"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_med">—</div>
-            </div>
+        <!-- Macchine dal catalogo (read-only, vengono dallo step 4) -->
+        <tr style="background:rgba(16,185,129,0.06)">
+          <td style="padding:5px 10px;color:#34d399;font-style:italic">
+            🔧 Macchine da catalogo (Step 4)
+          </td>
+          <td style="padding:5px 6px;text-align:center;color:#64748b;font-size:11px">auto</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:700;color:#34d399" id="inv_macchine_imp">—</td>
+          <td style="padding:5px 6px;text-align:center">
+            <input type="number" min="1" max="10" step="1" id="inv_anni_mac" value="4"
+              style="width:40px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:center;font-size:11px;padding:2px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b" id="inv_macchine_pct">25%</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#34d399" id="inv_macchine_amm">—</td>
+        </tr>
 
-            <!-- Lavatrici grandi -->
-            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
-              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Lavatrici grandi (≥14kg)</div>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
-                  <input type="number" step="1" min="0" max="200" id="adv_cicli_grd" name="adv_cicli_grd"
-                    class="form-control form-control-sm adv-input" value="5"
-                    oninput="calcolaADV()">
-                </div>
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo)</label>
-                  <input type="number" step="0.5" min="1" id="adv_tar_grd" name="adv_tar_grd"
-                    class="form-control form-control-sm adv-input" value="10.00"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_grd">—</div>
-            </div>
-          </div>
-        </div>
+        {% set inv_mat = [
+          ('Opere murarie/sistemazione', 'inv_murarie', 1800, 8),
+          ('Insegne/targhe', 'inv_insegne', 400, 8),
+          ('Impianti idraulici/elettrici', 'inv_impianti_idr', 8000, 8),
+          ('Illuminazione', 'inv_illuminazione', 0, 6),
+          ('Impianto climatizzazione', 'inv_climatiz', 0, 6),
+          ('Impianto stereo', 'inv_stereo', 0, 6),
+          ('Impianto antifurto', 'inv_antifurto', 1300, 6),
+          ('Arredo locali', 'inv_arredo', 1500, 6),
+          ('Vetrofanie', 'inv_vetrofanie', 0, 4),
+          ('Gettoniere', 'inv_gettoniere', 1750, 4),
+          ('Scaldacqua a gas', 'inv_scaldacqua', 400, 4),
+          ('Dispenser detersivo/ammorbidente', 'inv_dispenser_det', 1000, 4),
+          ('Macchina cambia monete/banconote', 'inv_cambia_monete', 1300, 4),
+          ('Telefono cellulare', 'inv_telefono', 350, 3),
+          ('Computer', 'inv_computer', 0, 3),
+          ('Software gestionale', 'inv_software', 0, 3),
+          ('Stampante', 'inv_stampante', 0, 3),
+          ('Altre attrezzature', 'inv_altre_attr', 500, 5),
+          ('Altri investimenti', 'inv_altri', 500, 5),
+        ] %}
+        {% for lbl, fid, default, anni in inv_mat %}
+        <tr class="inv-row">
+          <td style="padding:5px 10px;color:#cbd5e1">{{ lbl }}</td>
+          <td style="padding:5px 6px;text-align:center;color:#64748b">—</td>
+          <td style="padding:5px 6px;text-align:right">
+            <input type="number" min="0" step="50" id="{{ fid }}" value="{{ default }}"
+              style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;text-align:center;color:#64748b">{{ anni }}</td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b">{{ (100/anni)|round(1) }}%</td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#3b82f6" id="{{ fid }}_amm">
+            € {{ (default/anni)|round(0)|int }}
+          </td>
+        </tr>
+        {% endfor %}
 
-        <!-- ASCIUGATURE -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3)">
-            <i class="bi bi-wind me-2" style="color:#8b5cf6"></i>
-            <b style="color:#c4b5fd">RICAVI — Asciugature</b>
-          </div>
-          <div class="card-body">
-            <!-- Asciugature piccole -->
-            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
-              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Asciugatrici piccole/singole</div>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
-                  <input type="number" step="1" min="0" id="adv_cicli_asc_p" name="adv_cicli_asc_p"
-                    class="form-control form-control-sm adv-input" value="20"
-                    oninput="calcolaADV()">
-                </div>
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo 8min)</label>
-                  <input type="number" step="0.10" min="0.5" id="adv_tar_asc_p" name="adv_tar_asc_p"
-                    class="form-control form-control-sm adv-input" value="1.00"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div class="row g-2 mt-1">
-                <div class="col-12">
-                  <label class="form-label" style="font-size:10px">Cicli medi per asciugatura completa</label>
-                  <input type="number" step="1" min="1" max="10" id="adv_cicli_asc_p_num" name="adv_cicli_asc_p_num"
-                    class="form-control form-control-sm adv-input" value="3"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_asc_p">—</div>
-            </div>
-            <!-- Asciugature grandi/doppie -->
-            <div class="p-2 rounded mb-2" style="background:var(--bg3)">
-              <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Asciugatrici grandi/doppie</div>
-              <div class="row g-2">
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Cicli/giorno</label>
-                  <input type="number" step="1" min="0" id="adv_cicli_asc_g" name="adv_cicli_asc_g"
-                    class="form-control form-control-sm adv-input" value="5"
-                    oninput="calcolaADV()">
-                </div>
-                <div class="col-6">
-                  <label class="form-label" style="font-size:10px">Tariffa (€/ciclo 8min)</label>
-                  <input type="number" step="0.10" min="0.5" id="adv_tar_asc_g" name="adv_tar_asc_g"
-                    class="form-control form-control-sm adv-input" value="1.50"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div class="row g-2 mt-1">
-                <div class="col-12">
-                  <label class="form-label" style="font-size:10px">Cicli medi per asciugatura completa</label>
-                  <input type="number" step="1" min="1" max="10" id="adv_cicli_asc_g_num" name="adv_cicli_asc_g_num"
-                    class="form-control form-control-sm adv-input" value="4"
-                    oninput="calcolaADV()">
-                </div>
-              </div>
-              <div style="font-size:11px;color:#10b981;margin-top:4px" id="adv_rev_asc_g">—</div>
-            </div>
-          </div>
-        </div>
+        <!-- Totali -->
+        <tr style="background:rgba(37,99,235,0.12);border-top:1px solid rgba(37,99,235,0.3)">
+          <td colspan="2" style="padding:6px 10px;font-weight:700;color:#60a5fa;font-size:11px">TOTALE MATERIALI</td>
+          <td style="padding:6px 6px;text-align:right;font-weight:700;color:#60a5fa" id="inv_tot_mat">—</td>
+          <td colspan="2"></td>
+          <td style="padding:6px 6px;text-align:right;font-weight:700;color:#60a5fa" id="inv_amm_mat">—</td>
+        </tr>
+        <tr style="background:rgba(37,99,235,0.20);border-top:2px solid #2563eb">
+          <td colspan="2" style="padding:8px 10px;font-weight:700;color:white;font-size:13px">TOTALE INVESTIMENTI</td>
+          <td style="padding:8px 6px;text-align:right;font-weight:800;color:#60a5fa;font-size:13px" id="inv_tot">—</td>
+          <td colspan="2" style="padding:8px 6px;text-align:right;color:#64748b;font-size:11px">+ IVA 22%</td>
+          <td style="padding:8px 6px;text-align:right;font-weight:700;color:#93c5fd;font-size:12px" id="inv_tot_iva">—</td>
+        </tr>
+        <tr style="background:rgba(245,158,11,0.08)">
+          <td colspan="5" style="padding:6px 10px;font-weight:700;color:#fbbf24;font-size:12px">TOTALE AMMORTAMENTI ANNUI</td>
+          <td style="padding:6px 6px;text-align:right;font-weight:800;color:#fbbf24;font-size:13px" id="inv_amm_tot">—</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui ammortamento mensile</td>
+          <td style="padding:4px 6px;text-align:right;color:#f59e0b;font-size:11px" id="inv_amm_mese">—</td>
+        </tr>
 
-        <!-- EXTRA -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.3)">
-            <i class="bi bi-plus-circle me-2" style="color:#10b981"></i>
-            <b style="color:#6ee7b7">RICAVI — Extra</b>
-          </div>
-          <div class="card-body">
-            <div class="row g-2 mb-2">
-              <div class="col-6">
-                <label class="form-label" style="font-size:10px">Vendita detersivo (cicli/g)</label>
-                <input type="number" step="1" min="0" id="adv_det_cicli" name="adv_det_cicli"
-                  class="form-control form-control-sm adv-input" value="10" oninput="calcolaADV()">
-              </div>
-              <div class="col-6">
-                <label class="form-label" style="font-size:10px">Prezzo/dose (€)</label>
-                <input type="number" step="0.10" min="0" id="adv_det_prezzo" name="adv_det_prezzo"
-                  class="form-control form-control-sm adv-input" value="0.50" oninput="calcolaADV()">
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label" style="font-size:10px">Distributore caffè/bibite (€/mese)</label>
-              <input type="number" step="10" min="0" id="adv_caffe_mese" name="adv_caffe_mese"
-                class="form-control form-control-sm adv-input" value="0" oninput="calcolaADV()">
-            </div>
-            <div id="adv_rev_extra" style="font-size:11px;color:#10b981">—</div>
-          </div>
-        </div>
+        <!-- Finanziamento -->
+        <tr style="background:rgba(16,185,129,0.06);border-top:1px solid var(--border)">
+          <td colspan="6" style="padding:8px 10px;font-weight:700;color:#34d399;font-size:11px">FINANZIAMENTO</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;color:#94a3b8;font-size:11px">% Finanziato</td>
+          <td colspan="2" style="padding:5px 6px">
+            <input type="number" min="0" max="100" step="5" id="inv_perc_fin" value="0"
+              style="width:60px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+            <span style="color:#64748b;font-size:11px">%</span>
+          </td>
+          <td style="padding:5px 6px;color:#94a3b8;font-size:11px">Tasso %</td>
+          <td style="padding:5px 6px">
+            <input type="number" min="0" step="0.1" id="inv_tasso" value="6.0"
+              style="width:50px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;color:#64748b;font-size:11px">Durata: <input type="number" id="inv_anni_fin" value="7" min="1" max="20"
+            style="width:40px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:center;font-size:11px;padding:2px"
+            oninput="calcolaBusinessPlan()"> anni</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">Rata mensile stimata</td>
+          <td style="padding:4px 6px;text-align:right;font-weight:700;color:#34d399;font-size:12px" id="inv_rata_mese">—</td>
+        </tr>
+        <!-- Cauzione -->
+        <tr>
+          <td style="padding:5px 10px;color:#94a3b8;font-size:11px">Cauzione/caparra (mese 1)</td>
+          <td colspan="4"></td>
+          <td style="padding:5px 6px;text-align:right">
+            <input type="number" min="0" step="100" id="pc_cauzione" value="0"
+              style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div><!-- fine tab inv -->
 
-      </div><!-- fine col ricavi -->
+<!-- ══════════════════════════════════════════════════════
+     TAB 2: CONTO ECONOMICO
+     ══════════════════════════════════════════════════════ -->
+<div id="bp-tab-ce" style="display:none">
+<div class="card">
+  <div class="card-header" style="background:rgba(16,185,129,0.1)">
+    <b style="color:#6ee7b7">💰 CONTO ECONOMICO</b>
+    <span style="font-size:11px;color:#64748b;margin-left:8px">Cicli/giorno × Giorni(365) × Tariffa = Ricavo annuo</span>
+  </div>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-sm mb-0" style="min-width:600px;font-size:12px">
+      <thead>
+        <tr style="background:rgba(16,185,129,0.15)">
+          <th style="padding:8px 10px;width:32%">Voce</th>
+          <th style="padding:8px 6px;text-align:center">Cicli/g</th>
+          <th style="padding:8px 6px;text-align:center">Giorni</th>
+          <th style="padding:8px 6px;text-align:right">Qtà annua</th>
+          <th style="padding:8px 6px;text-align:right">€/ciclo</th>
+          <th style="padding:8px 6px;text-align:right">Importo annuo</th>
+          <th style="padding:8px 6px;text-align:right">%</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- RICAVI -->
+        <tr style="background:rgba(16,185,129,0.08)">
+          <td colspan="7" style="padding:6px 10px;font-weight:700;color:#10b981;font-size:11px">RICAVI</td>
+        </tr>
 
-      <!-- ── COL 2: COSTI ────────────────────────── -->
-      <div class="col-lg-4">
+        {% set ce_ricavi = [
+          ('Lavaggi piccole (≤9kg)', 'ce_cic_lav_p', 15, 'ce_tar_lav_p', 4.0, false),
+          ('Lavaggi grandi (≥10kg)', 'ce_cic_lav_g', 10, 'ce_tar_lav_g', 6.0, false),
+          ('Asciugature piccole', 'ce_cic_asc_p', 20, 'ce_tar_asc_p', 3.0, false),
+          ('Asciugature grandi', 'ce_cic_asc_g', 5, 'ce_tar_asc_g', 4.0, false),
+          ('Vendita dosi detersivo', 'ce_cic_det', 12.5, 'ce_tar_det', 0.5, false),
+          ('Distributore caffè/bibite', 'ce_cic_caffe', 1, 'ce_tar_caffe', 500.0, true),
+        ] %}
+        {% for lbl, cid, cdef, tid, tdef, is_ann in ce_ricavi %}
+        <tr class="ce-row">
+          <td style="padding:5px 10px;color:#cbd5e1">{{ lbl }}</td>
+          <td style="padding:5px 6px;text-align:center">
+            {% if not is_ann %}
+            <input type="number" min="0" step="0.5" id="{{ cid }}" value="{{ cdef }}"
+              style="width:56px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+            {% else %}
+            <span style="color:#64748b;font-size:10px">annuo</span>
+            {% endif %}
+          </td>
+          <td style="padding:5px 6px;text-align:center;color:#64748b">{{ 365 if not is_ann else 1 }}</td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b" id="{{ cid }}_qtann">
+            {{ (cdef * 365)|int if not is_ann else 1 }}
+          </td>
+          <td style="padding:5px 6px;text-align:right">
+            <input type="number" min="0" step="0.1" id="{{ tid }}" value="{{ tdef }}"
+              style="width:60px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+          </td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#10b981" id="{{ cid }}_imp">
+            € {{ (cdef * tdef * (365 if not is_ann else 1))|round(0)|int }}
+          </td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="{{ cid }}_pct">—</td>
+        </tr>
+        {% endfor %}
+
+        <tr style="background:rgba(16,185,129,0.15);border-top:2px solid rgba(16,185,129,0.4)">
+          <td colspan="5" style="padding:7px 10px;font-weight:700;color:white">TOTALE RICAVI</td>
+          <td style="padding:7px 6px;text-align:right;font-weight:800;color:#10b981;font-size:13px" id="ce_tot_ricavi">—</td>
+          <td style="padding:7px 6px;text-align:right;color:#10b981" id="ce_tot_ricavi_pct">100%</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui mensile</td>
+          <td style="padding:4px 6px;text-align:right;color:#34d399;font-size:11px" id="ce_tot_ricavi_mese">—</td>
+          <td></td>
+        </tr>
 
         <!-- COSTI VARIABILI -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)">
-            <i class="bi bi-lightning me-2" style="color:#ef4444"></i>
-            <b style="color:#fca5a5">COSTI VARIABILI</b>
-          </div>
-          <div class="card-body">
-            <div class="mb-2">
-              <label class="form-label" style="font-size:11px">
-                Energia+acqua+gas (% sui ricavi lavaggi+asciugature)
-                <span style="color:#64748b"> — Excel: 17-18%</span>
-              </label>
-              <div class="d-flex align-items-center gap-2">
-                <input type="number" step="0.5" min="5" max="40" id="adv_perc_energia" name="adv_perc_energia"
-                  class="form-control form-control-sm adv-input" value="18" oninput="calcolaADV()">
-                <span style="color:#64748b;font-size:12px">%</span>
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label" style="font-size:11px">
-                Detersivi (% sui ricavi detersivo venduto)
-                <span style="color:#64748b"> — Excel: 30%</span>
-              </label>
-              <div class="d-flex align-items-center gap-2">
-                <input type="number" step="1" min="0" max="100" id="adv_perc_det" name="adv_perc_det"
-                  class="form-control form-control-sm adv-input" value="30" oninput="calcolaADV()">
-                <span style="color:#64748b;font-size:12px">%</span>
-              </div>
-            </div>
-            <div id="adv_costi_var_det" style="font-size:11px;color:#ef4444;margin-top:4px">—</div>
-          </div>
-        </div>
+        <tr style="background:rgba(239,68,68,0.08)">
+          <td colspan="7" style="padding:6px 10px;font-weight:700;color:#ef4444;font-size:11px">COSTI VARIABILI</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;color:#cbd5e1">Acqua, energia, gas</td>
+          <td colspan="2" style="padding:5px 6px;text-align:center">
+            <input type="number" min="0" max="50" step="0.5" id="ce_perc_energia" value="17"
+              style="width:50px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+            <span style="color:#64748b;font-size:11px">% ricavi lav+asc</span>
+          </td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="ce_cv_energia_base">—</td>
+          <td></td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#ef4444" id="ce_cv_energia">—</td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="ce_cv_energia_pct">—</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;color:#cbd5e1">Detersivo (costo)</td>
+          <td colspan="2" style="padding:5px 6px;text-align:center">
+            <input type="number" min="0" max="100" step="1" id="ce_perc_det_cv" value="30"
+              style="width:50px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+            <span style="color:#64748b;font-size:11px">% ricavi detersivo</span>
+          </td>
+          <td colspan="2"></td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#ef4444" id="ce_cv_det">—</td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="ce_cv_det_pct">—</td>
+        </tr>
+        <tr style="background:rgba(239,68,68,0.12);border-top:1px solid rgba(239,68,68,0.3)">
+          <td colspan="5" style="padding:6px 10px;font-weight:700;color:#fca5a5">TOTALE COSTI VARIABILI</td>
+          <td style="padding:6px 6px;text-align:right;font-weight:800;color:#ef4444" id="ce_tot_cv">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui mensile</td>
+          <td style="padding:4px 6px;text-align:right;color:#f87171;font-size:11px" id="ce_tot_cv_mese">—</td>
+          <td></td>
+        </tr>
 
         <!-- COSTI FISSI -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)">
-            <i class="bi bi-building me-2" style="color:#f97316"></i>
-            <b style="color:#fdba74">COSTI FISSI MENSILI</b>
-          </div>
-          <div class="card-body">
-            {% set costi_fissi = [
-              ('Affitto',            'adv_cf_affitto',      700),
-              ('Riscaldamento/amm.', 'adv_cf_riscald',       25),
-              ('Commercialista',     'adv_cf_comm',         125),
-              ('Promozione',         'adv_cf_promo',         83),
-              ('Manutenzioni',       'adv_cf_manut',        150),
-              ('Energia elettrica',  'adv_cf_energia',       35),
-              ('Assicurazione',      'adv_cf_assic',         50),
-              ('Pulizia/supervisione','adv_cf_pulizia',       0),
-              ('Cancelleria/ufficio','adv_cf_cancel',        42),
-              ('CCIAA + tasse',      'adv_cf_cciaa',         20),
-              ('Personale (se prev.)','adv_cf_personale',    0),
-              ('Altro',              'adv_cf_altro',          0),
-            ] %}
-            {% for lbl, fid, default in costi_fissi %}
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <label style="font-size:11px;color:#94a3b8;flex:1">{{ lbl }}</label>
-              <div class="d-flex align-items-center gap-1">
-                <span style="font-size:11px;color:#64748b">€</span>
-                <input type="number" step="1" min="0" id="{{ fid }}" name="{{ fid }}"
-                  class="form-control form-control-sm adv-input" value="{{ default }}"
-                  style="width:80px" oninput="calcolaADV()">
-              </div>
+        <tr style="background:rgba(249,115,22,0.08)">
+          <td colspan="7" style="padding:6px 10px;font-weight:700;color:#f97316;font-size:11px">COSTI FISSI</td>
+        </tr>
+        <tr style="background:rgba(245,158,11,0.06)">
+          <td style="padding:5px 10px;color:#fbbf24;font-weight:600">Ammortamenti</td>
+          <td colspan="4"></td>
+          <td style="padding:5px 6px;text-align:right;font-weight:700;color:#fbbf24" id="ce_cf_amm_ann">
+            dal Piano Investimenti
+          </td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="ce_cf_amm_pct">—</td>
+        </tr>
+
+        {% set ce_fissi = [
+          ('Affitto', 'ce_cf_affitto', 'm', 1000, '×12/anno'),
+          ('Riscaldamento e amm.cond.', 'ce_cf_riscald', '', 1200, 'annuo'),
+          ('Dipendenti part time', 'ce_cf_dipendenti', '', 0, 'annuo'),
+          ('Commercialista', 'ce_cf_comm', '', 1800, 'annuo'),
+          ('Promozione', 'ce_cf_promo', '', 1500, 'annuo'),
+          ('Manutenzioni/riparazioni', 'ce_cf_manut', '', 2000, 'annuo'),
+          ('Energia elettrica (quota fissa)', 'ce_cf_energia_el', 'm', 30, '×12/anno'),
+          ('Spese telefoniche', 'ce_cf_telefono', 'm', 40, '×12/anno'),
+          ('Spese postali', 'ce_cf_postali', '', 100, 'annuo'),
+          ('Assicurazioni', 'ce_cf_assic', '', 800, 'annuo'),
+          ('Pulizia', 'ce_cf_pulizia', 'm', 200, '×12/anno'),
+          ('Guardianaggio', 'ce_cf_guardia', '', 0, 'annuo'),
+          ('TARI (igiene ambientale)', 'ce_cf_tari', '', 300, 'annuo'),
+          ('Diritto Registro Imprese', 'ce_cf_cciaa', '', 93, 'annuo'),
+          ('Iscrizione associazioni', 'ce_cf_associaz', '', 80, 'annuo'),
+          ('Altri costi amm.', 'ce_cf_altri_amm', '', 250, 'annuo'),
+          ('Canoni leasing', 'ce_cf_leasing', '', 0, 'annuo'),
+          ('Interessi passivi', 'ce_cf_interessi', '', 0, 'annuo'),
+          ('Cancelleria', 'ce_cf_cancel', '', 0, 'annuo'),
+          ('Altre spese', 'ce_cf_altro', '', 500, 'annuo'),
+        ] %}
+        {% for lbl, fid, tipo, default, note in ce_fissi %}
+        <tr class="ce-row">
+          <td style="padding:4px 10px;color:#cbd5e1">{{ lbl }}</td>
+          <td colspan="3" style="padding:4px 6px;color:#64748b;font-size:10px">{{ note }}</td>
+          <td></td>
+          <td style="padding:4px 6px;text-align:right">
+            {% if tipo == 'm' %}
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+              <input type="number" min="0" step="10" id="{{ fid }}_m" value="{{ default }}"
+                style="width:70px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+                oninput="calcolaBusinessPlan()">
+              <span style="color:#64748b;font-size:10px">/mese</span>
             </div>
-            {% endfor %}
-            <hr style="border-color:var(--border);margin:8px 0">
-            <div class="d-flex justify-content-between align-items-center">
-              <span style="font-size:12px;font-weight:700;color:#f97316">Totale fissi/mese</span>
-              <span id="adv_tot_fissi" style="font-size:14px;font-weight:700;color:#f97316">—</span>
-            </div>
-          </div>
-        </div>
+            {% else %}
+            <input type="number" min="0" step="50" id="{{ fid }}" value="{{ default }}"
+              style="width:80px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;font-size:11px;padding:2px 4px"
+              oninput="calcolaBusinessPlan()">
+            {% endif %}
+          </td>
+          <td style="padding:4px 6px;text-align:right;color:#f97316;font-size:11px" id="{{ fid }}_ann">—</td>
+        </tr>
+        {% endfor %}
 
-        <!-- INVESTIMENTI EXTRA -->
-        <div class="card mb-3">
-          <div class="card-header" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3)">
-            <i class="bi bi-tools me-2" style="color:#f59e0b"></i>
-            <b style="color:#fcd34d">INVESTIMENTI EXTRA</b>
-            <span style="font-size:10px;color:#64748b;font-weight:400"> (aggiuntivi alle macchine)</span>
-          </div>
-          <div class="card-body">
-            {% set inv_extra = [
-              ('Opere murarie/ristrutturazione', 'adv_inv_murarie',  1800, 5),
-              ('Impianti idraulici/elettrici',   'adv_inv_impianti', 8000, 8),
-              ('Insegne/vetrofanie',             'adv_inv_insegne',   400, 5),
-              ('Illuminazione',                  'adv_inv_illum',       0, 6),
-              ('Arredo locali',                  'adv_inv_arredo',   1500, 4),
-              ('Impianto antifurto',             'adv_inv_antifurto',1300, 6),
-              ('Distributore monete/banconote',  'adv_inv_gettoniere',1300, 4),
-              ('Allacciamento utenze',           'adv_inv_allaccia', 1300, 5),
-              ('Promozione avvio',               'adv_inv_promo',     800, 5),
-              ('Altro',                          'adv_inv_altro',       0, 5),
-            ] %}
-            {% for lbl, fid, default, anni in inv_extra %}
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <label style="font-size:10px;color:#94a3b8;flex:1">{{ lbl }}</label>
-              <div class="d-flex align-items-center gap-1">
-                <span style="font-size:11px;color:#64748b">€</span>
-                <input type="number" step="100" min="0" id="{{ fid }}" name="{{ fid }}"
-                  class="form-control form-control-sm adv-input" value="{{ default }}"
-                  style="width:80px" oninput="calcolaADV()"
-                  data-anni="{{ anni }}">
-              </div>
-            </div>
-            {% endfor %}
-            <div class="row g-2 mt-2">
-              <div class="col-6">
-                <label style="font-size:10px;color:#94a3b8">Amm. macchine (anni)</label>
-                <input type="number" step="1" min="5" max="15" id="adv_anni_mac" name="adv_anni_mac"
-                  class="form-control form-control-sm adv-input" value="4" oninput="calcolaADV()">
-              </div>
-              <div class="col-6">
-                <label style="font-size:10px;color:#94a3b8">% finanziato</label>
-                <input type="number" step="5" min="0" max="100" id="adv_perc_fin" name="adv_perc_fin"
-                  class="form-control form-control-sm adv-input" value="0" oninput="calcolaADV()">
-              </div>
-            </div>
-            <div class="row g-2 mt-1">
-              <div class="col-6">
-                <label style="font-size:10px;color:#94a3b8">Tasso interesse (%)</label>
-                <input type="number" step="0.1" id="adv_tasso" name="adv_tasso"
-                  class="form-control form-control-sm adv-input" value="6.0" oninput="calcolaADV()">
-              </div>
-              <div class="col-6">
-                <label style="font-size:10px;color:#94a3b8">Durata prestito (anni)</label>
-                <input type="number" step="1" id="adv_anni_prest" name="adv_anni_prest"
-                  class="form-control form-control-sm adv-input" value="7" oninput="calcolaADV()">
-              </div>
-            </div>
-          </div>
-        </div>
+        <tr style="background:rgba(249,115,22,0.15);border-top:2px solid rgba(249,115,22,0.4)">
+          <td colspan="5" style="padding:7px 10px;font-weight:700;color:white">TOTALE COSTI FISSI</td>
+          <td style="padding:7px 6px;text-align:right;font-weight:800;color:#f97316;font-size:13px" id="ce_tot_cf">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui mensile</td>
+          <td style="padding:4px 6px;text-align:right;color:#fb923c;font-size:11px" id="ce_tot_cf_mese">—</td>
+          <td></td>
+        </tr>
 
-        <!-- Giorni/ore -->
-        <div class="card mb-3">
-          <div class="card-body">
-            <div class="row g-2">
-              <div class="col-6">
-                <label class="form-label" style="font-size:11px">Giorni apertura/mese</label>
-                <input type="number" min="20" max="31" id="adv_giorni" name="adv_giorni"
-                  class="form-control form-control-sm adv-input" value="26" oninput="calcolaADV()">
-                <div style="font-size:9px;color:#64748b">Excel usa 26</div>
-              </div>
-              <div class="col-6">
-                <label class="form-label" style="font-size:11px">Ore apertura/giorno</label>
-                <input type="number" min="8" max="24" id="adv_ore" name="adv_ore"
-                  class="form-control form-control-sm adv-input" value="13" oninput="calcolaADV()">
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- TOTALI FINALI -->
+        <tr style="background:rgba(239,68,68,0.15);border-top:2px solid #ef4444">
+          <td colspan="5" style="padding:8px 10px;font-weight:700;color:white;font-size:13px">TOTALE COSTI</td>
+          <td style="padding:8px 6px;text-align:right;font-weight:800;color:#ef4444;font-size:14px" id="ce_tot_costi">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui mensile</td>
+          <td style="padding:4px 6px;text-align:right;color:#f87171;font-size:11px" id="ce_tot_costi_mese">—</td>
+          <td></td>
+        </tr>
+        <tr style="background:rgba(16,185,129,0.15);border-top:2px solid #10b981">
+          <td colspan="5" style="padding:8px 10px;font-weight:700;color:white;font-size:13px">REDDITO OPERATIVO</td>
+          <td style="padding:8px 6px;text-align:right;font-weight:800;font-size:14px" id="ce_reddito_op">—</td>
+          <td style="padding:8px 6px;text-align:right;font-size:11px" id="ce_reddito_op_pct">—</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="padding:4px 10px;color:#64748b;font-size:11px">di cui mensile</td>
+          <td style="padding:4px 6px;text-align:right;font-size:11px" id="ce_reddito_op_mese">—</td>
+          <td></td>
+        </tr>
+        <!-- Info aggiuntive -->
+        <tr style="background:rgba(37,99,235,0.06)">
+          <td style="padding:5px 10px;color:#64748b;font-size:11px">EBITDA (senza ammort.)</td>
+          <td colspan="4"></td>
+          <td style="padding:5px 6px;text-align:right;color:#3b82f6;font-weight:600" id="ce_ebitda">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;color:#64748b;font-size:11px">Payback investimento</td>
+          <td colspan="4"></td>
+          <td style="padding:5px 6px;text-align:right;color:#f59e0b;font-weight:700" id="ce_payback">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td style="padding:5px 10px;color:#64748b;font-size:11px">Break-even cicli/giorno</td>
+          <td colspan="4"></td>
+          <td style="padding:5px 6px;text-align:right;color:#ef4444;font-weight:700" id="ce_be_cicli">—</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div><!-- fine tab ce -->
 
-      </div><!-- fine col costi -->
+<!-- ══════════════════════════════════════════════════════
+     TAB 3: PIANO DI CASSA
+     ══════════════════════════════════════════════════════ -->
+<div id="bp-tab-pc" style="display:none">
+<div class="card">
+  <div class="card-header" style="background:rgba(16,185,129,0.1)">
+    <b style="color:#6ee7b7">📅 PIANO DI CASSA — 12 mesi</b>
+    <span style="font-size:11px;color:#64748b;margin-left:8px">Uscite e entrate mese per mese</span>
+    <span style="float:right;font-size:12px">Saldo fine anno: <b id="pc_saldo_finale" style="color:#10b981">—</b></span>
+  </div>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-sm mb-0" style="min-width:900px;font-size:11px">
+      <thead>
+        <tr style="background:rgba(30,42,70,0.9)">
+          <th style="padding:7px 8px;min-width:160px;position:sticky;left:0;background:var(--bg2)">Voce</th>
+          {% for m in ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'] %}
+          <th style="padding:7px 4px;text-align:right;min-width:68px">{{ m }}</th>
+          {% endfor %}
+          <th style="padding:7px 6px;text-align:right;min-width:80px;border-left:1px solid var(--border)">Totale</th>
+        </tr>
+      </thead>
+      <tbody id="pc_tbody">
+        <tr><td colspan="14" style="text-align:center;color:#64748b;padding:20px">
+          Calcola il Business Plan per vedere il Piano di Cassa
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
-      <!-- ── COL 3: RISULTATI + PIANO DI CASSA ──── -->
-      <div class="col-lg-4">
+<!-- Box note piano di cassa -->
+<div class="mt-2 p-3 rounded" style="background:rgba(37,99,235,0.06);font-size:11px;color:#64748b">
+  <b style="color:#3b82f6">Note Piano di Cassa:</b>
+  Affitto pagato trimestralmente · Commercialista ogni 2 mesi · Assicurazione mese 1 ·
+  Manutenzioni semestrale · Investimenti principalmente mese 1 (macchine spalmate mesi 1-2)
+</div>
+</div><!-- fine tab pc -->
 
-        <!-- Risultati conto economico -->
-        <div class="card mb-3" style="border-color:#2563eb">
-          <div class="card-header" style="border-color:#2563eb;background:rgba(37,99,235,0.15)">
-            <b style="color:#93c5fd">📊 CONTO ECONOMICO</b>
-          </div>
-          <div class="card-body" id="adv-conto-eco">
-            <div style="font-size:12px;color:#64748b;text-align:center;padding:20px">
-              Compila i campi per vedere i risultati
-            </div>
-          </div>
-        </div>
+<!-- Bottone ricalcola -->
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <button type="button" class="btn btn-outline-primary" onclick="calcolaBusinessPlan()">
+    <i class="bi bi-arrow-clockwise me-2"></i> Ricalcola tutto
+  </button>
+  <div style="font-size:11px;color:#64748b">
+    I valori si aggiornano automaticamente ad ogni modifica
+  </div>
+</div>
 
-        <!-- Confronto zona -->
-        <div class="card mb-3" id="adv-confronto-card" style="display:none;border-color:#8b5cf6">
-          <div class="card-header" style="border-color:#8b5cf6;background:rgba(139,92,246,0.15)">
-            <b style="color:#c4b5fd">🔍 CONFRONTO CON ZONA</b>
-          </div>
-          <div class="card-body" id="adv-confronto-body" style="font-size:12px">
-          </div>
-        </div>
+</div><!-- fine panel-bp-avanzata -->
 
-        <!-- Piano di cassa 12 mesi -->
-        <div class="card mb-3" style="border-color:#10b981">
-          <div class="card-header" style="border-color:#10b981;background:rgba(16,185,129,0.15)">
-            <b style="color:#6ee7b7">📅 PIANO DI CASSA — 12 mesi</b>
-          </div>
-          <div class="card-body p-0" style="overflow-x:auto">
-            <table class="table table-sm mb-0" id="adv-piano-cassa" style="font-size:11px;min-width:600px">
-              <thead>
-                <tr style="color:#64748b;border-bottom:1px solid var(--border)">
-                  <th style="padding:6px 8px">Voce</th>
-                  {% for m in range(1,13) %}
-                  <th style="padding:6px 4px;text-align:right">M{{ m }}</th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody id="adv-cassa-body">
-                <tr><td colspan="13" style="text-align:center;color:#64748b;padding:16px">Compila i campi ricavi e costi</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+<script>
+function setBPTab(tab) {
+  ['inv','ce','pc'].forEach(t => {
+    document.getElementById('bp-tab-'+t).style.display = t===tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    if (btn) {
+      btn.style.borderBottomColor = t===tab ? '#2563eb' : 'transparent';
+      btn.style.color = t===tab ? '#3b82f6' : '#64748b';
+      btn.style.fontWeight = t===tab ? '700' : '400';
+    }
+  });
+}
+</script>
 
-      </div><!-- fine col risultati -->
-
-    </div><!-- fine row avanzata -->
-
-    <!-- Bottone ricalcola avanzata -->
-    <div class="text-center mt-2">
-      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="calcolaADV()">
-        <i class="bi bi-arrow-clockwise me-1"></i> Ricalcola tutto
-      </button>
-    </div>
-
-  </div><!-- fine panel-bp-avanzata -->
 
   <div class="d-flex justify-content-between mt-3">
     <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
@@ -2610,53 +2851,10 @@ function eseguiAnalisi(lat, lng) {
         var sc = d.stima_clienti;
         if(sc) {
           show('stima-block');
-          const cli = sc.clienti_giorno||0;
-          const cc  = cli >= (sc.be_clienti_min||7) ? '#10b981' : cli >= (sc.be_clienti_min||7)*0.5 ? '#f59e0b' : '#ef4444';
-          setTxt('stima_clienti_num', cli.toFixed(1));
-          var elCli = sel('stima_clienti_num');
-          if(elCli) elCli.style.color = cc;
+          setTxt('stima_clienti_num', sc.clienti_giorno||0);
           setTxt('stima_pess', sc.scenario_pessimistico||0);
           setTxt('stima_ott', sc.scenario_ottimistico||0);
           setTxt('stima_mese', (sc.clienti_mese_reale||0).toLocaleString('it'));
-
-          // Indicatore confidenza
-          var conf = d.confidenza || {};
-          var confEl = sel('stima_confidenza');
-          if(confEl && conf.label) {
-            confEl.innerHTML =
-              '<span style="background:'+conf.col+'22;color:'+conf.col+';padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">'+
-              '📊 '+conf.label+' ('+conf.score+'/100)</span>';
-          }
-
-          // Tipo zona
-          var tipoEl = sel('stima_tipo_zona');
-          if(tipoEl && sc.tipo_zona) {
-            const tipoLabels = {residenziale_puro:'🏠 Residenziale puro', misto:'🏘️ Misto res/comm',
-              commerciale:'🏢 Commerciale', industriale:'🏭 Industriale', universitario:'🎓 Universitario'};
-            tipoEl.textContent = tipoLabels[sc.tipo_zona] || sc.tipo_zona;
-          }
-
-          // Stagionalità
-          var stagEl = sel('stima_stagionale');
-          if(stagEl && sc.stagionalita_mese) {
-            const sTag = sc.stagionalita_mese;
-            const sCol = sTag>1.05?'#10b981':sTag<0.90?'#ef4444':'#f59e0b';
-            stagEl.innerHTML = '<span style="color:'+sCol+'">×'+sTag.toFixed(2)+
-              ' stagionalità</span> — '+(sTag>1.05?'periodo di picco':sTag<0.90?'periodo basso':'nella media');
-          }
-
-          // Viabilità
-          var viaEl = sel('stima_viabilita');
-          if(viaEl) {
-            if(sc.is_viable) {
-              viaEl.innerHTML = '<span style="color:#10b981;font-weight:700">✅ Zona potenzialmente viable</span> — '+
-                'supera il break-even minimo di '+(sc.be_clienti_min||0)+' clienti/g';
-            } else {
-              viaEl.innerHTML = '<span style="color:#ef4444;font-weight:700">❌ Zona sotto il break-even</span> — '+
-                'stima '+(sc.be_clienti_min||0)+'+ clienti/g per coprire i costi base';
-            }
-            viaEl.style.display = 'block';
-          }
 
           // Formula completa
           var formulaEl = sel('stima_formula');
