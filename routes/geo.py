@@ -521,6 +521,7 @@ def zona_analisi():
                 n_vvf += 1
                 attractor_points.append({
                     'tipo': 'vvf', 'nome': poi['nome'],
+                    'lat': poi['lat'], 'lng': poi['lng'],
                     'distanza_m': poi['distanza_m'], 'icon': '🚒',
                     'impatto': 'Medio — personale fisso 365gg, divise su turni, usano self-service esterna',
                     'mult_caserma': None, 'durata_mesi': None,
