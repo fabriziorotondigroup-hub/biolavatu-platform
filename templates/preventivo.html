@@ -3462,14 +3462,16 @@ function calcolaBP() {
   fetch('/api/calcola-bp', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
     .then(r=>r.json())
     .then(d => {
-      document.getElementById('r_capex').textContent = '€' + d.capex.toLocaleString('it');
-      document.getElementById('r_capex_iva').textContent = '€' + (d.capex_iva || Math.round(d.capex*1.22)).toLocaleString('it') + ' (totale da pagare)';
+      const _rcapex = document.getElementById('r_capex');
+      const _rcapexiva = document.getElementById('r_capex_iva');
+      if(_rcapex) _rcapex.textContent = '€' + d.capex.toLocaleString('it');
+      if(_rcapexiva) _rcapexiva.textContent = '€' + (d.capex_iva || Math.round(d.capex*1.22)).toLocaleString('it') + ' (totale da pagare)';
 
       // Clienti/giorno e spesa visita
       const cli = d.clienti_giorno || 0;
       const spesa = d.spesa_cliente || d.spesa_visita || 0;
       const tMedia = d.tariffa_media || 0;
-      document.getElementById('r_cicli').textContent = cli.toFixed(1) + ' clienti/giorno';
+      const __r_cicli = document.getElementById('r_cicli'); if(__r_cicli) __r_cicli.textContent = cli.toFixed(1) + ' clienti/giorno';
       const spesaEl = document.getElementById('r_spesa_visita');
       if(spesaEl) spesaEl.textContent = '€' + spesa.toFixed(2)
         + (tMedia > 0 ? ' (lav. €' + tMedia.toFixed(2) + ' + asciug.)' : '');
@@ -3500,7 +3502,7 @@ function calcolaBP() {
           formulaNote.style.color = '#10b981';
         }
       }
-      document.getElementById('r_incasso').textContent = '€' + d.incasso_mese.toLocaleString('it');
+      const __r_incasso = document.getElementById('r_incasso'); if(__r_incasso) __r_incasso.textContent = '€' + d.incasso_mese.toLocaleString('it');
 
       // EBITDA
       const ebitdaEl = document.getElementById('r_ebitda');
@@ -3509,7 +3511,7 @@ function calcolaBP() {
         ebitdaEl.style.color = (d.ebitda||0) >= 0 ? '#34d399' : '#ef4444';
       }
 
-      document.getElementById('r_costi').textContent = '€' + d.costi_mese.toLocaleString('it');
+      const __r_costi = document.getElementById('r_costi'); if(__r_costi) __r_costi.textContent = '€' + d.costi_mese.toLocaleString('it');
       const utile = d.utile_mese;
       const uel = document.getElementById('r_utile');
       uel.textContent = '€' + utile.toLocaleString('it');
@@ -3532,7 +3534,7 @@ function calcolaBP() {
       }
 
       const pb = d.payback_anni;
-      document.getElementById('r_payback').textContent = pb > 0
+      const __r_payback = document.getElementById('r_payback'); if(__r_payback) __r_payback.textContent = pb > 0
         ? pb.toFixed(1) + ' anni (' + d.payback_mesi + ' mesi)'
         : 'N/D — utile negativo';
       // Salva per il riepilogo e per l'AI
