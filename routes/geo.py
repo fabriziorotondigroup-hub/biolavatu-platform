@@ -13,6 +13,8 @@ import os, math, requests
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 import os as _os
+from services.istat import get_demographic_data, get_market_assessment
+from services.domanda import calcola_stima_clienti, calcola_domanda_avanzata
 
 def ricerca_info_struttura_militare(nome: str, citta: str) -> dict:
     """
@@ -102,8 +104,6 @@ Rispondi SOLO in questo formato JSON, senza altro testo:
         }
 
 
-from services.istat import get_demographic_data, get_market_assessment
-from services.domanda import calcola_stima_clienti, calcola_domanda_avanzata
 
 geo_bp = Blueprint('geo', __name__)
 
