@@ -490,6 +490,62 @@ body { background: var(--bg); color: var(--text); }
 .table { color: #e2e8f0 !important; }
 .table .text-muted { color: #94a3b8 !important; }
 .wizard-steps { display:flex; gap:0; margin-bottom:28px; }
+/* ══════════════════════════════════════════════════
+   SCHEMA COLORI — Standard Excel Finanziario
+   BLU  = input utente (da inserire manualmente)
+   NERO = formula calcolata automaticamente
+   VERDE= collegamento da altro foglio/sezione
+   ══════════════════════════════════════════════════ */
+
+/* INPUT BLU — valori che l'utente deve inserire */
+.inp-blu {
+  background: #1e3a5f !important;
+  border: 1px solid #2563eb !important;
+  color: #60a5fa !important;
+  font-weight: 600 !important;
+  text-align: right;
+}
+.inp-blu::placeholder { color: #3b82f6; opacity: .7; }
+.inp-blu:focus {
+  background: #1e3a5f !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.3) !important;
+  outline: none;
+}
+
+/* FORMULA NERA — calcolata, non modificabile */
+.calc-nero {
+  color: #e2e8f0 !important;
+  font-weight: 600;
+  font-family: 'Inter', monospace;
+}
+
+/* COLLEGAMENTO VERDE — da altro foglio */
+.link-verde {
+  color: #10b981 !important;
+  font-weight: 600;
+}
+.link-verde-cell {
+  background: rgba(16,185,129,.06) !important;
+  border-left: 2px solid #10b981 !important;
+  color: #10b981 !important;
+  font-weight: 600;
+}
+
+/* Legenda schema colori */
+.schema-legenda {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  padding: 6px 12px;
+  background: rgba(255,255,255,.04);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 11px; margin-bottom: 10px;
+}
+.schema-legenda span { display:flex; align-items:center; gap:5px; }
+.dot-blu   { width:10px;height:10px;border-radius:2px;background:#2563eb;flex-shrink:0; }
+.dot-nero  { width:10px;height:10px;border-radius:2px;background:#e2e8f0;flex-shrink:0; }
+.dot-verde { width:10px;height:10px;border-radius:2px;background:#10b981;flex-shrink:0; }
+
 .step { flex:1; text-align:center; padding:12px; background:var(--bg2); border:1px solid var(--border); font-size:12px; color:var(--muted); position:relative; cursor:pointer; transition:.2s; }
 .step:first-child { border-radius:8px 0 0 8px; }
 .step:last-child { border-radius:0 8px 8px 0; }
@@ -1405,6 +1461,11 @@ body { background: var(--bg); color: var(--text); }
       </button>
     </div>
     <div id="bp-mode-hint" style="font-size:11px;color:#64748b"></div>
+  <div class="schema-legenda" id="schema-legenda-bp" style="display:none">
+    <span><div class="dot-blu"></div> BLU = input utente</span>
+    <span><div class="dot-nero"></div> NERO = formula</span>
+    <span><div class="dot-verde"></div> VERDE = collegamento</span>
+  </div>
   </div>
   <input type="hidden" id="f_bp_mode" name="bp_mode" value="rapida">
 
@@ -1848,25 +1909,21 @@ body { background: var(--bg); color: var(--text); }
           <td style="padding:5px 6px;text-align:center">
             {% if not is_ann %}
             <input type="number" min="0" step="0.5" id="{{ cid }}" value="{{ cdef }}"
-              style="width:56px;background:#1e3a5f;border:1px solid #2563eb;border-radius:4px;color:#60a5fa;text-align:right;font-size:11px;padding:2px 4px;font-weight:600"
+              class="inp-blu" style="width:56px;border-radius:4px;font-size:11px;padding:2px 4px"
               oninput="calcolaBusinessPlan()">
             {% else %}
             <span style="color:#64748b;font-size:10px">annuo</span>
             {% endif %}
           </td>
           <td style="padding:5px 6px;text-align:center;color:#64748b">{{ 365 if not is_ann else 1 }}</td>
-          <td style="padding:5px 6px;text-align:right;color:#64748b" id="{{ cid }}_qtann">
-            {{ (cdef * 365)|int if not is_ann else 1 }}
-          </td>
+          <td style="padding:5px 6px;text-align:right;color:#64748b" id="{{ cid }}_qtann" class="calc-nero">—</td>
           <td style="padding:5px 6px;text-align:right">
             <input type="number" min="0" step="0.1" id="{{ tid }}" value="{{ tdef }}"
-              style="width:60px;background:#1e3a5f;border:1px solid #2563eb;border-radius:4px;color:#60a5fa;text-align:right;font-size:11px;padding:2px 4px;font-weight:600"
+              class="inp-blu" style="width:60px;border-radius:4px;font-size:11px;padding:2px 4px"
               placeholder="€"
               oninput="calcolaBusinessPlan()">
           </td>
-          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#10b981" id="{{ cid }}_imp">
-            € {{ (cdef * tdef * (365 if not is_ann else 1))|round(0)|int }}
-          </td>
+          <td style="padding:5px 6px;text-align:right;font-weight:600;color:#10b981" id="{{ cid }}_imp" class="calc-nero">—</td>
           <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="{{ cid }}_pct">—</td>
         </tr>
         {% endfor %}
@@ -1929,9 +1986,7 @@ body { background: var(--bg); color: var(--text); }
         <tr style="background:rgba(245,158,11,0.06)">
           <td style="padding:5px 10px;color:#fbbf24;font-weight:600">Ammortamenti</td>
           <td colspan="4"></td>
-          <td style="padding:5px 6px;text-align:right;font-weight:700;color:#fbbf24" id="ce_cf_amm_ann">
-            dal Piano Investimenti
-          </td>
+          <td style="padding:5px 6px;text-align:right;font-weight:700;color:#fbbf24" id="ce_cf_amm_ann" class="link-verde-cell">— (da Piano Investimenti)</td>
           <td style="padding:5px 6px;text-align:right;color:#64748b;font-size:10px" id="ce_cf_amm_pct">—</td>
         </tr>
 
