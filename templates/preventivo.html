@@ -1834,13 +1834,13 @@ body { background: var(--bg); color: var(--text); }
         </tr>
 
         {% set ce_ricavi = [
-          ('Lavaggi piccole (≤9kg)', 'ce_cic_lav_p', 15, 'ce_tar_lav_p', 4.0, false),
-          ('Lavaggi medie (10-13kg)', 'ce_cic_lav_m', 0, 'ce_tar_lav_m', 6.0, false),
-          ('Lavaggi grandi (≥14kg)', 'ce_cic_lav_g', 10, 'ce_tar_lav_g', 8.0, false),
-          ('Asciugature piccole', 'ce_cic_asc_p', 20, 'ce_tar_asc_p', 3.0, false),
-          ('Asciugature grandi', 'ce_cic_asc_g', 5, 'ce_tar_asc_g', 4.0, false),
-          ('Vendita dosi detersivo', 'ce_cic_det', 12.5, 'ce_tar_det', 0.5, false),
-          ('Distributore caffè/bibite', 'ce_cic_caffe', 1, 'ce_tar_caffe', 500.0, true),
+          ('Lavaggi piccole (≤9kg)', 'ce_cic_lav_p', 15, 'ce_tar_lav_p', 0, false),
+          ('Lavaggi medie (10-13kg)', 'ce_cic_lav_m', 0, 'ce_tar_lav_m', 0, false),
+          ('Lavaggi grandi (≥14kg)', 'ce_cic_lav_g', 10, 'ce_tar_lav_g', 0, false),
+          ('Asciugature piccole', 'ce_cic_asc_p', 20, 'ce_tar_asc_p', 0, false),
+          ('Asciugature grandi', 'ce_cic_asc_g', 5, 'ce_tar_asc_g', 0, false),
+          ('Vendita dosi detersivo', 'ce_cic_det', 12.5, 'ce_tar_det', 0, false),
+          ('Distributore caffè/bibite', 'ce_cic_caffe', 1, 'ce_tar_caffe', 0, true),
         ] %}
         {% for lbl, cid, cdef, tid, tdef, is_ann in ce_ricavi %}
         <tr class="ce-row">
