@@ -73,5 +73,31 @@ def create_app():
 
 app = create_app()
 
+# ── Migrazione automatica colonne mancanti ────────────────────────────────
+def _run_migrations():
+    from sqlalchemy import text
+    cols = [
+        ('pratiche', 'bp_avanzato_json', 'TEXT'),
+        ('pratiche', 'pop_3min',         'INTEGER DEFAULT 0'),
+        ('pratiche', 'ai_risk',          'TEXT'),
+        ('pratiche', 'allegati_json',    'TEXT'),
+        ('pratiche', 'foto_mappa',       'TEXT'),
+    ]
+    with app.app_context():
+        with db.engine.connect() as conn:
+            for tbl, col, typ in cols:
+                try:
+                    conn.execute(text(
+                        f'ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {typ}'
+                    ))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+try:
+    _run_migrations()
+except Exception:
+    pass
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
