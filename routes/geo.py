@@ -298,6 +298,9 @@ def zona_analisi():
                     _tur_visti.add(_pid)
                     raw_turismo.append(_p)
 
+        # ── PARRUCCHIERI / BARBIERI ────────────────────────────────────────────────────
+        raw_parrucchieri = gmaps_nearby(lat, lng, r5, 'hair_care')
+
         # ── CONCORRENTI: 3 chiamate separate per tipo ─────────────────────────────
         # 1) Self-service / coin laundry (competitor diretto)
         raw_self_service = gmaps_nearby(lat, lng, r15, 'laundry', keyword='self service lavanderia automatica gettoni')
@@ -389,6 +392,7 @@ def zona_analisi():
         n_vvf        = 0
         n_case_cura  = 0
         n_turismo    = 0
+        n_parrucchieri = 0
 
         for p in raw_universita:
             poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
@@ -771,6 +775,7 @@ def zona_analisi():
             'n_vvf':              n_vvf,
             'n_case_cura':        n_case_cura,
         'n_turismo':          n_turismo,
+        'n_parrucchieri':     n_parrucchieri,
             'verifica_richiesta': any(
                 ap.get('verifica_richiesta') for ap in attractor_points
             ),
