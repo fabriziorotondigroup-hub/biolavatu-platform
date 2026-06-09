@@ -192,6 +192,26 @@ def elimina_venditore(id):
     return redirect(url_for('admin.index'))
 
 
+@admin_bp.route('/admin/venditori/<int:id>/cambia-ruolo', methods=['POST'])
+@login_required
+@admin_required
+def cambia_ruolo(id):
+    from flask_login import current_user
+    u = User.query.get_or_404(id)
+    if u.id == current_user.id:
+        flash('Non puoi cambiare il tuo stesso ruolo.', 'error')
+        return redirect(url_for('admin.index'))
+    nuovo_ruolo = request.form.get('ruolo', 'sales')
+    if nuovo_ruolo not in ('admin', 'sales'):
+        flash('Ruolo non valido.', 'error')
+        return redirect(url_for('admin.index'))
+    u.role = nuovo_ruolo
+    db.session.commit()
+    etichetta = 'Amministratore' if nuovo_ruolo == 'admin' else 'Agente'
+    flash(f'{u.nome} è ora {etichetta}.', 'success')
+    return redirect(url_for('admin.index'))
+
+
 @admin_bp.route('/admin/venditori/<int:id>/reset-password', methods=['POST'])
 @login_required
 @admin_required
