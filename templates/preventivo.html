@@ -3255,7 +3255,7 @@ function eseguiAnalisi(lat, lng) {
           var catColori={
             supermercato:'#10b981', farmacia:'#3b82f6', bar_cafe:'#f59e0b',
             ristorante:'#ef4444',   istruzione:'#8b5cf6', trasporti:'#06b6d4',
-            ospedale:'#0891b2',     casa_cura:'#7c3aed',  turismo:'#0891b2', parrucchiere:'#ec4899', forno:'#f59e0b', pet:'#10b981', parrucchiere:'#ec4899', forno:'#f59e0b', pet:'#10b981', forno:'#f59e0b', pet:'#10b981', pet:'#10b981', competitor:'#dc2626',
+            ospedale:'#0891b2',     casa_cura:'#7c3aed',  turismo:'#0891b2', parrucchiere:'#ec4899', forno:'#f59e0b', pet:'#10b981', affitto_breve:'#f97316', parrucchiere:'#ec4899', forno:'#f59e0b', pet:'#10b981', affitto_breve:'#f97316', forno:'#f59e0b', pet:'#10b981', affitto_breve:'#f97316', pet:'#10b981', affitto_breve:'#f97316', affitto_breve:'#f97316', competitor:'#dc2626',
             altro:'#ec4899'
           };
           var catIcone={
@@ -3351,6 +3351,39 @@ function eseguiAnalisi(lat, lng) {
         });
         html+='</div>';
         setHtml('poi-list', html||'<p class="p-3 text-muted">Nessun POI trovato</p>');
+
+        // ── Cerchi densità affitti brevi ─────────────────────────────────────
+        var affitti = d.affitti_latlng || [];
+        if (affitti.length > 0) {
+          // Cerchio per ogni struttura
+          affitti.forEach(function(a) {
+            L.circle([a.lat, a.lng], {
+              radius: 120,
+              color: '#f97316', weight: 1.5,
+              fillColor: '#f97316', fillOpacity: 0.12,
+              dashArray: '4,4'
+            }).addTo(map).bindPopup(
+              '<b>🏠 ' + a.nome + '</b>' +
+              '<br><span style="color:#f97316;font-size:11px">Affitto breve / B&B</span>' +
+              '<br><span style="color:#64748b;font-size:11px">' + a.distanza_m + 'm dalla sede</span>'
+            );
+          });
+          // Se zona turistica (5+) — cerchio grande arancione attorno alla sede
+          if (d.zona_turistica) {
+            var _lat = parseFloat(document.getElementById('f_lat').value);
+            var _lng = parseFloat(document.getElementById('f_lng').value);
+            L.circle([_lat, _lng], {
+              radius: 800,
+              color: '#f97316', weight: 2,
+              fillColor: '#f97316', fillOpacity: 0.06,
+              dashArray: '8,6'
+            }).addTo(map).bindPopup(
+              '<b>🔥 ZONA AD ALTA DENSITÀ TURISTICA</b>' +
+              '<br><span style="color:#f97316;font-size:11px">' + affitti.length + ' strutture ricettive nel raggio 800m</span>' +
+              '<br><span style="color:#94a3b8;font-size:10px">Forte domanda lavanderia da turisti</span>'
+            );
+          }
+        }
 
         console.log('[BIO] TUTTO COMPLETATO ✅');
 
