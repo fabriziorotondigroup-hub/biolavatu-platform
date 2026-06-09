@@ -183,8 +183,8 @@ def toggle_venditore(id):
 @admin_required
 def elimina_venditore(id):
     u = User.query.get_or_404(id)
-    if u.is_admin:
-        flash('Non puoi eliminare un amministratore.', 'error')
+    if u.is_owner:
+        flash('Il proprietario non può essere eliminato.', 'error')
         return redirect(url_for('admin.index'))
     db.session.delete(u)
     db.session.commit()
@@ -198,6 +198,9 @@ def elimina_venditore(id):
 def cambia_ruolo(id):
     from flask_login import current_user
     u = User.query.get_or_404(id)
+    if u.is_owner:
+        flash('Il ruolo del proprietario non può essere modificato.', 'error')
+        return redirect(url_for('admin.index'))
     if u.id == current_user.id:
         flash('Non puoi cambiare il tuo stesso ruolo.', 'error')
         return redirect(url_for('admin.index'))
