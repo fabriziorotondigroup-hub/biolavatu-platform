@@ -284,6 +284,20 @@ def zona_analisi():
         # Stazioni ferroviarie: pendolari, turisti, transito
         raw_stazioni     = gmaps_nearby(lat, lng, r10, 'train_station')
 
+        # ── TURISMO: hotel, B&B, affittacamere, ostelli ─────────────────────────────
+        raw_hotel      = gmaps_nearby(lat, lng, r10, 'lodging')
+        raw_bnb        = gmaps_nearby(lat, lng, r10, 'point_of_interest',
+                                      keyword='bed and breakfast affittacamere casa vacanze')
+        # Deduplicazione turismo
+        _tur_visti = set()
+        raw_turismo = []
+        for _lst in [raw_hotel, raw_bnb]:
+            for _p in (_lst or []):
+                _pid = _p.get('place_id', _p.get('name', ''))
+                if _pid not in _tur_visti:
+                    _tur_visti.add(_pid)
+                    raw_turismo.append(_p)
+
         # ── CONCORRENTI: 3 chiamate separate per tipo ─────────────────────────────
         # 1) Self-service / coin laundry (competitor diretto)
         raw_self_service = gmaps_nearby(lat, lng, r15, 'laundry', keyword='self service lavanderia automatica gettoni')
@@ -364,6 +378,7 @@ def zona_analisi():
         add_pois(raw_palestre,     'altro',         '#ec4899', '💪',  400)
         add_pois(raw_ospedali,     'ospedale',      '#0891b2', '🏥', 1500)
         add_pois(raw_case_cura,    'casa_cura',     '#7c3aed', '🏠', 1500)
+        add_pois(raw_turismo,      'turismo',       '#0891b2', '🛏️', 500)
 
         # ── ANALISI ATTRACTOR POINTS ──────────────────────────────────────────────
         attractor_points = []
@@ -373,6 +388,7 @@ def zona_analisi():
         n_stazioni   = 0
         n_vvf        = 0
         n_case_cura  = 0
+        n_turismo    = 0
 
         for p in raw_universita:
             poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
@@ -754,6 +770,7 @@ def zona_analisi():
             'n_stazioni':         n_stazioni,
             'n_vvf':              n_vvf,
             'n_case_cura':        n_case_cura,
+        'n_turismo':          n_turismo,
             'verifica_richiesta': any(
                 ap.get('verifica_richiesta') for ap in attractor_points
             ),
@@ -1180,6 +1197,7 @@ def esplora_zona():
             'fonte':         'ISTAT Censimento 2021',
         }
     })
+
 
 
 
