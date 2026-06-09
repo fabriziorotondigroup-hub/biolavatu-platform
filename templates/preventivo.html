@@ -483,6 +483,82 @@ function calcolaPianoCassa(inv, ce) {
 // ────────────────────────────────────────────────────────────────────────────
 // MAIN — collega i 3 fogli in sequenza
 // ────────────────────────────────────────────────────────────────────────────
+// ── COSTANTI TECNICI MACCHINE ────────────────────────────────────────────────
+// Fonte: dati tecnici Rotondi Group
+var CICLO_MIN_LAV = 45;   // minuti per ciclo lavatrice (tutte le taglie)
+var CICLO_MIN_ASC = 16;   // minuti per ciclo asciugatrice (tutte le taglie)
+var ORE_APERTURA  = 14;   // ore/giorno apertura
+var MIN_APERTURA  = ORE_APERTURA * 60;  // 840 minuti/giorno
+
+function cicliMaxPerMacchina(cicloMin) {
+  return Math.floor(MIN_APERTURA / cicloMin);
+}
+
+function verificaCapacita(d) {
+  // Leggi numero macchine dallo step 4
+  var n_lav_p = 0, n_lav_m = 0, n_lav_g = 0, n_asc_p = 0, n_asc_g = 0;
+  try {
+    var mac = window._macchineSelezionate || [];
+    mac.forEach(function(m) {
+      var n = parseInt(m.qty) || 0;
+      var cat = (m.categoria||'').toLowerCase();
+      var nome = (m.nome||'').toLowerCase();
+      if (cat.includes('lavat') || nome.includes('lavat') || nome.includes('lavocentri')) {
+        if (nome.includes('grand') || nome.includes('14') || nome.includes('18')) n_lav_g += n;
+        else if (nome.includes('med') || nome.includes('10') || nome.includes('13')) n_lav_m += n;
+        else n_lav_p += n;
+      } else if (cat.includes('asciug') || nome.includes('asciug') || nome.includes('essic')) {
+        if (nome.includes('grand') || nome.includes('16') || nome.includes('18')) n_asc_g += n;
+        else n_asc_p += n;
+      }
+    });
+  } catch(e) {}
+
+  var max_lav_p = n_lav_p * cicliMaxPerMacchina(CICLO_MIN_LAV);
+  var max_lav_m = n_lav_m * cicliMaxPerMacchina(CICLO_MIN_LAV);
+  var max_lav_g = n_lav_g * cicliMaxPerMacchina(CICLO_MIN_LAV);
+  var max_asc_p = n_asc_p * cicliMaxPerMacchina(CICLO_MIN_ASC);
+  var max_asc_g = n_asc_g * cicliMaxPerMacchina(CICLO_MIN_ASC);
+
+  var warnings = [];
+  var cic_lav_p = parseFloat(document.getElementById('ce_cic_lav_p')?.value||0);
+  var cic_lav_m = parseFloat(document.getElementById('ce_cic_lav_m')?.value||0);
+  var cic_lav_g = parseFloat(document.getElementById('ce_cic_lav_g')?.value||0);
+  var cic_asc_p = parseFloat(document.getElementById('ce_cic_asc_p')?.value||0);
+  var cic_asc_g = parseFloat(document.getElementById('ce_cic_asc_g')?.value||0);
+
+  if (n_lav_p > 0 && cic_lav_p > max_lav_p)
+    warnings.push('⚠️ Lav. piccole: ' + cic_lav_p + ' cicli/g superano la capacità massima di ' + max_lav_p + ' cicli/g (' + n_lav_p + ' macchine × ' + cicliMaxPerMacchina(CICLO_MIN_LAV) + ')');
+  if (n_lav_m > 0 && cic_lav_m > max_lav_m)
+    warnings.push('⚠️ Lav. medie: ' + cic_lav_m + ' cicli/g superano la capacità massima di ' + max_lav_m + ' cicli/g');
+  if (n_lav_g > 0 && cic_lav_g > max_lav_g)
+    warnings.push('⚠️ Lav. grandi: ' + cic_lav_g + ' cicli/g superano la capacità massima di ' + max_lav_g + ' cicli/g');
+  if (n_asc_p > 0 && cic_asc_p > max_asc_p)
+    warnings.push('⚠️ Asc. piccole: ' + cic_asc_p + ' cicli/g superano la capacità massima di ' + max_asc_p + ' cicli/g (' + n_asc_p + ' macchine × ' + cicliMaxPerMacchina(CICLO_MIN_ASC) + ')');
+  if (n_asc_g > 0 && cic_asc_g > max_asc_g)
+    warnings.push('⚠️ Asc. grandi: ' + cic_asc_g + ' cicli/g superano la capacità massima di ' + max_asc_g + ' cicli/g');
+
+  // Mostra avvisi nel box capacità
+  var box = document.getElementById('capacita-warning-box');
+  if (box) {
+    if (warnings.length > 0) {
+      box.innerHTML = warnings.map(function(w){
+        return '<div style="padding:4px 0;border-bottom:1px solid rgba(239,68,68,.2)">' + w + '</div>';
+      }).join('');
+      box.style.display = 'block';
+    } else {
+      // Mostra info capacità massima
+      var info = [];
+      if (n_lav_p+n_lav_m+n_lav_g > 0)
+        info.push('✅ Lavatrici: ciclo 45 min → max ' + cicliMaxPerMacchina(CICLO_MIN_LAV) + ' cicli/macchina/g (' + ORE_APERTURA + 'h aperte)');
+      if (n_asc_p+n_asc_g > 0)
+        info.push('✅ Asciugatrici: ciclo 16 min → max ' + cicliMaxPerMacchina(CICLO_MIN_ASC) + ' cicli/macchina/g (' + ORE_APERTURA + 'h aperte)');
+      box.innerHTML = info.map(function(i){return '<div style="padding:3px 0;color:#10b981">'+i+'</div>';}).join('');
+      box.style.display = info.length > 0 ? 'block' : 'none';
+    }
+  }
+}
+
 function calcolaBusinessPlan() {
   const inv = calcolaInvestimenti();   // PI
   const ce  = calcolaContoEco(inv);   // CE ← PI (ammortamenti)
@@ -490,6 +566,13 @@ function calcolaBusinessPlan() {
 }
 
 function calcolaADV() { calcolaBusinessPlan(); }
+
+// Chiama verifica capacità ogni volta che si ricalcola il BP
+var _origCalcBP = calcolaBusinessPlan;
+calcolaBusinessPlan = function() {
+  _origCalcBP();
+  try { verificaCapacita(); } catch(e) {}
+};
 
 // Auto-popola i cicli dalla stima zona quando disponibile
 window._popolaAdvDaZona = function(bp) {
@@ -1921,6 +2004,9 @@ body { background: var(--bg); color: var(--text); }
      TAB 2: CONTO ECONOMICO
      ══════════════════════════════════════════════════════ -->
 <div id="bp-tab-ce" style="display:none">
+  <!-- Box capacità macchine -->
+  <div id="capacita-warning-box" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">
+  </div>
 <div class="card">
   <div class="card-header" style="background:rgba(16,185,129,0.1)">
     <b style="color:#6ee7b7">💰 CONTO ECONOMICO</b>
