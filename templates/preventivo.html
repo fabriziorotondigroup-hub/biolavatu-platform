@@ -3029,6 +3029,16 @@ function eseguiAnalisi(lat, lng) {
           show('demo-block');
           setVal('f_eta_media', dem.eta_media);
           setVal('f_reddito_medio', dem.reddito_medio || 22000);
+          setVal('f_perc_stranieri', dem.perc_stranieri || 8.0);
+          // Mostra badge stranieri nella UI
+          var strEl = document.getElementById('badge_stranieri');
+          if (strEl && dem.perc_stranieri) {
+            var ps = parseFloat(dem.perc_stranieri);
+            var col = ps >= 15 ? '#10b981' : ps >= 10 ? '#f59e0b' : '#64748b';
+            var lbl = ps >= 15 ? '🌍 Alta concentrazione' : ps >= 10 ? '🌍 Media concentrazione' : '🌍 Nella media';
+            strEl.innerHTML = '<span style="color:' + col + ';font-weight:700">' + ps.toFixed(1) + '%</span> stranieri residenti — ' + lbl;
+            strEl.style.display = 'block';
+          }
           setVal('f_densita', dem.densita || 3000);
           setTxt('demo_eta', dem.eta_media);
           setTxt('demo_reddito', '€'+(dem.reddito_medio||0).toLocaleString('it'));
