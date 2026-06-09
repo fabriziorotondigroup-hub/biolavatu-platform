@@ -298,6 +298,21 @@ def zona_analisi():
                     _tur_visti.add(_pid)
                     raw_turismo.append(_p)
 
+        # ── AFFITTI BREVI / TURISMO RESIDENZIALE ────────────────────────────
+        # Cerca segnali di affitti brevi/Airbnb nella zona
+        raw_affitti_1 = gmaps_nearby(lat, lng, r10, 'point_of_interest',
+                                     keyword='affittacamere casa vacanze appartamento turistico airbnb')
+        raw_affitti_2 = gmaps_nearby(lat, lng, r10, 'lodging',
+                                     keyword='bed and breakfast ostello agriturismo')
+        _aff_visti = set()
+        raw_affitti = []
+        for _lst in [raw_affitti_1, raw_affitti_2]:
+            for _p in (_lst or []):
+                _pid = _p.get('place_id', _p.get('name', ''))
+                if _pid not in _aff_visti:
+                    _aff_visti.add(_pid)
+                    raw_affitti.append(_p)
+
         # ── PET SHOP / VETERINARI / TOELETTATURA ──────────────────────────────
         raw_pet_1 = gmaps_nearby(lat, lng, r5, 'pet_store')
         raw_pet_2 = gmaps_nearby(lat, lng, r5, 'veterinary_care')
@@ -413,6 +428,8 @@ def zona_analisi():
         n_parrucchieri = 0
         n_forni = 0
         n_pet = 0
+        n_affitti = 0
+        affitti_latlng = []  # per cerchi densità
 
         for p in raw_universita:
             poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
@@ -786,6 +803,7 @@ def zona_analisi():
                 'col':   stima.get('confidenza_col', '#64748b'),
             },
             'tipo_zona':          stima.get('tipo_zona', 'misto'),
+        'zona_turistica':     n_affitti >= 5,  # 5+ strutture = zona ad alta densità turistica
             'attractor_points':   attractor_points,
             'mult_attractor':     round(mult_attractor, 2),
             'n_universita':       n_universita,
@@ -798,6 +816,8 @@ def zona_analisi():
         'n_parrucchieri':     n_parrucchieri,
         'n_forni':            n_forni,
         'n_pet':              n_pet,
+        'n_affitti':          n_affitti,
+        'affitti_latlng':     affitti_latlng,
             'verifica_richiesta': any(
                 ap.get('verifica_richiesta') for ap in attractor_points
             ),
