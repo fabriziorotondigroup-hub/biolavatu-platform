@@ -3188,6 +3188,51 @@ function eseguiAnalisi(lat, lng) {
             L.marker([p.lat, p.lng], {icon: icon}).addTo(map).bindPopup(popup);
           });
           console.log('[BIO] mappa OK');
+
+        // ── Attractor Points — mostra strutture trovate ───────────────────
+        var attrPts = d.attractor_points || [];
+        var attrBlock = document.getElementById('attractor-block');
+        var attrList  = document.getElementById('attractor-list');
+        var attrBadge = document.getElementById('attractor-count-badge');
+        if (attrPts.length > 0 && attrBlock && attrList) {
+          attrBlock.style.display = 'block';
+          if (attrBadge) attrBadge.textContent = attrPts.length + ' strutture';
+
+          var attrIcons = {
+            universita:'🎓', ospedale:'🏥', casa_cura:'🏠',
+            caserma:'🪖', scuola_militare:'⭐', vvf:'🚒', stazione:'🚉'
+          };
+          var attrColors = {
+            universita:'#8b5cf6', ospedale:'#0891b2', casa_cura:'#7c3aed',
+            caserma:'#ef4444', scuola_militare:'#dc2626', vvf:'#f59e0b', stazione:'#3b82f6'
+          };
+          var attrLabels = {
+            universita:'Università', ospedale:'Ospedale/Clinica',
+            casa_cura:'Casa di cura/RSA', caserma:'Caserma/Militare',
+            scuola_militare:'Scuola Militare', vvf:'Vigili del Fuoco',
+            stazione:'Stazione Ferroviaria'
+          };
+
+          attrList.innerHTML = attrPts.map(function(ap) {
+            var icon  = attrIcons[ap.tipo]  || '📍';
+            var col   = attrColors[ap.tipo] || '#64748b';
+            var label = attrLabels[ap.tipo] || ap.tipo;
+            var dist  = ap.distanza_m ? (ap.distanza_m < 1000
+              ? ap.distanza_m + 'm'
+              : (ap.distanza_m/1000).toFixed(1) + 'km') : '';
+            return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border)">' +
+              '<div style="font-size:22px;line-height:1;flex-shrink:0">' + icon + '</div>' +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-weight:600;color:#e2e8f0;font-size:13px">' + ap.nome + '</div>' +
+                '<div style="display:flex;gap:8px;margin-top:3px;flex-wrap:wrap">' +
+                  '<span style="background:rgba(255,255,255,.06);color:' + col + ';padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600">' + label + '</span>' +
+                  (dist ? '<span style="color:#64748b;font-size:11px">📍 ' + dist + '</span>' : '') +
+                '</div>' +
+                (ap.impatto ? '<div style="color:#64748b;font-size:11px;margin-top:3px">' + ap.impatto + '</div>' : '') +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
         } catch(mapErr) { console.warn('[BIO] mappa errore (non bloccante):', mapErr.message); }
 
         // POI list
