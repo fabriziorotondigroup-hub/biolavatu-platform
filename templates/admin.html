@@ -110,13 +110,29 @@
               {% if v.attivo %}<span class="badge bg-success bg-opacity-15 text-success">Attivo</span>
               {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted">Disattivo</span>{% endif %}
             </td>
-            <td class="d-flex gap-1">
+            <td>
+              {% if v.role == 'admin' %}
+                <span class="badge bg-danger bg-opacity-15 text-danger">👑 Admin</span>
+              {% else %}
+                <span class="badge bg-primary bg-opacity-15 text-primary">👤 Agente</span>
+              {% endif %}
+            </td>
+            <td class="d-flex gap-1 flex-wrap">
               <form method="POST" action="{{ url_for('admin.toggle_venditore', id=v.id) }}">
                 <button type="submit" class="btn btn-sm btn-outline-secondary">
                   {{ 'Disattiva' if v.attivo else 'Attiva' }}
                 </button>
               </form>
               <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalPw{{ v.id }}">🔑</button>
+              <!-- Bottone Promuovi/Declassa ruolo -->
+              <form method="POST" action="{{ url_for('admin.cambia_ruolo', id=v.id) }}"
+                onsubmit="return confirm('{% if v.role == "admin" %}Rimuovere i privilegi admin a {{ v.nome }}?{% else %}Rendere {{ v.nome }} amministratore?{% endif %}')">
+                <input type="hidden" name="ruolo" value="{{ 'sales' if v.role == 'admin' else 'admin' }}">
+                <button type="submit" class="btn btn-sm {% if v.role == 'admin' %}btn-outline-warning{% else %}btn-outline-danger{% endif %}"
+                  title="{% if v.role == 'admin' %}Rimuovi Admin{% else %}Promuovi ad Admin{% endif %}">
+                  {% if v.role == 'admin' %}👑 → Agente{% else %}👤 → Admin{% endif %}
+                </button>
+              </form>
               <form method="POST" action="{{ url_for('admin.elimina_venditore', id=v.id) }}"
                 onsubmit="return confirm('Eliminare {{ v.nome }}?')">
                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina">
