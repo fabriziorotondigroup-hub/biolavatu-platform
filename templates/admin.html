@@ -111,7 +111,9 @@
               {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted">Disattivo</span>{% endif %}
             </td>
             <td>
-              {% if v.role == 'admin' %}
+              {% if v.role == 'owner' %}
+                <span class="badge bg-warning bg-opacity-20 text-warning">⭐ Proprietario</span>
+              {% elif v.role == 'admin' %}
                 <span class="badge bg-danger bg-opacity-15 text-danger">👑 Admin</span>
               {% else %}
                 <span class="badge bg-primary bg-opacity-15 text-primary">👤 Agente</span>
@@ -124,6 +126,7 @@
                 </button>
               </form>
               <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalPw{{ v.id }}">🔑</button>
+              {% if not v.is_owner %}
               <!-- Bottone Promuovi/Declassa ruolo -->
               <form method="POST" action="{{ url_for('admin.cambia_ruolo', id=v.id) }}"
                 onsubmit="return confirm('{% if v.role == "admin" %}Rimuovere i privilegi admin a {{ v.nome }}?{% else %}Rendere {{ v.nome }} amministratore?{% endif %}')">
@@ -139,6 +142,9 @@
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
+              {% else %}
+              <span class="text-muted" style="font-size:11px">⭐ Protetto</span>
+              {% endif %}
             </td>
           </tr>
           <div class="modal fade" id="modalPw{{ v.id }}" tabindex="-1">
