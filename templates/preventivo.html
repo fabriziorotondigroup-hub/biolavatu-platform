@@ -930,6 +930,7 @@ body { background: var(--bg); color: var(--text); }
     <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🏥 Ospedali</span>
     <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🪖 Caserme</span>
     <span style="white-space:nowrap;color:#7c3aed;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(124,58,237,.15);flex-shrink:0">🏠 Case cura</span>
+    <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🛏️ Turismo</span>
   </div>
 
   <!-- Mappa -->
@@ -3125,6 +3126,7 @@ function eseguiAnalisi(lat, lng) {
             universita:     {col:'#8b5cf6', icon:'🎓', raggio:300},
             ospedale:       {col:'#10b981', icon:'🏥', raggio:300},
             casa_cura:      {col:'#7c3aed', icon:'🏠', raggio:250},
+            turismo:        {col:'#0891b2', icon:'🛏️', raggio:150},
             stazione:       {col:'#3b82f6', icon:'🚉', raggio:200},
             vvf:            {col:'#f59e0b', icon:'🚒', raggio:200},
             caserma:        {col:'#ef4444', icon:'🪖', raggio:250},
@@ -3157,7 +3159,7 @@ function eseguiAnalisi(lat, lng) {
           var catColori={
             supermercato:'#10b981', farmacia:'#3b82f6', bar_cafe:'#f59e0b',
             ristorante:'#ef4444',   istruzione:'#8b5cf6', trasporti:'#06b6d4',
-            ospedale:'#0891b2',     casa_cura:'#7c3aed',  competitor:'#dc2626',
+            ospedale:'#0891b2',     casa_cura:'#7c3aed',  turismo:'#0891b2', competitor:'#dc2626',
             altro:'#ec4899'
           };
           var catIcone={
