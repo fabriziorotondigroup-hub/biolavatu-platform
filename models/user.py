@@ -26,4 +26,8 @@ class User(db.Model, UserMixin):
 
     @property
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role in ('admin', 'owner')
+
+    @property
+    def is_owner(self):
+        return self.role == 'owner'
