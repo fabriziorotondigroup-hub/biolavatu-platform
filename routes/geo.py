@@ -298,6 +298,9 @@ def zona_analisi():
                     _tur_visti.add(_pid)
                     raw_turismo.append(_p)
 
+        # ── FORNI / PANIFICI / PASTICCERIE ────────────────────────────────────
+        raw_forni = gmaps_nearby(lat, lng, r5, 'bakery')
+
         # ── PARRUCCHIERI / BARBIERI ────────────────────────────────────────────────────
         raw_parrucchieri = gmaps_nearby(lat, lng, r5, 'hair_care')
 
@@ -393,6 +396,7 @@ def zona_analisi():
         n_case_cura  = 0
         n_turismo    = 0
         n_parrucchieri = 0
+        n_forni = 0
 
         for p in raw_universita:
             poi = place_to_poi(p, lat, lng, 'istruzione', '#7c3aed', '🎓')
@@ -776,6 +780,7 @@ def zona_analisi():
             'n_case_cura':        n_case_cura,
         'n_turismo':          n_turismo,
         'n_parrucchieri':     n_parrucchieri,
+        'n_forni':            n_forni,
             'verifica_richiesta': any(
                 ap.get('verifica_richiesta') for ap in attractor_points
             ),
