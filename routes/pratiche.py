@@ -245,8 +245,20 @@ def _get_mappa_statica(lat, lng, gmaps_key, width_px=640, height_px=360,
 @pratiche_bp.route('/pratiche/<int:id>/pdf')
 @login_required
 def genera_pdf(id):
+    """Reindirizza al nuovo pdf_service professionale."""
     try:
-        return _genera_pdf_interno(id)
+        from models.pratica import Pratica
+        from models.settings import Settings
+        from services.pdf_service import build_pdf
+        from flask import send_file, abort
+        p = Pratica.query.get_or_404(id)
+        if current_user.role not in ('owner', 'admin') and p.agente_id != current_user.id:
+            abort(403)
+        s   = Settings.query.first()
+        buf = build_pdf(p, s)
+        nome = f"BIOLavaTU_{p.numero}_{(p.cliente.nome if p.cliente else 'cliente').replace(' ', '_')}.pdf"
+        return send_file(buf, mimetype='application/pdf',
+                         as_attachment=False, download_name=nome)
     except Exception as e:
         import traceback
         err = traceback.format_exc()
