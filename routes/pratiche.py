@@ -488,13 +488,45 @@ def _genera_pdf_interno(id):
                 c.setFillColor(SLATE)
                 c.drawCentredString(x + kw/2 - 0.15*cm, h*0.11, lbl)
 
-            # BIOLavaTU brand in basso
-            c.setFont('Helvetica-Bold', 11)
+            # ── LOGO BIOLavaTU GROSSO CENTRALE nella sezione bianca ──────────────
+            # Sfondo azzurro morbido per il logo
+            c.setFillColor(colors.HexColor('#EFF6FF'))
+            c.roundRect(PW*0.15, h*0.30, PW*0.70, h*0.07, 8, fill=1, stroke=0)
+
+            # "BIO" in grande blu
+            c.setFont('Helvetica-Bold', 38)
             c.setFillColor(BLUE)
-            c.drawCentredString(PW/2, h*0.02, 'BIOLavaTU by Rotondi Group Srl')
-            c.setFont('Helvetica', 8)
+            c.drawCentredString(PW*0.37, h*0.34, 'BIO')
+
+            # "LavaTU" in navy
+            c.setFont('Helvetica-Bold', 38)
+            c.setFillColor(NAVY)
+            c.drawCentredString(PW*0.63, h*0.34, 'LavaTU')
+
+            # Sottotitolo brand
+            c.setFont('Helvetica', 9)
             c.setFillColor(SLATE)
-            c.drawCentredString(PW/2, -0.3*cm, web + '  ·  ' + tel)
+            c.drawCentredString(PW/2, h*0.30, 'LaundryPro Platform')
+
+            # Linea oro sotto il logo
+            c.setStrokeColor(GOLD)
+            c.setLineWidth(1.5)
+            c.line(PW*0.25, h*0.29, PW*0.75, h*0.29)
+
+            # ── PIÈ DI PAGINA COPERTINA — dati Rotondi Group in basso a dx ──────────
+            c.setFillColor(NAVY)
+            c.rect(-2*cm, -2*cm, W, 1.2*cm, fill=1, stroke=0)
+
+            # Dati Rotondi Group — solo lato destro
+            c.setFont('Helvetica-Bold', 8.5)
+            c.setFillColor(colors.HexColor('#93C5FD'))
+            c.drawRightString(PW, -0.4*cm, company)
+            c.setFont('Helvetica', 7.5)
+            c.setFillColor(colors.HexColor('#94A3B8'))
+            c.drawRightString(PW, -0.85*cm, via)
+            c.setFont('Helvetica', 7)
+            c.setFillColor(colors.HexColor('#64748B'))
+            c.drawRightString(PW, -1.25*cm, web + '  ·  ' + tel + (f'  ·  P.IVA {piva}' if piva else ''))
 
     story.append(Cover())
     story.append(PageBreak())
