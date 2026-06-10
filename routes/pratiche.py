@@ -255,979 +255,700 @@ def genera_pdf(id):
         return f"<pre>ERRORE PDF:\n{err}</pre>", 500
 
 
+
+def _get_cgv_default():
+    """Ritorna il testo CGV standard."""
+    return None  # viene letto dalle pratiche o dal DB
+
+def _formatta_cgv(cgv_text, h2_s, h3_s, body_j, small, section_title, NAVY, BLUE):
+    """Formatta il testo CGV per il PDF."""
+    from reportlab.platypus import Paragraph, Spacer, PageBreak
+    elements = []
+    for el in section_title('Condizioni Generali di Vendita', NAVY):
+        elements.append(el)
+    for line in cgv_text.split('\n'):
+        line = line.strip()
+        if not line: elements.append(Spacer(1,4)); continue
+        if line.startswith('Art.'): elements.append(Paragraph(line, h3_s))
+        elif line.startswith('PARTE') or line.startswith('ALLEGATO'):
+            elements.append(Spacer(1,8))
+            elements.append(Paragraph(line, h2_s))
+        else:
+            elements.append(Paragraph(line, body_j))
+    return elements
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NUOVO PDF — Progetto Lavanderia Self-Service BIOLavaTU
+# Struttura: Copertina → Lettera AI → Analisi → BP → Ordine → CGV → Firma
+# ═══════════════════════════════════════════════════════════════════════════
+
 def _genera_pdf_interno(id):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
     from reportlab.lib.units import cm, mm
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                    TableStyle, PageBreak, KeepTogether)
+                                    TableStyle, PageBreak, KeepTogether, HRFlowable)
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
     from reportlab.platypus.flowables import Flowable
     from pypdf import PdfWriter, PdfReader
-    import os, io as _io
+    import os, io as _io, json as _json
 
     p = Pratica.query.get_or_404(id)
     s = Settings.query.first()
     W, H = A4
-    PW = W - 4*cm  # larghezza utile
+    PW = W - 4*cm
 
     # ── PALETTE ──────────────────────────────────────────────────────────────
-    C = {
-        'navy':    colors.HexColor('#0f1f3d'),
-        'blue':    colors.HexColor('#2563eb'),
-        'lblue':   colors.HexColor('#3b82f6'),
-        'sky':     colors.HexColor('#93c5fd'),
-        'slate':   colors.HexColor('#64748b'),
-        'light':   colors.HexColor('#f1f5f9'),
-        'border':  colors.HexColor('#e2e8f0'),
-        'white':   colors.white,
-        'green':   colors.HexColor('#10b981'),
-        'red':     colors.HexColor('#ef4444'),
-        'orange':  colors.HexColor('#f59e0b'),
-        'purple':  colors.HexColor('#8b5cf6'),
-        'pink':    colors.HexColor('#ec4899'),
-        'dark':    colors.HexColor('#0f172a'),
-        'text':    colors.HexColor('#1e293b'),
-    }
+    NAVY   = colors.HexColor('#0F1F3D')
+    BLUE   = colors.HexColor('#2563EB')
+    LBLUE  = colors.HexColor('#3B82F6')
+    SKY    = colors.HexColor('#DBEAFE')
+    SLATE  = colors.HexColor('#64748B')
+    LIGHT  = colors.HexColor('#F8FAFC')
+    BORDER = colors.HexColor('#E2E8F0')
+    WHITE  = colors.white
+    GREEN  = colors.HexColor('#059669')
+    LGREEN = colors.HexColor('#D1FAE5')
+    RED    = colors.HexColor('#DC2626')
+    ORANGE = colors.HexColor('#D97706')
+    LORNG  = colors.HexColor('#FEF3C7')
+    GOLD   = colors.HexColor('#F59E0B')
 
-    brand   = (s.brand_name   or 'BIOLavaTU')      if s else 'BIOLavaTU'
-    company = (s.company_name or 'Rotondi Group Srl') if s else 'Rotondi Group Srl'
-    addr    = (s.company_addr  or '')               if s else ''
-    web     = (s.company_web   or '')               if s else ''
-    tel     = (s.company_tel   or '')               if s else ''
+    # ── DATI AZIENDA ─────────────────────────────────────────────────────────
+    company = (s and s.nome_azienda) or 'Rotondi Group Srl'
+    web     = (s and s.sito_web)    or 'biolavatu.it'
+    tel     = (s and s.telefono)    or '+39 02 0000000'
+    via     = (s and s.indirizzo)   or 'Via Vignate 2 · 20019 Settimo Milanese (MI)'
+    piva    = (s and s.partita_iva) or ''
+    cliente = p.cliente
+    nome_cl = cliente.nome_completo if cliente else (p.nome_cliente or 'Cliente')
+    citta_p = p.citta or ''
+    data_str = p.created.strftime('%d/%m/%Y') if p.created else ''
+    num_pr  = p.numero_pratica or ''
 
     # ── STILI ─────────────────────────────────────────────────────────────────
-    _sc = [0]
     def st(name, **kw):
-        _sc[0] += 1
-        kw.setdefault('fontSize', 9)
-        kw.setdefault('fontName', 'Helvetica')
-        kw.setdefault('textColor', C['text'])
-        kw.setdefault('leading', 13)
-        return ParagraphStyle(f'{name}_{_sc[0]}', **kw)
+        defaults = dict(fontName='Helvetica', fontSize=9, leading=13,
+                        textColor=colors.HexColor('#1E293B'))
+        defaults.update(kw)
+        return ParagraphStyle(name, **defaults)
 
-    S = {
-        'h1':   st('h1',  fontSize=14, fontName='Helvetica-Bold', textColor=C['navy'], spaceBefore=16, spaceAfter=6),
-        'h2':   st('h2',  fontSize=10, fontName='Helvetica-Bold', textColor=C['slate'], spaceBefore=10, spaceAfter=4),
-        'body': st('bd',  fontSize=9,  leading=14),
-        'tiny': st('ti',  fontSize=7.5, textColor=C['slate']),
-        'bold': st('bl',  fontSize=9,  fontName='Helvetica-Bold'),
-    }
+    body    = st('body', fontSize=9.5, leading=14, textColor=colors.HexColor('#334155'))
+    body_j  = st('body_j', fontSize=9.5, leading=15, textColor=colors.HexColor('#334155'), alignment=TA_JUSTIFY)
+    h1_s    = st('h1_s', fontSize=18, fontName='Helvetica-Bold', textColor=NAVY, spaceBefore=12, spaceAfter=6)
+    h2_s    = st('h2_s', fontSize=12, fontName='Helvetica-Bold', textColor=NAVY, spaceBefore=10, spaceAfter=4)
+    h3_s    = st('h3_s', fontSize=10, fontName='Helvetica-Bold', textColor=BLUE, spaceBefore=8, spaceAfter=3)
+    small   = st('small', fontSize=8, textColor=SLATE, leading=11)
+    center  = st('center', fontSize=9, alignment=TA_CENTER)
+    bold9   = st('bold9', fontName='Helvetica-Bold', fontSize=9)
+    italic9 = st('italic9', fontName='Helvetica-Oblique', fontSize=9, textColor=SLATE)
 
-    # ── HEADER/FOOTER ─────────────────────────────────────────────────────────
-    pn = [0]
-    def on_page(cv, doc):
-        pn[0] += 1
-        if pn[0] == 1:
-            return
-        cv.saveState()
-        # Header
-        cv.setFillColor(C['navy']); cv.rect(0, H-1.1*cm, W, 1.1*cm, fill=1, stroke=0)
-        cv.setFillColor(C['blue']); cv.rect(0, H-1.1*cm, 0.4*cm, 1.1*cm, fill=1, stroke=0)
-        cv.setFont('Helvetica-Bold', 8.5); cv.setFillColor(C['white'])
-        cv.drawString(0.8*cm, H-0.72*cm, brand)
-        cv.setFont('Helvetica', 8); cv.setFillColor(C['sky'])
-        cv.drawRightString(W-0.8*cm, H-0.72*cm, f'{p.numero}  ·  {p.citta}')
-        # Footer
-        cv.setFillColor(C['light']); cv.rect(0, 0, W, 0.85*cm, fill=1, stroke=0)
-        cv.setStrokeColor(C['border']); cv.setLineWidth(0.5)
-        cv.line(0, 0.85*cm, W, 0.85*cm)
-        cv.setFont('Helvetica', 7); cv.setFillColor(C['slate'])
-        cv.drawString(0.8*cm, 0.28*cm, f'{company}  ·  {addr}  ·  {web}')
-        cv.drawRightString(W-0.8*cm, 0.28*cm, f'Pag. {pn[0]-1}')
-        cv.restoreState()
+    # ── HELPER ────────────────────────────────────────────────────────────────
+    def eur(v):
+        try: return f'€ {float(v or 0):,.0f}'.replace(',', '.')
+        except: return '—'
 
-    main_buf = _io.BytesIO()
-    doc = SimpleDocTemplate(main_buf, pagesize=A4,
+    def kv_table(rows, col_w=None):
+        cw = col_w or [4*cm, PW-4*cm]
+        data = [[Paragraph(str(k), bold9), Paragraph(str(v), body)] for k,v in rows]
+        t = Table(data, colWidths=cw)
+        t.setStyle(TableStyle([
+            ('VALIGN',    (0,0),(-1,-1), 'TOP'),
+            ('ROWBACKGROUNDS', (0,0),(-1,-1), [LIGHT, WHITE]),
+            ('LINEBELOW', (0,0),(-1,-1), 0.3, BORDER),
+            ('PADDING',   (0,0),(-1,-1), 5),
+        ]))
+        return t
+
+    def section_title(txt, color=NAVY):
+        elements = []
+        elements.append(Spacer(1, 8))
+        elements.append(HRFlowable(width=PW, thickness=2, color=color, spaceAfter=4))
+        elements.append(Paragraph(txt.upper(), st('sec', fontSize=11,
+            fontName='Helvetica-Bold', textColor=color)))
+        elements.append(HRFlowable(width=PW, thickness=0.5, color=BORDER, spaceAfter=6))
+        return elements
+
+    # ── FOOTER ────────────────────────────────────────────────────────────────
+    def on_page(canvas, doc):
+        canvas.saveState()
+        # Footer navy
+        canvas.setFillColor(NAVY)
+        canvas.rect(0, 0, W, 0.8*cm, fill=1, stroke=0)
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(WHITE)
+        canvas.drawString(1*cm, 0.52*cm, f'{company}  ·  {via}')
+        if piva: canvas.drawString(1*cm, 0.22*cm, f'P.IVA {piva}')
+        canvas.drawRightString(W-1*cm, 0.52*cm, f'{web}  ·  {tel}')
+        canvas.drawRightString(W-1*cm, 0.22*cm,
+            f'Progetto {num_pr}  ·  Pag. {doc.page}')
+        # Logo BIOLavaTU piccolo in basso a dx
+        canvas.setFont('Helvetica-Bold', 9)
+        canvas.setFillColor(colors.HexColor('#3B82F6'))
+        canvas.drawRightString(W-1*cm, 0.52*cm, 'BIOLavaTU')
+        canvas.restoreState()
+
+    # ── DOCUMENTO ────────────────────────────────────────────────────────────
+    buf = _io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
         leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=1.4*cm, bottomMargin=1.2*cm,
+        topMargin=2.2*cm, bottomMargin=1.8*cm,
         onPage=on_page, onLaterPages=on_page)
-
     story = []
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # HELPER: sezione header con barra laterale colorata
-    # ─────────────────────────────────────────────────────────────────────────
-    def section_header(title, accent=None):
-        acc = accent or C['blue']
-        tbl = Table([[
-            '',
-            Paragraph(f'<b>{title}</b>',
-                      st('sh', fontSize=11, fontName='Helvetica-Bold',
-                         textColor=C['navy'], leading=15))
-        ]], colWidths=[0.35*cm, PW - 0.35*cm])
-        tbl.setStyle(TableStyle([
-            ('BACKGROUND',  (0,0),(0,0), acc),
-            ('BACKGROUND',  (1,0),(1,0), C['light']),
-            ('TOPPADDING',  (0,0),(-1,-1), 8),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 8),
-            ('LEFTPADDING', (1,0),(1,0), 10),
-            ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
-        ]))
-        return tbl
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # HELPER: riga di KPI colorati
-    # ─────────────────────────────────────────────────────────────────────────
-    def kpi_row(items):
-        """items = [(label, value, hex_color), ...]"""
-        n  = len(items)
-        cw = PW / n
-        cells = []
-        for lbl, val, col in items:
-            inner = Table([
-                [Paragraph(f'<b>{val}</b>',
-                           st(f'kv', fontSize=12, fontName='Helvetica-Bold',
-                              textColor=colors.HexColor(col), alignment=TA_CENTER))],
-                [Paragraph(lbl, st(f'kl', fontSize=7.5, textColor=C['slate'],
-                                   alignment=TA_CENTER))],
-            ], colWidths=[cw - 0.4*cm])
-            cells.append(inner)
-        t = Table([cells], colWidths=[cw]*n)
-        t.setStyle(TableStyle([
-            ('BACKGROUND',    (0,0),(-1,-1), C['light']),
-            ('BOX',           (0,0),(-1,-1), 0.5, C['border']),
-            ('INNERGRID',     (0,0),(-1,-1), 0.3, C['border']),
-            ('TOPPADDING',    (0,0),(-1,-1), 9),
-            ('BOTTOMPADDING', (0,0),(-1,-1), 9),
-        ]))
-        return t
-
-    # ─────────────────────────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
     # PAG 1 — COPERTINA
-    # ─────────────────────────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════════
     class Cover(Flowable):
-        def __init__(self):
-            Flowable.__init__(self)
-            self.width  = PW
-            self.height = H - 5.5*cm
-
-        def draw(self):
-            c   = self.canv
-            w   = self.width
-            h   = self.height
-
-            # ── Sfondo bianco/grigio chiaro ──────────────────────────────
-            c.setFillColor(colors.HexColor('#f8fafc'))
-            c.roundRect(0, 0, w, h, 8, fill=1, stroke=0)
-
-            # ── Header band blu scuro (30% superiore) ────────────────────
-            c.setFillColor(C['navy'])
-            c.roundRect(0, h*0.70, w, h*0.30, 8, fill=1, stroke=0)
-            c.rect(0, h*0.70, w, h*0.04, fill=1, stroke=0)
-
-            # Accent strip sinistra blu vivo
-            c.setFillColor(C['blue'])
-            c.rect(0, 0, 0.45*cm, h, fill=1, stroke=0)
-
-            # ── Brand + tagline nell'header ──────────────────────────
-            c.setFont('Helvetica-Bold', 26)
-            c.setFillColor(colors.white)
-            c.drawString(1.2*cm, h - 1.7*cm, brand)
-            c.setFont('Helvetica', 9)
-            c.setFillColor(C['sky'])
-            c.drawString(1.2*cm, h - 2.35*cm,
-                         'LaundryPro Platform  ·  Analisi di Fattibilità')
-
-            # Linea separatrice
-            c.setStrokeColor(C['blue']); c.setLineWidth(1.5)
-            c.line(1.2*cm, h - 2.85*cm, w - 0.5*cm, h - 2.85*cm)
-
-            # Numero pratica
-            c.setFillColor(C['blue'])
-            c.roundRect(1.2*cm, h - 4.3*cm, w*0.52, 1.1*cm, 5, fill=1, stroke=0)
-            c.setFont('Helvetica-Bold', 14); c.setFillColor(colors.white)
-            c.drawString(1.6*cm, h - 3.65*cm, p.numero)
-            c.setFont('Helvetica', 7.5); c.setFillColor(C['sky'])
-            c.drawString(1.6*cm, h - 4.15*cm,
-                f'{p.created.strftime("%d/%m/%Y")}   ·   {p.stato.upper()}')
-
-            # ── Sezione cliente su sfondo chiaro ─────────────────────────
-            # Rettangolo bianco per dati cliente
-            c.setFillColor(colors.white)
-            c.roundRect(0.7*cm, h*0.70 - 3.8*cm, w - 0.7*cm, 3.4*cm, 6, fill=1, stroke=0)
-            c.setStrokeColor(C['border']); c.setLineWidth(0.5)
-            c.roundRect(0.7*cm, h*0.70 - 3.8*cm, w - 0.7*cm, 3.4*cm, 6, fill=0, stroke=1)
-
-            cliente = p.cliente
-            nome_cl = (cliente.nome_completo if cliente else 'Cliente')[:42]
-            ind = f'{p.indirizzo}, {p.citta}' if p.indirizzo else (p.citta or '')
-
-            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
-            c.drawString(1.2*cm, h*0.70 - 1.0*cm, 'CLIENTE')
-            c.setFont('Helvetica-Bold', 13); c.setFillColor(C['dark'])
-            c.drawString(1.2*cm, h*0.70 - 1.7*cm, nome_cl)
-            c.setFont('Helvetica', 9); c.setFillColor(C['slate'])
-            c.drawString(1.2*cm, h*0.70 - 2.3*cm, ind[:65])
-            if p.mq:
-                c.setFont('Helvetica', 8); c.setFillColor(C['slate'])
-                c.drawString(1.2*cm, h*0.70 - 2.85*cm, f'Superficie: {p.mq} mq')
-
-            # ── 4 KPI box ────────────────────────────────────────────────
-            capex_iva = p.capex * 1.22
-            kpis = [
-                ('INVESTIMENTO + IVA', f'€ {capex_iva:,.0f}', '#2563eb'),
-                ('INCASSO / MESE',     f'€ {p.incasso_mese:,.0f}',
-                 '#059669' if p.incasso_mese > 0 else '#dc2626'),
-                ('UTILE / MESE',       f'€ {p.utile_mese:,.0f}',
-                 '#059669' if p.utile_mese >= 0 else '#dc2626'),
-                ('PAYBACK',
-                 f'{int(p.payback_mesi/12)} anni' if p.payback_mesi else 'N/D',
-                 '#d97706'),
-            ]
-            gap = 0.3*cm
-            bw  = (w - 0.7*cm - gap*3) / 4
-            by  = h*0.70 - 5.6*cm
-            for i,(lbl,val,col) in enumerate(kpis):
-                bx = 0.7*cm + i*(bw+gap)
-                # Card bianca con bordo colorato in basso
-                c.setFillColor(colors.white)
-                c.roundRect(bx, by, bw, 2.0*cm, 5, fill=1, stroke=0)
-                c.setStrokeColor(colors.HexColor(col)); c.setLineWidth(2.5)
-                c.line(bx+4, by, bx+bw-4, by)
-                c.setLineWidth(1)
-                # Value grande colorata
-                c.setFont('Helvetica-Bold', 10); c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(bx+bw/2, by+1.15*cm, val)
-                # Label grigia piccola
-                c.setFont('Helvetica', 6.5); c.setFillColor(C['slate'])
-                c.drawCentredString(bx+bw/2, by+0.5*cm, lbl)
-
-            # ── Score zona cerchio ───────────────────────────────────
-            sc   = int(p.score_zona or 0)
-            scol = '#059669' if sc>=70 else '#d97706' if sc>=45 else '#dc2626'
-            cx   = 0.7*cm + (w - 0.7*cm)*0.80
-            cy   = by - 2.4*cm
-            # Cerchio sfondo grigio chiaro
-            c.setFillColor(colors.HexColor('#f1f5f9'))
-            c.circle(cx, cy, 1.6*cm, fill=1, stroke=0)
-            c.setStrokeColor(colors.HexColor('#e2e8f0')); c.setLineWidth(1)
-            c.circle(cx, cy, 1.6*cm, fill=0, stroke=1)
-            # Arco colorato — proteggi da angle=0 che causa ZeroDivisionError
-            import math as _math
-            angle = 360 * sc / 100
-            if angle > 1:  # disegna arco solo se score > 0
-                c.setStrokeColor(colors.HexColor(scol)); c.setLineWidth(5)
-                c.arc(cx-1.4*cm, cy-1.4*cm, cx+1.4*cm, cy+1.4*cm,
-                      startAng=90, extent=-angle)
-            # Testo score
-            c.setFont('Helvetica-Bold', 24); c.setFillColor(colors.HexColor(scol))
-            c.drawCentredString(cx, cy+0.05*cm, str(sc))
-            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
-            c.drawCentredString(cx, cy-0.65*cm, 'score /100')
-            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['dark'])
-            c.drawCentredString(cx, cy-1.15*cm, p.score_label or '')
-            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
-            c.drawString(0.7*cm, cy+0.5*cm, 'SCORE ZONA')
-
-            # ── Footer ───────────────────────────────────────────────────
-            c.setFillColor(C['navy'])
-            c.rect(0, 0, w, 0.9*cm, fill=1, stroke=0)
-            c.setFont('Helvetica', 7.5); c.setFillColor(colors.white)
-            c.drawCentredString(w/2, 0.55*cm, f'{company}  ·  {web}  ·  {tel}')
-            c.setFont('Helvetica', 6.5); c.setFillColor(C['sky'])
-            c.drawCentredString(w/2, 0.15*cm, 'Documento riservato — uso interno')
-
-    story.append(Cover()); story.append(PageBreak())
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 2 — CLIENTE + MAPPA ZONA FULL WIDTH + KPI + SCORE
-    # ─────────────────────────────────────────────────────────────────────────
-    story.append(section_header('CLIENTE E SEDE', C['blue']))
-    story.append(Spacer(1, 6))
-
-    cliente = p.cliente
-    # Info cliente in 2 colonne
-    col1 = [
-        ['Cliente',   cliente.nome_completo if cliente else '—'],
-        ['Indirizzo', f'{p.indirizzo}, {p.citta}' if p.indirizzo else p.citta or '—'],
-        ['CAP / Prov.', f'{p.cap or ""}  {p.provincia or ""}'],
-    ]
-    col2 = [
-        ['Superficie', f'{p.mq or "—"} mq'],
-        ['Email',      (cliente.email or '—') if cliente else '—'],
-        ['Telefono',   (cliente.telefono or '—') if cliente else '—'],
-    ]
-    def info_tbl(rows, cw1=2.8*cm, cw2=6.2*cm):
-        t = Table(rows, colWidths=[cw1, cw2])
-        t.setStyle(TableStyle([
-            ('FONTNAME',  (0,0),(0,-1), 'Helvetica-Bold'),
-            ('FONTSIZE',  (0,0),(-1,-1), 8.5),
-            ('TEXTCOLOR', (0,0),(0,-1), C['slate']),
-            ('TEXTCOLOR', (1,0),(1,-1), C['dark']),
-            ('TOPPADDING', (0,0),(-1,-1), 4),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 4),
-            ('LINEBELOW', (0,0),(-1,-1), 0.3, C['border']),
-            ('ROWBACKGROUNDS',(0,0),(-1,-1), [C['white'], C['light']]),
-        ]))
-        return t
-
-    two_col = Table([[info_tbl(col1), info_tbl(col2)]], colWidths=[PW/2]*2)
-    two_col.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),
-                                  ('LEFTPADDING',(1,0),(1,0),6)]))
-    story.append(two_col)
-    story.append(Spacer(1, 14))
-
-    # ── MAPPA ZONA ────────────────────────────────────────────────────────────
-    story.append(section_header('MAPPA ZONA', C['blue']))
-    story.append(Spacer(1, 6))
-
-    gmaps_key = os.environ.get('GMAPS_KEY', '')
-    mappa_ok  = False
-
-    # Se mancano le coordinate, prova a geocodificare dall'indirizzo/città
-    _map_lat = float(p.lat or 0)
-    _map_lng = float(p.lng or 0)
-    if (not _map_lat or not _map_lng) and gmaps_key:
-        print(f'[PDF] lat/lng mancanti, provo geocoding per {p.indirizzo}, {p.citta}', flush=True)
-        _map_lat, _map_lng = _geocodifica_indirizzo(p.indirizzo, p.citta, gmaps_key)
-        if _map_lat:
-            print(f'[PDF] Geocoding OK: {_map_lat},{_map_lng}', flush=True)
-        else:
-            print(f'[PDF] Geocoding FALLITO — nessuna coordinata disponibile', flush=True)
-
-    if _map_lat and _map_lng and gmaps_key:
-        _mlat, _mlng = _map_lat, _map_lng
-        _conc_list = []
-        try:
-            import json as _j2
-            _pois_raw = p.pois_raw if hasattr(p, 'pois_raw') and p.pois_raw else '[]'
-            _all_pois = _j2.loads(_pois_raw) if isinstance(_pois_raw, str) else (_pois_raw or [])
-            _conc_list = [x for x in _all_pois
-                          if x.get('tipo') in ('self_service','tradizionale','industriale','concorrente')]
-        except Exception:
-            _conc_list = []
-
-        _attr_list = []
-        try:
-            _attr_list = [x for x in _all_pois if x.get('categoria') == 'attractor'
-                          or x.get('tipo') in ('universita','ospedale','caserma',
-                                               'scuola_militare','stazione','vvf')]
-        except Exception:
-            _attr_list = []
-        print(f'[PDF] Chiamo mappa statica per {_mlat},{_mlng}', flush=True)
-        mappa_bytes = _get_mappa_statica(_mlat, _mlng, gmaps_key,
-                                          width_px=640, height_px=320,
-                                          concorrenti=_conc_list,
-                                          attractors=_attr_list)
-        print(f'[PDF] mappa_bytes: {len(mappa_bytes) if mappa_bytes else None}', flush=True)
-        if mappa_bytes:
-            from reportlab.platypus import Image as RLImage
-            import io as _io2
-            img_w = PW
-            img_h = img_w * 320 / 640
-            rl_img = RLImage(_io2.BytesIO(mappa_bytes), width=img_w, height=img_h)
-            story.append(rl_img)
-            mappa_ok = True
-
-            # Legenda concorrenti sotto la mappa
-            if _conc_list:
-                n_self = sum(1 for c in _conc_list if c.get('tipo')=='self_service')
-                n_trad = sum(1 for c in _conc_list if c.get('tipo')=='tradizionale')
-                n_ind  = sum(1 for c in _conc_list if c.get('tipo')=='industriale')
-                legend_items = []
-                if n_self: legend_items.append(('Rosso C = Self-service', n_self, '#ef4444'))
-                if n_trad: legend_items.append(('Arancio T = Tradizionale', n_trad, '#f59e0b'))
-                if n_ind:  legend_items.append(('Blu I = Industriale', n_ind, '#3b82f6'))
-                if legend_items:
-                    leg_parts = [
-                        Paragraph(
-                            f'<font color="{col}">●</font>  {lbl}: <b>{n}</b>',
-                            st('leg', fontSize=8, textColor=C['text'])
-                        )
-                        for lbl, n, col in legend_items
-                    ]
-                    leg_parts.insert(0, Paragraph(
-                        '<font color="#f59e0b">★</font>  Giallo S = Sede  '
-                        '<font color="#800080">●</font> U=Università  '
-                        '<font color="#008000">●</font> H=Ospedale  '
-                        '<font color="#ef4444">●</font> M=Militare  '
-                        '<font color="#3b82f6">●</font> Z=Stazione',
-                        st('leg0', fontSize=7.5, textColor=C['text'])
-                    ))
-                    # Distribuisci su 4 colonne max
-                    while len(leg_parts) < 4:
-                        leg_parts.append(Paragraph('', st('legx', fontSize=8)))
-                    leg_tbl = Table([leg_parts[:4]], colWidths=[PW/4]*4)
-                    leg_tbl.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0),(-1,-1), C['light']),
-                        ('TOPPADDING', (0,0),(-1,-1), 5),
-                        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-                        ('LEFTPADDING', (0,0),(-1,-1), 8),
-                    ]))
-                    story.append(leg_tbl)
-
-    if not mappa_ok:
-        story.append(Paragraph('Coordinate non disponibili per questa pratica.',
-                                st('nomappa', fontSize=9, textColor=C['slate'])))
-
-    story.append(Spacer(1, 12))
-
-    # ── KPI ZONA + SCORE ───────────────────────────────────────────────────────
-    story.append(section_header('ANALISI ZONA', C['purple']))
-    story.append(Spacer(1, 6))
-
-    story.append(kpi_row([
-        ('Abitanti 3 min',   f'{int(p.pop_3min  or 0):,}', '#3b82f6'),
-        ('Abitanti 5 min',   f'{int(p.pop_5min  or 0):,}', '#8b5cf6'),
-        ('Abitanti 10 min',  f'{int(p.pop_10min or 0):,}', '#ec4899'),
-        ('Concorrenti 500m', str(p.concorrenti_500m or 0),  '#ef4444'),
-        ('Concorrenti 1km',  str(p.concorrenti_1km  or 0),  '#f59e0b'),
-    ]))
-    story.append(Spacer(1, 8))
-
-    # Score + fattibilità — barra orizzontale
-    sc      = int(p.score_zona or 0)
-    scol_h  = '#10b981' if sc>=70 else '#f59e0b' if sc>=45 else '#ef4444'
-    fat     = int(p.fattibilita or 0)
-    fat_h   = '#10b981' if fat>=70 else '#f59e0b' if fat>=40 else '#ef4444'
-
-    class ScoreBar(Flowable):
-        def __init__(self, label, value, max_val, color_hex, subtitle='', width=None):
-            Flowable.__init__(self)
-            self.label    = label
-            self.value    = value
-            self.max_val  = max_val
-            self.col      = color_hex
-            self.subtitle = subtitle
-            self.width    = width or PW
-            self.height   = 1.1*cm
-        def draw(self):
-            c   = self.canv
-            w   = self.width
-            lw  = 3.5*cm   # larghezza etichetta
-            bw  = w - lw - 3.0*cm  # larghezza barra
-            bx  = lw
-            by  = 0.35*cm
-            bh  = 0.45*cm
-            pct = self.value / self.max_val
-            # Label
-            c.setFont('Helvetica-Bold', 9); c.setFillColor(C['dark'])
-            c.drawString(0, by + 0.05*cm, self.label)
-            # Sfondo barra
-            c.setFillColor(C['border'])
-            c.roundRect(bx, by, bw, bh, 3, fill=1, stroke=0)
-            # Barra colorata
-            c.setFillColor(colors.HexColor(self.col))
-            fill_w = max(6, bw * pct)
-            c.roundRect(bx, by, fill_w, bh, 3, fill=1, stroke=0)
-            # Valore
-            c.setFont('Helvetica-Bold', 10); c.setFillColor(colors.HexColor(self.col))
-            c.drawString(bx + bw + 0.3*cm, by, f'{self.value}')
-            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
-            c.drawString(bx + bw + 0.3*cm, by + 0.35*cm, f'/{self.max_val}')
-            # Subtitle
-            if self.subtitle:
-                c.setFont('Helvetica', 7.5); c.setFillColor(C['slate'])
-                c.drawString(bx + bw + 1.2*cm, by, self.subtitle)
-
-    story.append(ScoreBar('Score zona',  sc,  100, scol_h, p.score_label or '',  PW))
-    story.append(Spacer(1, 4))
-    story.append(ScoreBar('Fattibilità', fat, 100, fat_h,  '',                   PW))
-    story.append(Spacer(1, 14))
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 3 — DEMOGRAFICA ISTAT (layout grafico)
-    # ─────────────────────────────────────────────────────────────────────────
-    story.append(PageBreak())
-    story.append(section_header('ANALISI DEMOGRAFICA  —  Dati ISTAT', C['purple']))
-    story.append(Spacer(1, 8))
-
-    # Recupera dati ISTAT
-    try:
-        from services.istat import PROVINCE_DATA
-        citta_lower = (p.citta or '').lower()
-        dati_prov = None
-        for cod, dati in PROVINCE_DATA.items():
-            nn = dati.get('nome', '').lower()
-            if nn in citta_lower or citta_lower in nn:
-                dati_prov = dati; break
-        if not dati_prov:
-            dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
-                         'reddito_medio': 20500, 'densita': 200}
-    except Exception:
-        dati_prov = {'nome': p.citta or 'N/D', 'eta_media': 46.0,
-                     'reddito_medio': 20500, 'densita': 200}
-
-    eta     = dati_prov.get('eta_media', 46.0)
-    reddito = dati_prov.get('reddito_medio', 20500)
-    densita = dati_prov.get('densita', 200)
-    pop5    = int(p.pop_5min  or 0)
-    pop10   = int(p.pop_10min or 0)
-    pop3    = int(p.pop_3min  or 0)
-    bacino  = pop5 if pop5 > 0 else pop10
-    tasso_b = 0.018
-    fatt_e  = 1.10 if eta<35 else 1.05 if eta<45 else 0.98 if eta<50 else 0.90
-    fatt_r  = 1.15 if reddito<17000 else 1.05 if reddito<22000 else 0.95 if reddito<27000 else 0.85
-    clienti_giorno = max(1, int(bacino * tasso_b * fatt_e * fatt_r))
-
-    class DemoGraphic(Flowable):
-        def __init__(self, width, height):
-            Flowable.__init__(self)
-            self.width  = width
-            self.height = height
-
+        def wrap(self, aw, ah): return aw, ah
         def draw(self):
             c = self.canv
-            w = self.width
-            h = self.height
+            w, h = W - 4*cm, H - 4*cm  # area utile
 
-            # ── ROW 1: 3 card indicatori ISTAT ─────────────────────────────
-            cards = [
-                ('ETÀ MEDIA', f'{eta:.1f}', 'anni', '#8b5cf6', 'ISTAT 2021'),
-                ('REDDITO MEDIO', f'€ {reddito:,}', '/anno', '#10b981', 'MEF 2022'),
-                ('DENSITÀ', f'{densita:,}', 'ab/km²', '#3b82f6', 'ISTAT 2021'),
+            # Sfondo navy superiore (60% pagina)
+            c.setFillColor(NAVY)
+            c.rect(-2*cm, h*0.38, W, h*0.62+2*cm, fill=1, stroke=0)
+
+            # Fascia blu diagonale decorativa
+            c.setFillColor(BLUE)
+            from reportlab.graphics.shapes import Polygon
+            p_path = c.beginPath()
+            p_path.moveTo(-2*cm, h*0.38)
+            p_path.lineTo(W-2*cm, h*0.38)
+            p_path.lineTo(W-2*cm, h*0.42)
+            p_path.lineTo(-2*cm, h*0.45)
+            p_path.close()
+            c.drawPath(p_path, fill=1, stroke=0)
+
+            # Titolo principale
+            c.setFont('Helvetica-Bold', 26)
+            c.setFillColor(WHITE)
+            c.drawString(0, h*0.75, 'PROGETTO LAVANDERIA')
+            c.setFont('Helvetica-Bold', 22)
+            c.setFillColor(colors.HexColor('#93C5FD'))
+            c.drawString(0, h*0.68, 'SELF-SERVICE BIOLavaTU')
+
+            # Linea oro
+            c.setStrokeColor(GOLD)
+            c.setLineWidth(2)
+            c.line(0, h*0.65, PW*0.5, h*0.65)
+
+            # Numero pratica e data
+            c.setFont('Helvetica', 10)
+            c.setFillColor(colors.HexColor('#94A3B8'))
+            c.drawString(0, h*0.61, f'Rif. {num_pr}  ·  {data_str}')
+
+            # Nome cliente (grande)
+            c.setFont('Helvetica-Bold', 16)
+            c.setFillColor(WHITE)
+            c.drawString(0, h*0.54, f'Progetto per:')
+            c.setFont('Helvetica-Bold', 20)
+            c.setFillColor(GOLD)
+            c.drawString(0, h*0.47, nome_cl)
+
+            # Città
+            c.setFont('Helvetica', 12)
+            c.setFillColor(colors.HexColor('#93C5FD'))
+            c.drawString(0, h*0.41, citta_p)
+
+            # Sezione bianca inferiore
+            c.setFillColor(WHITE)
+            c.rect(-2*cm, -2*cm, W, h*0.40, fill=1, stroke=0)
+
+            # KPI principali nella sezione bianca
+            try:
+                capex = float(p.capex or 0)
+                capex_iva = capex * 1.22
+                incasso = float(p.incasso_mese or 0)
+                score = int(p.score_zona or 0)
+            except: capex_iva = incasso = score = 0
+
+            kpis = [
+                ('INVESTIMENTO', eur(capex_iva), NAVY),
+                ('INCASSO / MESE', eur(incasso), GREEN),
+                ('SCORE ZONA', f'{score}/100', BLUE),
             ]
-            cw = (w - 2*0.3*cm) / 3
-            for i, (lbl, val, unit, col, fonte) in enumerate(cards):
-                cx = i * (cw + 0.3*cm)
-                ch = 2.3*cm
-                cy = h - ch - 0.1*cm
-                # Card background
-                c.setFillColor(colors.HexColor('#f8fafc'))
-                c.roundRect(cx, cy, cw, ch, 6, fill=1, stroke=0)
-                # Accent top strip
-                c.setFillColor(colors.HexColor(col))
-                c.roundRect(cx, cy+ch-0.22*cm, cw, 0.22*cm, 3, fill=1, stroke=0)
-                c.rect(cx, cy+ch-0.22*cm, cw, 0.11*cm, fill=1, stroke=0)
-                # Etichetta
-                c.setFont('Helvetica-Bold', 6.5); c.setFillColor(colors.HexColor('#64748b'))
-                c.drawCentredString(cx+cw/2, cy+1.75*cm, lbl)
-                # Valore grande
-                c.setFont('Helvetica-Bold', 14); c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(cx+cw/2, cy+1.1*cm, val)
-                # Unità
-                c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor('#94a3b8'))
-                c.drawCentredString(cx+cw/2, cy+0.6*cm, unit)
-                # Fonte
-                c.setFont('Helvetica', 6); c.setFillColor(colors.HexColor('#cbd5e1'))
-                c.drawCentredString(cx+cw/2, cy+0.15*cm, fonte)
-
-            # ── ROW 2: Grafico bacino a barre orizzontali ──────────────────
-            row2_top = h - 2.8*cm
-            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
-            c.drawString(0, row2_top - 0.5*cm, 'BACINO DI UTENZA')
-
-            bar_items = [
-                (f'3 min  (~400m)', pop3,  '#3b82f6'),
-                (f'5 min  (~700m)', pop5,  '#8b5cf6'),
-                (f'10 min (~1.5km)', pop10, '#ec4899'),
-            ]
-            max_pop = max(pop10, 1)
-            bar_top = row2_top - 1.1*cm
-            bh_bar  = 16
-            gap_bar = 7
-            label_w = 3.5*cm
-            bar_max_w = w * 0.52
-
-            for i, (lbl, val, col) in enumerate(bar_items):
-                by_ = bar_top - i*(bh_bar+gap_bar)
-                bw_ = bar_max_w * (val / max_pop)
-                # Sfondo
-                c.setFillColor(colors.HexColor('#e2e8f0'))
-                c.roundRect(label_w, by_, bar_max_w, bh_bar, 3, fill=1, stroke=0)
-                # Fill
-                if bw_ > 4:
-                    c.setFillColor(colors.HexColor(col))
-                    c.roundRect(label_w, by_, bw_, bh_bar, 3, fill=1, stroke=0)
-                # Label sinistra
-                c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor('#64748b'))
-                c.drawRightString(label_w - 4, by_ + 4, lbl)
+            kw = PW / len(kpis)
+            for i, (lbl, val, col) in enumerate(kpis):
+                x = i * kw
+                # Box
+                c.setFillColor(colors.HexColor('#F8FAFC'))
+                c.roundRect(x, h*0.08, kw-0.3*cm, h*0.22, 6, fill=1, stroke=0)
+                c.setStrokeColor(col)
+                c.setLineWidth(1.5)
+                c.roundRect(x, h*0.08, kw-0.3*cm, h*0.22, 6, fill=0, stroke=1)
                 # Valore
-                c.setFont('Helvetica-Bold', 8); c.setFillColor(colors.HexColor('#0f172a'))
-                c.drawString(label_w + bar_max_w + 6, by_ + 4, f'{val:,} ab.')
+                c.setFont('Helvetica-Bold', 16)
+                c.setFillColor(col)
+                c.drawCentredString(x + kw/2 - 0.15*cm, h*0.20, val)
+                # Label
+                c.setFont('Helvetica', 7.5)
+                c.setFillColor(SLATE)
+                c.drawCentredString(x + kw/2 - 0.15*cm, h*0.11, lbl)
 
-            # ── ROW 2b: segmentazione (destra delle barre) ─────────────────
-            seg_x = label_w + bar_max_w + w*0.15
-            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
-            c.drawString(seg_x, row2_top - 0.5*cm, 'TARGET')
+            # BIOLavaTU brand in basso
+            c.setFont('Helvetica-Bold', 11)
+            c.setFillColor(BLUE)
+            c.drawCentredString(PW/2, h*0.02, 'BIOLavaTU by Rotondi Group Srl')
+            c.setFont('Helvetica', 8)
+            c.setFillColor(SLATE)
+            c.drawCentredString(PW/2, -0.3*cm, web + '  ·  ' + tel)
 
-            seg_items = [
-                ('18-34 anni', 22, '#3b82f6'),
-                ('35-54 anni', 35, '#10b981'),
-                ('55+ anni',   20, '#f59e0b'),
-                ('Famiglie',   23, '#8b5cf6'),
-            ]
-            seg_top2 = row2_top - 1.1*cm
-            seg_h    = 14
-            seg_gap  = 9
-            seg_bw   = w - seg_x - 1.5*cm
-            for i,(lbl,pct,col) in enumerate(seg_items):
-                sy = seg_top2 - i*(seg_h+seg_gap)
-                bw_s = seg_bw * pct / 100
-                c.setFillColor(colors.HexColor('#e2e8f0'))
-                c.roundRect(seg_x, sy, seg_bw, seg_h, 3, fill=1, stroke=0)
-                c.setFillColor(colors.HexColor(col))
-                c.roundRect(seg_x, sy, bw_s, seg_h, 3, fill=1, stroke=0)
-                c.setFont('Helvetica', 7); c.setFillColor(colors.HexColor('#64748b'))
-                c.drawString(seg_x - 1.5*cm, sy + 3, lbl)
-                c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor(col))
-                c.drawString(seg_x + seg_bw + 4, sy + 3, f'{pct}%')
-
-            # ── ROW 3: 5 KPI commerciali ───────────────────────────────────
-            row3_top = row2_top - 3.8*cm
-            c.setFont('Helvetica-Bold', 8); c.setFillColor(C['navy'])
-            c.drawString(0, row3_top - 0.3*cm, 'POTENZIALE COMMERCIALE STIMATO')
-
-            kpis_c = [
-                ('Clienti/giorno',  str(clienti_giorno),     '#10b981'),
-                ('Clienti/mese',    str(clienti_giorno*26),  '#3b82f6'),
-                ('Età media',       f'{eta:.0f} anni',        '#8b5cf6'),
-                ('Reddito/capite',  f'€ {reddito:,}',         '#f59e0b'),
-                ('Densità ab/km²',  f'{densita:,}',           '#ec4899'),
-            ]
-            kpi_top = row3_top - 1.0*cm
-            kw_c    = (w - 4*0.2*cm) / 5
-            for i,(lbl,val,col) in enumerate(kpis_c):
-                kx = i*(kw_c + 0.2*cm)
-                ky = kpi_top - 1.6*cm
-                c.setFillColor(colors.HexColor('#f8fafc'))
-                c.roundRect(kx, ky, kw_c, 1.5*cm, 4, fill=1, stroke=0)
-                c.setStrokeColor(colors.HexColor(col)); c.setLineWidth(1.5)
-                c.line(kx+4, ky+1.5*cm, kx+kw_c-4, ky+1.5*cm)
-                c.setLineWidth(1)
-                c.setFont('Helvetica-Bold', 9.5); c.setFillColor(colors.HexColor(col))
-                c.drawCentredString(kx+kw_c/2, ky+0.8*cm, val)
-                words = lbl.split()
-                c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#64748b'))
-                if len(words) > 2:
-                    c.drawCentredString(kx+kw_c/2, ky+0.38*cm, ' '.join(words[:2]))
-                    c.drawCentredString(kx+kw_c/2, ky+0.1*cm, ' '.join(words[2:]))
-                else:
-                    c.drawCentredString(kx+kw_c/2, ky+0.25*cm, lbl)
-
-            # Disclaimer
-            c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#94a3b8'))
-            c.drawString(0, 0.1*cm, 'Stime ISTAT Censimento 2021 + MEF 2022 + modello domanda BIOLavaTU. Valori indicativi.')
-
-    story.append(DemoGraphic(PW, 19.5*cm))
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 4 — MACCHINE
-    # ─────────────────────────────────────────────────────────────────────────
+    story.append(Cover())
     story.append(PageBreak())
-    story.append(section_header('CONFIGURAZIONE MACCHINE', C['orange']))
-    story.append(Spacer(1, 6))
 
-    mac_rows  = []
-    capex_iva = p.capex * 1.22
-    for m in p.get_macchine():
-        prezzo = float(m.get('prezzo_effettivo') or m.get('prezzo', 0))
-        qty    = int(m.get('qty', 1))
-        cat    = m.get('categoria', '')
-        modello = m.get('modello', '') or ''
-        nome    = m.get('nome', '')
-        # Prima cella: nome bold + categoria + modello su righe separate
-        sub_lines = []
-        if cat:     sub_lines.append(f'<font color="#64748b">{cat}</font>')
-        if modello: sub_lines.append(f'<font color="#94a3b8">{modello}</font>')
-        sub_text = '  ·  '.join(sub_lines) if sub_lines else ''
-        desc_html = f'<b>{nome}</b>'
-        if sub_text:
-            desc_html += f'<br/><font size="7.5">{sub_text}</font>'
-        mac_rows.append([
-            Paragraph(desc_html, st('mn', fontSize=8.5, fontName='Helvetica-Bold',
-                                    textColor=C['dark'], leading=13)),
-            Paragraph(f'<b>{qty}x</b>', st('mq2', fontSize=9, fontName='Helvetica-Bold',
-                                            alignment=TA_CENTER)),
-            Paragraph(f'€ {prezzo:,.0f}', st('mp', fontSize=8.5, alignment=TA_RIGHT)),
-            Paragraph(f'<b>€ {prezzo*qty:,.0f}</b>',
-                      st('mt', fontSize=9, fontName='Helvetica-Bold',
-                         textColor=C['blue'], alignment=TA_RIGHT)),
-        ])
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAG 2 — LETTERA DI PRESENTAZIONE (generata da AI)
+    # ══════════════════════════════════════════════════════════════════════════
+    for el in section_title('Lettera di Presentazione', NAVY): story.append(el)
 
-    header_row = [
-        Paragraph('<b>Descrizione macchina</b>', st('mh',  fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'])),
-        Paragraph('<b>Qty</b>',   st('mh4', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_CENTER)),
-        Paragraph('<b>Prezzo unit.</b>', st('mh5', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
-        Paragraph('<b>Totale</b>', st('mh6', fontSize=8.5, fontName='Helvetica-Bold', textColor=C['white'], alignment=TA_RIGHT)),
-    ]
-
-    totali = [
-        ['', '', Paragraph('Imponibile', st('ti1',fontSize=8,textColor=C['slate'],alignment=TA_RIGHT)),
-                 Paragraph(f'€ {p.capex:,.0f}', st('tv1',fontSize=8,alignment=TA_RIGHT))],
-        ['', '', Paragraph('IVA 22%', st('ti2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT)),
-                 Paragraph(f'€ {p.capex*0.22:,.0f}', st('tv2',fontSize=8,textColor=C['orange'],alignment=TA_RIGHT))],
-        ['', '', Paragraph('<b>Totale IVA inclusa</b>', st('ti3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT)),
-                 Paragraph(f'<b>€ {capex_iva:,.0f}</b>', st('tv3',fontSize=9.5,fontName='Helvetica-Bold',textColor=C['blue'],alignment=TA_RIGHT))],
-    ]
-
-    # 4 colonne: Descrizione (larga) | Qty | Prezzo unit | Totale
-    # PW = 17cm → 10.5 + 1.2 + 2.5 + 2.8 = 17.0
-    mt = Table([header_row] + mac_rows + totali,
-               colWidths=[10.5*cm, 1.2*cm, 2.5*cm, 2.8*cm])
-    ts = TableStyle([
-        ('BACKGROUND',     (0,0),(-1,0),   C['navy']),
-        ('FONTSIZE',       (0,0),(-1,-1),  8.5),
-        ('ROWBACKGROUNDS', (0,1),(-1,-(len(totali)+1)), [C['white'], C['light']]),
-        ('ALIGN',          (1,0),(-1,-1),  'RIGHT'),
-        ('ALIGN',          (1,0),(1,-1),   'CENTER'),
-        ('VALIGN',         (0,0),(-1,-1),  'MIDDLE'),
-        ('TOPPADDING',     (0,0),(-1,-1),  7),
-        ('BOTTOMPADDING',  (0,0),(-1,-1),  7),
-        ('LEFTPADDING',    (0,0),(0,-1),   10),
-        ('LINEBELOW',      (0,0),(-1,-(len(totali)+1)), 0.3, C['border']),
-        ('LINEABOVE',      (0,-len(totali)),(-1,-len(totali)), 1.2, C['blue']),
-        ('FONTNAME',       (2,-1),(-1,-1), 'Helvetica-Bold'),
-        # Sfondo navy header
-        ('TEXTCOLOR',      (0,0),(-1,0),   C['white']),
-    ])
-    mt.setStyle(ts)
-    story.append(mt)
-    story.append(Spacer(1, 14))
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 4 continua — BUSINESS PLAN
-    # ─────────────────────────────────────────────────────────────────────────
-    story.append(section_header(
-        f'BUSINESS PLAN  —  Scenario {(p.scenario or "realistico").upper()}', C['green']))
-    story.append(Spacer(1, 6))
-
-    # ── BOX FORMULA INCASSO ─────────────────────────────────────────────────
-    _bp2 = {}
-    try:
-        import json as _jbp
-        _bp2 = _jbp.loads(p.bp_dettaglio_json) if hasattr(p,'bp_dettaglio_json') and p.bp_dettaglio_json else {}
-    except Exception:
-        _bp2 = {}
-    _cli_g2  = float(_bp2.get('clienti_giorno', 0) or 0)
-    _spesa2  = float(_bp2.get('spesa_cliente',  0) or 0)
-    _giorni2 = float(_bp2.get('giorni_mese',   30) or 30)
-    if _cli_g2 == 0 and p.incasso_mese > 0 and _spesa2 > 0:
-        _cli_g2 = p.incasso_mese / (_spesa2 * _giorni2)
-
-    class FormulaBox(Flowable):
-        def __init__(self, cli_g, spesa, giorni, incasso, width):
-            Flowable.__init__(self)
-            self.cli_g   = cli_g
-            self.spesa   = spesa
-            self.giorni  = giorni
-            self.incasso = incasso
-            self.width   = width
-            self.height  = 2.2*cm
-
-        def draw(self):
-            c   = self.canv
-            w   = self.width
-            cli = self.cli_g
-            sp  = self.spesa
-            gg  = self.giorni
-            inc = self.incasso
-
-            c.setFillColor(colors.HexColor('#f0fdf4'))
-            c.roundRect(0, 0, w, self.height, 6, fill=1, stroke=0)
-            c.setStrokeColor(colors.HexColor('#10b981')); c.setLineWidth(1)
-            c.roundRect(0, 0, w, self.height, 6, fill=0, stroke=1)
-
-            c.setFont('Helvetica-Bold', 7); c.setFillColor(colors.HexColor('#065f46'))
-            label_formula = 'COME SI CALCOLA L' + chr(39) + 'INCASSO MENSILE'
-            c.drawString(0.3*cm, self.height - 0.4*cm, label_formula)
-
-            items = [
-                (f'{cli:.1f}',   '#7c3aed', 'clienti/giorno'),
-                ('x',            '#94a3b8', ''),
-                (f'€{sp:.2f}',   '#1d4ed8', 'spesa/visita'),
-                ('x',            '#94a3b8', ''),
-                (f'{gg:.0f}',    '#b45309', 'gg/mese'),
-                ('=',            '#94a3b8', ''),
-                (f'€{inc:,.0f}', '#059669', '/mese'),
-            ]
-            x = 0.3*cm
-            y_val = self.height - 1.0*cm
-            y_lbl = self.height - 1.55*cm
-            for val, col, lbl in items:
-                is_op = val in ('x', '=')
-                fs = 7 if is_op else 13
-                fn = 'Helvetica' if is_op else 'Helvetica-Bold'
-                c.setFont(fn, fs)
-                c.setFillColor(colors.HexColor(col))
-                tw = c.stringWidth(val, fn, fs)
-                c.drawString(x, y_val, val)
-                if lbl:
-                    c.setFont('Helvetica', 6.5); c.setFillColor(colors.HexColor('#64748b'))
-                    c.drawString(x, y_lbl, lbl)
-                x += tw + (0.25*cm if not is_op else 0.15*cm)
-
-            if cli < 1:
-                ogni = int(round(1/cli)) if cli > 0 else 99
-                nota = f'ATTENZIONE: meno di 1 cliente al giorno — 1 ogni {ogni} giorni. Zona a domanda molto bassa.'
-                ncol = '#ef4444'
-            elif cli < 5:
-                nota = f'{int(cli*gg)} clienti stimati al mese — zona a bassa affluenza.'
-                ncol = '#f59e0b'
-            else:
-                nota = f'{int(cli*gg)} clienti stimati al mese — domanda nella norma per questa zona.'
-                ncol = '#059669'
-            c.setFont('Helvetica', 7.5); c.setFillColor(colors.HexColor(ncol))
-            c.drawString(0.3*cm, 0.2*cm, nota)
-
-    story.append(FormulaBox(_cli_g2, _spesa2, _giorni2, p.incasso_mese, PW))
+    # Intestazione lettera
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(f'Settimo Milanese, {data_str}', st('date', fontSize=9, textColor=SLATE, alignment=TA_RIGHT)))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(f'Gentile {nome_cl},', h2_s))
     story.append(Spacer(1, 8))
 
-    story.append(kpi_row([
-        ('Investimento + IVA', f'€ {capex_iva:,.0f}',     '#3b82f6'),
-        ('Incasso / mese',     f'€ {p.incasso_mese:,.0f}','#10b981'),
-        ('Costi / mese',       f'€ {p.costi_mese:,.0f}',  '#ef4444'),
-        ('Utile / mese',       f'€ {p.utile_mese:,.0f}',
-         '#10b981' if p.utile_mese>=0 else '#ef4444'),
-        ('Payback',
-         f'{int(p.payback_mesi/12)} anni' if p.payback_mesi else 'N/D', '#f59e0b'),
+    # Lettera AI personalizzata
+    lettera_ai = getattr(p, 'lettera_presentazione', None) or ''
+    if not lettera_ai:
+        # Genera al momento se non esiste
+        try:
+            import anthropic as _ant, os as _os
+            _client = _ant.Anthropic(api_key=_os.environ.get('ANTHROPIC_API_KEY'))
+            mac_txt = ''
+            try:
+                mac_list = _json.loads(p.macchine_json or '[]')
+                mac_txt = ', '.join([f"{m.get('qty',1)}× {m.get('nome','')}" for m in mac_list if m.get('nome')])
+            except: pass
+            _prompt = f"""Scrivi una lettera di presentazione commerciale professionale per un progetto di lavanderia self-service BIOLavaTU.
+
+Cliente: {nome_cl}
+Città: {citta_p}
+Macchine selezionate: {mac_txt or 'configurazione standard'}
+Score zona: {p.score_zona or 'N/D'}/100 ({p.score_label or ''})
+Investimento: {eur(float(p.capex or 0)*1.22)}
+Incasso stimato: {eur(p.incasso_mese)}/mese
+
+La lettera deve:
+- Essere indirizzata personalmente al cliente
+- Presentare il progetto BIOLavaTU come opportunità imprenditoriale
+- Citare brevemente la zona analizzata e le sue caratteristiche
+- Menzionare la configurazione macchine scelta
+- Comunicare la solidità e l'esperienza di Rotondi Group (dal 1972)
+- Essere professionale ma calorosa, 3-4 paragrafi
+- Concludere con disponibilità per chiarimenti
+- NON includere intestazione né firma (vengono aggiunte a parte)
+- Rispondere solo con il testo della lettera, niente altro"""
+            _resp = _client.messages.create(
+                model='claude-sonnet-4-5', max_tokens=800,
+                messages=[{'role':'user','content':_prompt}])
+            lettera_ai = _resp.content[0].text.strip()
+            # Salva per riuso
+            try:
+                p.lettera_presentazione = lettera_ai
+                from app import db as _db
+                _db.session.commit()
+            except: pass
+        except Exception as _e:
+            lettera_ai = (f'Con piacere Le presentiamo il progetto di lavanderia self-service BIOLavaTU '
+                         f'sviluppato appositamente per {citta_p}. '
+                         f'L\'analisi della zona ha evidenziato un potenziale significativo per questo tipo di attività. '
+                         f'Rotondi Group, con oltre 50 anni di esperienza nel settore, è il partner ideale per realizzare '
+                         f'il Suo progetto imprenditoriale con macchine di qualità professionale e supporto completo. '
+                         f'Restiamo a disposizione per qualsiasi chiarimento.')
+
+    for para in lettera_ai.split('\n\n'):
+        if para.strip():
+            story.append(Paragraph(para.strip(), body_j))
+            story.append(Spacer(1, 6))
+
+    # Firma lettera
+    story.append(Spacer(1, 16))
+    story.append(Paragraph('Cordiali saluti,', body))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph('<b>Rotondi Group Srl — Team BIOLavaTU</b>', bold9))
+    story.append(Paragraph(f'{web}  ·  {tel}', small))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAG 3-4 — ANALISI DI ZONA
+    # ══════════════════════════════════════════════════════════════════════════
+    for el in section_title('Analisi della Zona', BLUE): story.append(el)
+
+    # Dati sede
+    story.append(Paragraph('Dati della sede analizzata', h3_s))
+    story.append(kv_table([
+        ('Indirizzo', f'{p.indirizzo or ""}, {p.citta or ""}'),
+        ('Superficie locale', f'{p.mq or 60} mq'),
+        ('Affitto mensile', eur(p.affitto_mese) if p.affitto_mese else 'Locale di proprietà'),
+        ('Data analisi', data_str),
     ]))
     story.append(Spacer(1, 10))
 
-    # 3 scenari con barra visiva
-    class ScenariChart(Flowable):
-        def __init__(self, inc, cos, uti, cli_g, spesa, giorni, width):
-            Flowable.__init__(self)
-            self.inc    = inc
-            self.cos    = cos
-            self.uti    = uti
-            self.cli_g  = cli_g    # clienti/giorno realistico
-            self.spesa  = spesa    # spesa media/visita
-            self.giorni = giorni   # giorni apertura/mese
-            self.width  = width
-            self.height = 6.0*cm
+    # Score zona
+    score_val = int(p.score_zona or 0)
+    score_lbl = p.score_label or '—'
+    score_col = GREEN if score_val >= 65 else ORANGE if score_val >= 45 else RED
+    story.append(Paragraph('Valutazione della zona', h3_s))
+    score_data = [[
+        Paragraph(f'<b>{score_val}/100</b>', st('sv', fontSize=28, fontName='Helvetica-Bold',
+            textColor=score_col, alignment=TA_CENTER)),
+        Paragraph(f'<b>{score_lbl}</b>\n\nIndice composto da: densità demografica, età media, reddito, traffico pedonale, GDO vicine, pressione competitiva.',
+            st('sl', fontSize=10, textColor=colors.HexColor('#334155'))),
+    ]]
+    t_score = Table(score_data, colWidths=[3.5*cm, PW-3.5*cm])
+    t_score.setStyle(TableStyle([
+        ('VALIGN',  (0,0),(-1,-1), 'MIDDLE'),
+        ('BACKGROUND',(0,0),(0,0), LIGHT),
+        ('ROUNDEDCORNERS', [6]),
+        ('BOX', (0,0),(-1,-1), 1.5, score_col),
+        ('PADDING',(0,0),(-1,-1), 10),
+    ]))
+    story.append(t_score)
+    story.append(Spacer(1, 10))
 
-        def draw(self):
-            c = self.canv
-            w = self.width
-            giorni = self.giorni or 30
-            sc3 = [
-                ('Pessimistico ×0.60', self.cli_g*0.60, self.inc*0.60, self.inc*0.60 - self.cos, '#ef4444'),
-                ('Realistico   ×1.00', self.cli_g,      self.inc,      self.uti,                  '#3b82f6'),
-                ('Ottimistico  ×1.25', self.cli_g*1.25, self.inc*1.25, self.inc*1.25 - self.cos,  '#10b981'),
-            ]
-            max_inc = max(self.inc*1.25, 1)
-            bh  = 16
-            gap = 8
-            top = self.height - 0.1*cm
+    # Dati demografici
+    story.append(Paragraph('Dati demografici ISTAT', h3_s))
+    pop3  = int(p.pop_3min or 0)
+    pop5  = int(getattr(p,'pop_5min',0) or 0)
+    pop10 = int(getattr(p,'pop_10min',0) or 0)
+    dem_rows = [
+        ('Popolazione 3 min (~240m)', f'{pop3:,} abitanti — bacino primario'),
+        ('Popolazione 5 min (~400m)', f'{pop5:,} abitanti — bacino secondario'),
+        ('Popolazione 10 min (~800m)', f'{pop10:,} abitanti — bacino terziario'),
+        ('Densità abitativa', f'{int(getattr(p,"densita",200) or 200):,} ab/km²'),
+        ('Età media zona', f'{getattr(p,"eta_media",46) or 46} anni'),
+        ('Reddito medio', eur(getattr(p,"reddito_medio",20000))),
+        ('Concorrenti self-service 500m', str(p.concorrenti_500m or 0)),
+        ('Lavanderie totali 1km', str(p.concorrenti_1km or 0)),
+        ('Clienti/giorno stimati', f'{float(p.clienti_g or 0):.1f} clienti/giorno'),
+    ]
+    story.append(kv_table(dem_rows))
+    story.append(Spacer(1, 10))
 
-            # Intestazioni colonne
-            col_cli  = 0
-            col_bar  = 2.8*cm
-            col_inc  = col_bar + w*0.38 + 0.3*cm
-            col_uti  = col_inc + 2.2*cm
+    # Mappa zona
+    for el in section_title('Mappa della Zona', BLUE): story.append(el)
+    gmaps_key = os.environ.get('GMAPS_KEY','')
+    _map_lat = float(p.lat or 0)
+    _map_lng = float(p.lng or 0)
+    if (not _map_lat or not _map_lng) and gmaps_key:
+        _map_lat, _map_lng = _geocodifica_indirizzo(p.indirizzo, p.citta, gmaps_key)
+    if _map_lat and _map_lng and gmaps_key:
+        try:
+            import urllib.request as _ur, urllib.parse as _up
+            _murl = (f'https://maps.googleapis.com/maps/api/staticmap'
+                     f'?center={_map_lat},{_map_lng}&zoom=15&size=640x320&scale=2'
+                     f'&maptype=roadmap&style=feature:poi|visibility:simplified'
+                     f'&markers=color:blue%7Clabel:S%7C{_map_lat},{_map_lng}'
+                     f'&path=color:0x2563EB88|fillcolor:0x2563EB22|weight:2'
+                     f'&key={gmaps_key}')
+            _mreq = _ur.Request(_murl, headers={'User-Agent':'BIOLavaTU-PDF'})
+            with _ur.urlopen(_mreq, timeout=8) as _mr:
+                _mb = _mr.read()
+            if _mb:
+                from reportlab.platypus import Image as RLImage
+                _img_w = PW
+                _img_h = _img_w * 320 / 640
+                _io2 = _io.BytesIO(_mb)
+                story.append(RLImage(_io2, width=_img_w, height=_img_h))
+        except: pass
+    story.append(Spacer(1, 6))
 
-            c.setFont('Helvetica-Bold', 7.5); c.setFillColor(C['slate'])
-            c.drawString(col_cli,  top, 'Scenario')
-            c.drawString(col_bar,  top, 'Clienti/giorno → Incasso/mese')
-            c.drawRightString(w,   top, 'Utile/mese')
+    # Analisi AI zona
+    if p.ai_zona:
+        for el in section_title('Analisi Territoriale', BLUE): story.append(el)
+        story.extend(_formatta_ai(p.ai_zona, body_j, h3_s, small))
 
-            c.setStrokeColor(C['border']); c.setLineWidth(0.5)
-            c.line(0, top - 0.25*cm, w, top - 0.25*cm)
+    story.append(PageBreak())
 
-            for i,(nome,cli_s,inc_s,uti_s,col) in enumerate(sc3):
-                by_ = top - 0.65*cm - i*(bh+gap+4)
-                # Nome scenario
-                c.setFont('Helvetica-Bold' if i==1 else 'Helvetica', 8)
-                c.setFillColor(colors.HexColor(col))
-                c.drawString(col_cli, by_+4, nome)
-                # Clienti/giorno
-                c.setFont('Helvetica', 7.5); c.setFillColor(C['slate'])
-                c.drawString(col_cli, by_-5, f'{cli_s:.1f} clienti/g  ·  €{inc_s/giorni:.1f}/g')
-                # Barra incasso mensile
-                bar_max_w = w * 0.37
-                c.setFillColor(colors.HexColor('#e2e8f0'))
-                c.roundRect(col_bar, by_, bar_max_w, bh, 3, fill=1, stroke=0)
-                bw_i = bar_max_w * (inc_s / max_inc)
-                c.setFillColor(colors.HexColor(col))
-                c.roundRect(col_bar, by_, max(4, bw_i), bh, 3, fill=1, stroke=0)
-                # Valore incasso mensile
-                c.setFont('Helvetica-Bold', 8.5); c.setFillColor(colors.HexColor(col))
-                c.drawString(col_bar + bar_max_w + 0.25*cm, by_+4,
-                             f'€ {inc_s:,.0f}/mese')
-                # Utile mensile
-                uti_col = '#10b981' if uti_s >= 0 else '#ef4444'
-                c.setFont('Helvetica-Bold', 9); c.setFillColor(colors.HexColor(uti_col))
-                c.drawRightString(w, by_+4, f'€ {uti_s:,.0f}')
-                # Separatore leggero
-                if i < 2:
-                    c.setStrokeColor(C['border']); c.setLineWidth(0.3)
-                    c.line(0, by_ - 6, w, by_ - 6)
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAG 5 — BUSINESS PLAN
+    # ══════════════════════════════════════════════════════════════════════════
+    for el in section_title('Business Plan', GREEN): story.append(el)
 
-            # Nota costi fissi
-            c.setFont('Helvetica', 7); c.setFillColor(C['slate'])
-            c.drawString(0, 0.1*cm,
-                f'Costi mensili totali: € {self.cos:,.0f}  '
-                f'(fissi: affitto + ammort. + assic.; variabili: energia + acqua scalano con i cicli)')
-
-    # Recupera clienti/giorno e spesa dal dettaglio BP salvato
-    _bp_det = {}
     try:
-        import json as _j3
-        _bp_det = _j3.loads(p.bp_dettaglio_json) if hasattr(p, 'bp_dettaglio_json') and p.bp_dettaglio_json else {}
-    except Exception:
-        _bp_det = {}
-    _cli_g  = float(_bp_det.get('clienti_giorno', 0) or 0)
-    _spesa  = float(_bp_det.get('spesa_cliente', 0)  or p.incasso_mese / max((_cli_g * 30), 1))
-    _giorni = float(_bp_det.get('giorni_mese', 30)   or 30)
-    # Fallback: stima clienti/giorno da incasso se non salvato
-    if _cli_g == 0 and p.incasso_mese > 0 and _spesa > 0:
-        _cli_g = p.incasso_mese / (_spesa * _giorni)
+        capex     = float(p.capex or 0)
+        capex_iva = capex * 1.22
+        incasso   = float(p.incasso_mese or 0)
+        costi     = float(p.costi_mese or 0)
+        utile     = float(p.utile_mese or 0)
+        payback   = float(p.payback_mesi or 0)
+        cli_g     = float(p.clienti_g or 0)
+        spesa_v   = float(p.spesa_visita or 0)
+    except: capex=capex_iva=incasso=costi=utile=payback=cli_g=spesa_v=0
 
-    story.append(ScenariChart(p.incasso_mese, p.costi_mese, p.utile_mese,
-                               _cli_g, _spesa, _giorni, PW))
+    # Formula incasso
+    story.append(Paragraph('Come si calcola l\'incasso mensile', h3_s))
+    formula_data = [[
+        Paragraph(f'<b>{cli_g:.1f}</b>', st('f1',fontSize=18,fontName='Helvetica-Bold',textColor=NAVY,alignment=TA_CENTER)),
+        Paragraph('×', st('fx',fontSize=16,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph(f'<b>{eur(spesa_v)}</b>', st('f2',fontSize=16,fontName='Helvetica-Bold',textColor=BLUE,alignment=TA_CENTER)),
+        Paragraph('×', st('fx',fontSize=16,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph('<b>30</b>', st('f3',fontSize=16,fontName='Helvetica-Bold',textColor=NAVY,alignment=TA_CENTER)),
+        Paragraph('=', st('fx',fontSize=16,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph(f'<b>{eur(incasso)}</b>', st('f4',fontSize=18,fontName='Helvetica-Bold',textColor=GREEN,alignment=TA_CENTER)),
+    ]]
+    formula_lbl = [[
+        Paragraph('clienti/g', st('fl',fontSize=7,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph('', small),
+        Paragraph('spesa/visita', st('fl',fontSize=7,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph('', small),
+        Paragraph('gg/mese', st('fl',fontSize=7,textColor=SLATE,alignment=TA_CENTER)),
+        Paragraph('', small),
+        Paragraph('/mese', st('fl',fontSize=7,textColor=SLATE,alignment=TA_CENTER)),
+    ]]
+    cw7 = [PW/7]*7
+    tf = Table(formula_data+formula_lbl, colWidths=cw7)
+    tf.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BACKGROUND',(0,0),(-1,0),LIGHT),
+        ('BOX',(0,0),(-1,0),1,BORDER),
+        ('PADDING',(0,0),(-1,-1),6),
+    ]))
+    story.append(tf)
+    story.append(Spacer(1, 10))
+
+    # KPI economici
+    story.append(Paragraph('Indicatori economici', h3_s))
+    kpi_data = [
+        ['Investimento + IVA 22%', eur(capex_iva), 'BLUE'],
+        ['Incasso mensile (scenario realistico)', eur(incasso), 'GREEN'],
+        ['Costi mensili totali', eur(costi), 'RED'],
+        ['Utile netto mensile', eur(utile), 'GREEN' if utile >= 0 else 'RED'],
+        ['Payback investimento', f'{payback/12:.1f} anni' if payback > 0 else 'N/D', 'ORANGE'],
+    ]
+    kpi_rows = []
+    for lbl, val, col_name in kpi_data:
+        c_obj = {'BLUE':BLUE,'GREEN':GREEN,'RED':RED,'ORANGE':ORANGE}[col_name]
+        kpi_rows.append([
+            Paragraph(lbl, body),
+            Paragraph(f'<b>{val}</b>', st('kv', fontSize=10, fontName='Helvetica-Bold',
+                textColor=c_obj, alignment=TA_RIGHT)),
+        ])
+    tk = Table(kpi_rows, colWidths=[PW*0.65, PW*0.35])
+    tk.setStyle(TableStyle([
+        ('ROWBACKGROUNDS',(0,0),(-1,-1),[LIGHT,WHITE]),
+        ('LINEBELOW',(0,0),(-1,-1),0.3,BORDER),
+        ('PADDING',(0,0),(-1,-1),7),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ]))
+    story.append(tk)
+    story.append(Spacer(1, 10))
+
+    # 3 scenari
+    story.append(Paragraph('Scenari di sviluppo', h3_s))
+    sc_header = [Paragraph(t, st('sh',fontName='Helvetica-Bold',fontSize=9,
+        textColor=WHITE,alignment=TA_CENTER))
+        for t in ['Scenario','Clienti/g','Incasso/mese','Utile/mese']]
+    sc_rows = [sc_header]
+    for mult, nome, bg in [(0.6,'Pessimistico',LGREEN),(1.0,'Realistico',LIGHT),(1.25,'Ottimistico',LGREEN)]:
+        inc_s = incasso * mult
+        ut_s  = inc_s - costi
+        bg_row = colors.HexColor('#FEE2E2') if mult==0.6 and ut_s<0 else (LGREEN if ut_s>0 else LORNG)
+        sc_rows.append([
+            Paragraph(nome, st('sn',fontName='Helvetica-Bold',fontSize=9)),
+            Paragraph(f'{cli_g*mult:.1f}', st('sv2',fontSize=9,alignment=TA_CENTER)),
+            Paragraph(eur(inc_s), st('si',fontSize=9,alignment=TA_RIGHT)),
+            Paragraph(f'<b>{eur(ut_s)}</b>', st('su',fontSize=9,fontName='Helvetica-Bold',
+                textColor=GREEN if ut_s>=0 else RED, alignment=TA_RIGHT)),
+        ])
+    ts = Table(sc_rows, colWidths=[PW*0.28,PW*0.18,PW*0.27,PW*0.27])
+    ts.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),NAVY),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[LIGHT,WHITE,LGREEN]),
+        ('LINEBELOW',(0,0),(-1,-1),0.3,BORDER),
+        ('PADDING',(0,0),(-1,-1),7),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),1,BORDER),
+    ]))
+    story.append(ts)
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAG 6 — ORDINE MACCHINE
+    # ══════════════════════════════════════════════════════════════════════════
+    for el in section_title('Ordine Macchine e Accessori', NAVY): story.append(el)
+
+    story.append(Paragraph(
+        f'Configurazione selezionata per il progetto di <b>{nome_cl}</b> — {citta_p}', body))
+    story.append(Spacer(1, 8))
+
+    # Tabella macchine SENZA prezzi unitari
+    try:
+        mac_list = _json.loads(p.macchine_json or '[]')
+    except: mac_list = []
+
+    mac_header = [Paragraph(t, st('mh',fontName='Helvetica-Bold',fontSize=9,
+        textColor=WHITE, alignment=TA_CENTER))
+        for t in ['N°', 'Descrizione macchina / Accessorio', 'Categoria', 'Qtà']]
+    mac_rows = [mac_header]
+    n_mac = 0
+    for i, m in enumerate(mac_list, 1):
+        nome_m = m.get('nome','') or m.get('descrizione','')
+        cat_m  = m.get('categoria','') or ''
+        qty_m  = m.get('qty', 1)
+        if nome_m:
+            n_mac += 1
+            bg_r = LIGHT if i%2==0 else WHITE
+            mac_rows.append([
+                Paragraph(str(i), st('mn',fontSize=9,alignment=TA_CENTER)),
+                Paragraph(f'<b>{nome_m}</b>', st('md',fontSize=9,fontName='Helvetica-Bold')),
+                Paragraph(cat_m, st('mc',fontSize=8,textColor=SLATE)),
+                Paragraph(str(qty_m), st('mq2',fontSize=9,alignment=TA_CENTER,fontName='Helvetica-Bold')),
+            ])
+
+    if n_mac == 0:
+        mac_rows.append([Paragraph('—',body), Paragraph('Nessuna macchina selezionata',body),
+                         Paragraph('',body), Paragraph('',body)])
+
+    tm = Table(mac_rows, colWidths=[1*cm, PW*0.55, PW*0.25, 1.5*cm])
+    tm.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0), NAVY),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[LIGHT,WHITE]),
+        ('LINEBELOW',(0,0),(-1,-1),0.3,BORDER),
+        ('PADDING',(0,0),(-1,-1),7),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),1,BORDER),
+    ]))
+    story.append(tm)
+    story.append(Spacer(1, 10))
+
+    # Totale (solo totale + IVA, no prezzi unitari)
+    story.append(Spacer(1, 4))
+    tot_data = [
+        [Paragraph('Imponibile', st('ti',fontSize=10,fontName='Helvetica-Bold',textColor=NAVY)),
+         Paragraph(eur(capex), st('tv',fontSize=10,fontName='Helvetica-Bold',textColor=NAVY,alignment=TA_RIGHT))],
+        [Paragraph('IVA 22%', st('ti2',fontSize=9,textColor=SLATE)),
+         Paragraph(eur(capex*0.22), st('tv2',fontSize=9,textColor=SLATE,alignment=TA_RIGHT))],
+        [Paragraph('<b>TOTALE IVA INCLUSA</b>', st('tt',fontSize=12,fontName='Helvetica-Bold',textColor=WHITE)),
+         Paragraph(f'<b>{eur(capex_iva)}</b>', st('ttv',fontSize=14,fontName='Helvetica-Bold',
+            textColor=WHITE,alignment=TA_RIGHT))],
+    ]
+    tt = Table(tot_data, colWidths=[PW*0.6, PW*0.4])
+    tt.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,1),LIGHT),
+        ('BACKGROUND',(0,2),(-1,2),NAVY),
+        ('LINEBELOW',(0,0),(-1,1),0.5,BORDER),
+        ('PADDING',(0,0),(-1,-1),9),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),1.5,NAVY),
+    ]))
+    story.append(tt)
     story.append(Spacer(1, 14))
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 5 — ANALISI AI
-    # ─────────────────────────────────────────────────────────────────────────
-    if p.ai_zona:
-        ai_text = p.ai_bp or p.ai_zona
-        if ai_text:
-            story.append(PageBreak())
-            story.append(section_header('ANALISI AI  —  Raccomandazione', C['orange']))
-            story.append(Spacer(1, 8))
-            _render_ai_text(ai_text, story, st, S['body'], S['h2'],
-                            C['navy'], C['green'], C['red'], C['orange'],
-                            Spacer, Paragraph)
+    # Condizioni di pagamento
+    for el in section_title('Condizioni di Pagamento', NAVY): story.append(el)
+    pag_data = [
+        [Paragraph('Tranche', st('ph',fontName='Helvetica-Bold',fontSize=9,textColor=WHITE,alignment=TA_CENTER)),
+         Paragraph('%', st('ph',fontName='Helvetica-Bold',fontSize=9,textColor=WHITE,alignment=TA_CENTER)),
+         Paragraph('Importo', st('ph',fontName='Helvetica-Bold',fontSize=9,textColor=WHITE,alignment=TA_CENTER)),
+         Paragraph('Scadenza', st('ph',fontName='Helvetica-Bold',fontSize=9,textColor=WHITE,alignment=TA_CENTER))],
+        [Paragraph('1° Acconto', bold9),
+         Paragraph('40%', st('pc',fontSize=9,alignment=TA_CENTER,fontName='Helvetica-Bold',textColor=BLUE)),
+         Paragraph(eur(capex_iva*0.40), st('pv',fontSize=9,alignment=TA_RIGHT,fontName='Helvetica-Bold',textColor=BLUE)),
+         Paragraph('All\'accettazione dell\'ordine / firma contratto', body)],
+        [Paragraph('2° Acconto', bold9),
+         Paragraph('40%', st('pc2',fontSize=9,alignment=TA_CENTER,fontName='Helvetica-Bold',textColor=NAVY)),
+         Paragraph(eur(capex_iva*0.40), st('pv2',fontSize=9,alignment=TA_RIGHT,fontName='Helvetica-Bold',textColor=NAVY)),
+         Paragraph('Ad avviso macchine pronte / pronto-spedizione', body)],
+        [Paragraph('Saldo parziale', bold9),
+         Paragraph('15%', st('pc3',fontSize=9,alignment=TA_CENTER,fontName='Helvetica-Bold',textColor=ORANGE)),
+         Paragraph(eur(capex_iva*0.15), st('pv3',fontSize=9,alignment=TA_RIGHT,fontName='Helvetica-Bold',textColor=ORANGE)),
+         Paragraph('Allo scarico / consegna in cantiere', body)],
+        [Paragraph('Saldo finale', bold9),
+         Paragraph('5%', st('pc4',fontSize=9,alignment=TA_CENTER,fontName='Helvetica-Bold',textColor=GREEN)),
+         Paragraph(eur(capex_iva*0.05), st('pv4',fontSize=9,alignment=TA_RIGHT,fontName='Helvetica-Bold',textColor=GREEN)),
+         Paragraph('Al collaudo funzionale con verbale firmato', body)],
+    ]
+    tp = Table(pag_data, colWidths=[3*cm, 1.5*cm, 3*cm, PW-7.5*cm])
+    tp.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),NAVY),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[LIGHT,WHITE,LIGHT,WHITE]),
+        ('LINEBELOW',(0,0),(-1,-1),0.3,BORDER),
+        ('PADDING',(0,0),(-1,-1),8),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),1,BORDER),
+    ]))
+    story.append(tp)
+    story.append(PageBreak())
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # PAG 6 — CONDIZIONI DI VENDITA
-    # ─────────────────────────────────────────────────────────────────────────
-    if s and s.condizioni_vendita:
-        story.append(PageBreak())
-        story.append(section_header('CONDIZIONI DI VENDITA', C['slate']))
-        story.append(Spacer(1, 6))
-        for line in s.condizioni_vendita.split('\n'):
-            if line.strip():
-                story.append(Paragraph(line.strip(), S['body']))
-                story.append(Spacer(1, 2))
+    # ══════════════════════════════════════════════════════════════════════════
+    # PAG 7+ — CONDIZIONI GENERALI DI VENDITA
+    # ══════════════════════════════════════════════════════════════════════════
+    cgv_text = getattr(p, 'cgv_text', None)
+    if not cgv_text:
+        cgv_text = _get_cgv_default()
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # BUILD + MERGE ALLEGATI
-    # ─────────────────────────────────────────────────────────────────────────
-    doc.build(story)
-    main_buf.seek(0)
+    if cgv_text:
+        story.extend(_formatta_cgv(cgv_text, h2_s, h3_s, body_j, small, section_title, NAVY, BLUE))
 
-    from flask import current_app
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
-    allegati = p.get_allegati()
-    pdf_all  = [a for a in allegati if isinstance(a,str) and a.lower().endswith('.pdf')]
+    story.append(PageBreak())
 
-    if not pdf_all:
-        resp = make_response(main_buf.read())
-        resp.headers['Content-Type'] = 'application/pdf'
-        resp.headers['Content-Disposition'] = f'inline; filename=BIOLavaTU-{p.numero}.pdf'
-        return resp
+    # ══════════════════════════════════════════════════════════════════════════
+    # ULTIMA PAG — FIRME
+    # ══════════════════════════════════════════════════════════════════════════
+    for el in section_title('Accettazione e Firme', NAVY): story.append(el)
 
-    writer = PdfWriter()
-    for pg in PdfReader(main_buf).pages:
-        writer.add_page(pg)
-    for allegato in pdf_all:
-        path = os.path.join(upload_folder, allegato)
-        if os.path.exists(path):
-            try:
-                for pg in PdfReader(path).pages: writer.add_page(pg)
-            except Exception:
-                pass
-    out_buf = _io.BytesIO()
-    writer.write(out_buf); out_buf.seek(0)
-    resp = make_response(out_buf.read())
-    resp.headers['Content-Type'] = 'application/pdf'
-    resp.headers['Content-Disposition'] = f'inline; filename=BIOLavaTU-{p.numero}.pdf'
-    return resp
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        f'Il sottoscritto <b>{nome_cl}</b> dichiara di aver letto, compreso e accettato '
+        f'integralmente il presente documento "Progetto Lavanderia Self-Service BIOLavaTU" '
+        f'composto da: Lettera di Presentazione, Analisi di Zona, Business Plan, '
+        f'Ordine Macchine e Condizioni Generali di Vendita.', body_j))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        'Ai sensi degli artt. 1341 e 1342 c.c., il Cliente approva specificamente: '
+        'Art. 5 (Pagamenti), Art. 8 (Riserva di proprietà), Art. 9 (Limitazione responsabilità), '
+        'Art. 11 (Recesso), Art. 12 (Foro competente), Art. 15 (Esclusività detergenti), '
+        'Art. 19 (SLA).', body_j))
+    story.append(Spacer(1, 24))
+
+    # Box firme
+    firma_data = [
+        # Intestazioni
+        [Paragraph('<b>Per ROTONDI GROUP Srl</b>', st('fh',fontSize=9,fontName='Helvetica-Bold',
+            textColor=WHITE, alignment=TA_CENTER)),
+         Paragraph('<b>Per il CLIENTE</b>', st('fh2',fontSize=9,fontName='Helvetica-Bold',
+            textColor=WHITE, alignment=TA_CENTER))],
+        # Spazio firma
+        [Paragraph(' ', st('fs',fontSize=40)), Paragraph(' ', st('fs2',fontSize=40))],
+        # Linee
+        [Paragraph('_'*35, st('fl2',fontSize=9,textColor=SLATE,alignment=TA_CENTER)),
+         Paragraph('_'*35, st('fl3',fontSize=9,textColor=SLATE,alignment=TA_CENTER))],
+        # Label
+        [Paragraph('Il Legale Rappresentante\nFirma e timbro', st('flb',fontSize=8,textColor=SLATE,alignment=TA_CENTER)),
+         Paragraph(f'{nome_cl}\nFirma', st('flb2',fontSize=8,textColor=SLATE,alignment=TA_CENTER))],
+        # Data
+        [Paragraph('Data: _____ / _____ / _________', st('fd',fontSize=9,textColor=SLATE,alignment=TA_CENTER)),
+         Paragraph('Data: _____ / _____ / _________', st('fd2',fontSize=9,textColor=SLATE,alignment=TA_CENTER))],
+    ]
+    tf2 = Table(firma_data, colWidths=[PW/2-0.5*cm, PW/2-0.5*cm], spaceBefore=10)
+    tf2.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),NAVY),
+        ('BACKGROUND',(0,1),(-1,-1),LIGHT),
+        ('BOX',(0,0),(0,-1),1,BORDER),
+        ('BOX',(1,0),(1,-1),1,BORDER),
+        ('PADDING',(0,0),(-1,-1),10),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('LINEBELOW',(0,2),(-1,2),0.5,SLATE),
+    ]))
+    story.append(tf2)
+
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width=PW, thickness=0.5, color=BORDER))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f'{company}  ·  {via}  ·  P.IVA {piva}\n{web}  ·  {tel}',
+        st('final', fontSize=7.5, textColor=SLATE, alignment=TA_CENTER)))
+
+    # ── BUILD ────────────────────────────────────────────────────────────────
+    doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
+    buf.seek(0)
+    return buf.read()
+
 @pratiche_bp.route('/pratiche/<int:id>/allegato', methods=['POST'])
 @login_required
 def aggiungi_allegato(id):
@@ -1264,5 +985,6 @@ def elimina_allegato(id, idx):
         db.session.commit()
         flash('Allegato eliminato.', 'success')
     return redirect(url_for('pratiche.dettaglio', id=id))
+
 
 
