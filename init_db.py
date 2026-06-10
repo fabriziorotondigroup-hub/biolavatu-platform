@@ -19,7 +19,8 @@ with app.app_context():
 
     # Migration: aggiungi colonne nuove se mancanti
     _new_cols = [
-        ('pratiche', 'bp_avanzato_json', 'TEXT'),
+        ('pratiche', 'bp_avanzato_json',       'TEXT'),
+        ('pratiche', 'lettera_presentazione',   'TEXT'),
         ('pratiche', 'pop_3min',         'INTEGER DEFAULT 0'),
         ('pratiche', 'ai_risk',          'TEXT'),
         ('pratiche', 'allegati_json',    'TEXT'),
