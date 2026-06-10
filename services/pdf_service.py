@@ -437,67 +437,76 @@ def build_pdf(pratica, settings):
         ('RIGHTPADDING',  (0,0),(-1,-1), 0),
     ])))
 
-    # 3 KPI copertina
+    # 3 KPI copertina — struttura flat 2 righe (valori + label)
     capex_str   = f"€ {int(p.capex or 0):,}".replace(',', '.')
     incasso_str = f"€ {int(p.incasso_mese or 0):,}/m".replace(',', '.')
-    score_str   = f"{sc}/10 — {sc_t}"
-    kpi_cov = Table([[
-        Table([[
-            Paragraph('INVESTIMENTO', _s('k1l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
-                                         alignment=TA_CENTER, letterSpacing=0.8)),
-            Paragraph(capex_str, _s('k1v', fontName='Helvetica-Bold', fontSize=14,
-                                     textColor=C_WHITE, alignment=TA_CENTER, leading=18)),
-        ]], colWidths=[CW/3-4], style=TableStyle([
-            ('BACKGROUND', (0,0),(-1,-1), C_NAVY),
-            ('TOPPADDING', (0,0),(-1,-1), 4), ('BOTTOMPADDING', (0,0),(-1,-1), 4),
-            ('LEFTPADDING', (0,0),(-1,-1), 4), ('RIGHTPADDING', (0,0),(-1,-1), 4),
-        ])),
-        Table([[
-            Paragraph('INCASSO MENSILE', _s('k2l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
-                                             alignment=TA_CENTER, letterSpacing=0.8)),
-            Paragraph(incasso_str, _s('k2v', fontName='Helvetica-Bold', fontSize=14,
-                                       textColor=colors.HexColor('#34D399'),
-                                       alignment=TA_CENTER, leading=18)),
-        ]], colWidths=[CW/3-4], style=TableStyle([
-            ('BACKGROUND', (0,0),(-1,-1), C_NAVY),
-            ('TOPPADDING', (0,0),(-1,-1), 4), ('BOTTOMPADDING', (0,0),(-1,-1), 4),
-            ('LEFTPADDING', (0,0),(-1,-1), 4), ('RIGHTPADDING', (0,0),(-1,-1), 4),
-        ])),
-        Table([[
-            Paragraph('SCORE ZONA', _s('k3l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
-                                        alignment=TA_CENTER, letterSpacing=0.8)),
-            Paragraph(score_str, _s('k3v', fontName='Helvetica-Bold', fontSize=12,
-                                     textColor=colors.HexColor(sc_c),
-                                     alignment=TA_CENTER, leading=16)),
-        ]], colWidths=[CW/3-4], style=TableStyle([
-            ('BACKGROUND', (0,0),(-1,-1), C_NAVY),
-            ('TOPPADDING', (0,0),(-1,-1), 4), ('BOTTOMPADDING', (0,0),(-1,-1), 4),
-            ('LEFTPADDING', (0,0),(-1,-1), 4), ('RIGHTPADDING', (0,0),(-1,-1), 4),
-        ])),
-    ]], colWidths=[CW/3, CW/3, CW/3])
+    score_str   = f"{sc}/10  {sc_t}"
+    cw3 = CW / 3
+    kpi_cov = Table([
+        [   # Riga valori
+            Paragraph(capex_str,
+                      _s('k1v', fontName='Helvetica-Bold', fontSize=16,
+                         textColor=C_WHITE, alignment=TA_CENTER, leading=20)),
+            Paragraph(incasso_str,
+                      _s('k2v', fontName='Helvetica-Bold', fontSize=16,
+                         textColor=colors.HexColor('#34D399'),
+                         alignment=TA_CENTER, leading=20)),
+            Paragraph(score_str,
+                      _s('k3v', fontName='Helvetica-Bold', fontSize=13,
+                         textColor=colors.HexColor(sc_c),
+                         alignment=TA_CENTER, leading=17)),
+        ],
+        [   # Riga label
+            Paragraph('INVESTIMENTO',
+                      _s('k1l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
+                         alignment=TA_CENTER, letterSpacing=0.8)),
+            Paragraph('INCASSO MENSILE',
+                      _s('k2l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
+                         alignment=TA_CENTER, letterSpacing=0.8)),
+            Paragraph('SCORE ZONA',
+                      _s('k3l', fontSize=7, textColor=colors.HexColor('#93C5FD'),
+                         alignment=TA_CENTER, letterSpacing=0.8)),
+        ],
+    ], colWidths=[cw3, cw3, cw3])
     kpi_cov.setStyle(TableStyle([
         ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#112240')),
-        ('BOX',           (0,0),(-1,-1), 1, colors.HexColor('#1E3A5F')),
+        ('BOX',           (0,0),(-1,-1), 1,   colors.HexColor('#1E3A5F')),
         ('INNERGRID',     (0,0),(-1,-1), 0.5, colors.HexColor('#1E3A5F')),
-        ('TOPPADDING',    (0,0),(-1,-1), 12),
-        ('BOTTOMPADDING', (0,0),(-1,-1), 12),
-        ('LEFTPADDING',   (0,0),(-1,-1), 8),
-        ('RIGHTPADDING',  (0,0),(-1,-1), 8),
+        ('ALIGN',         (0,0),(-1,-1), 'CENTER'),
+        ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+        ('TOPPADDING',    (0,0),(- 1,0), 14),
+        ('BOTTOMPADDING', (0,0),(-1,0),  4),
+        ('TOPPADDING',    (0,1),(-1,-1),  4),
+        ('BOTTOMPADDING', (0,1),(-1,-1), 14),
+        ('LEFTPADDING',   (0,0),(-1,-1),  6),
+        ('RIGHTPADDING',  (0,0),(-1,-1),  6),
     ]))
     story.append(kpi_cov)
-    story.append(sp(16))
+    story.append(sp(12))
 
-    # Logo BIOLavaTU in basso copertina
+    # Logo BIOLavaTU in basso copertina — sfondo navy esplicito
     logo_path = _get_logo_path()
+    logo_h_cm = 5.8 * cm
     if logo_path:
-        logo_img = Image(logo_path, width=5.5*cm, height=5.5*cm, kind='proportional')
+        # Calcola dimensioni reali mantenendo aspect ratio
+        from reportlab.lib.utils import ImageReader as _IR
+        try:
+            _ir = _IR(logo_path)
+            _iw, _ih = _ir.getSize()
+            _ratio = _iw / _ih
+            _lw = logo_h_cm * _ratio
+            _lh = logo_h_cm
+        except Exception:
+            _lw = logo_h_cm
+            _lh = logo_h_cm
+        logo_img = Image(logo_path, width=_lw, height=_lh)
         logo_wrap = Table([[logo_img]], colWidths=[CW])
         logo_wrap.setStyle(TableStyle([
             ('ALIGN',         (0,0),(-1,-1), 'CENTER'),
             ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
             ('BACKGROUND',    (0,0),(-1,-1), C_NAVY),
-            ('TOPPADDING',    (0,0),(-1,-1), 0),
-            ('BOTTOMPADDING', (0,0),(-1,-1), 14),
+            ('TOPPADDING',    (0,0),(-1,-1), 8),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 8),
         ]))
         story.append(logo_wrap)
     else:
@@ -505,24 +514,25 @@ def build_pdf(pratica, settings):
             Paragraph(brand_name, _s('cvbr', fontName='Helvetica-Bold', fontSize=22,
                                       textColor=colors.HexColor('#34D399'),
                                       alignment=TA_CENTER, leading=28)),
-            Paragraph('LAVANDERIA AUTOMATICA ECOCOMPATIBILE',
-                      _s('cvsub', fontSize=8, textColor=colors.HexColor('#93C5FD'),
-                         alignment=TA_CENTER, letterSpacing=1)),
         ]], colWidths=[CW], style=TableStyle([
             ('BACKGROUND',    (0,0),(-1,-1), C_NAVY),
-            ('TOPPADDING',    (0,0),(-1,-1), 0),
+            ('TOPPADDING',    (0,0),(-1,-1), 20),
             ('BOTTOMPADDING', (0,0),(-1,-1), 20),
             ('LEFTPADDING',   (0,0),(-1,-1), 0),
             ('RIGHTPADDING',  (0,0),(-1,-1), 0),
         ])))
 
-    # Data e numero documento
+    # Data e numero documento — sfondo navy per chiudere bene la copertina
     story.append(Table([[
         Paragraph(f'N° {p.numero}  ·  Data: {TODAY_LONG}  ·  Documento riservato e confidenziale',
-                  _s('cvdate', fontSize=8, textColor=C_GRAY, alignment=TA_CENTER, leading=12)),
+                  _s('cvdate', fontSize=8, textColor=colors.HexColor('#64748B'),
+                     alignment=TA_CENTER, leading=12)),
     ]], colWidths=[CW], style=TableStyle([
-        ('TOPPADDING',    (0,0),(-1,-1), 8),
-        ('BOTTOMPADDING', (0,0),(-1,-1), 0),
+        ('BACKGROUND',    (0,0),(-1,-1), C_NAVY),
+        ('TOPPADDING',    (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 16),
+        ('LEFTPADDING',   (0,0),(-1,-1), 0),
+        ('RIGHTPADDING',  (0,0),(-1,-1), 0),
     ])))
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -567,32 +577,38 @@ def build_pdf(pratica, settings):
 
     story.append(sp(20))
 
-    # Firma lettera
+    # Firma lettera — colonne che sommano esatto a CW
+    _fw1 = CW * 0.54  # colonna dati azienda
+    _fw2 = CW * 0.46  # colonna firma
     firma_lett = Table([[
-        Table([[
-            Paragraph('Cordialmente,', _s('fl0', fontSize=9, textColor=C_GRAY, leading=13)),
-            sp(8),
-            Paragraph('<b>Rotondi Group Srl</b>',
-                      _s('fl1', fontName='Helvetica-Bold', fontSize=11, leading=14)),
-            Paragraph('BIOLavaTU — Lavanderia Automatica Ecocompatibile',
-                      _s('fl2', fontSize=8.5, textColor=C_TEAL, leading=12)),
-            Paragraph((s.company_addr if s else '') or 'Via Trieste 2, 20019 Settimo Milanese (MI)',
-                      _s('fl3', fontSize=8, textColor=C_GRAY, leading=12)),
-            Paragraph((s.company_web if s else '') or 'www.biolavatu.it',
-                      _s('fl4', fontSize=8, textColor=C_BLU, leading=12)),
-        ]], colWidths=[CW*0.48]),
-        Table([[
-            sp(40),
-            HRFlowable(width=CW*0.38, thickness=0.7, color=C_LGRAY),
-            Paragraph('Firma autorizzata', _s('fls', fontSize=8, textColor=C_GRAY,
-                                               alignment=TA_CENTER, leading=12)),
-            sp(6),
-            HRFlowable(width=CW*0.38, thickness=0.7, color=C_LGRAY),
-            Paragraph('Timbro aziendale', _s('flt', fontSize=8, textColor=C_GRAY,
-                                              alignment=TA_CENTER, leading=12)),
-        ]], colWidths=[CW*0.45]),
-    ]], colWidths=[CW*0.52, CW*0.48])
-    firma_lett.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(1,0),(1,0),16)]))
+        Table([
+            [Paragraph('Cordialmente,', _s('fl0', fontSize=9, textColor=C_GRAY, leading=13))],
+            [sp(6)],
+            [Paragraph('<b>Rotondi Group Srl</b>',
+                       _s('fl1', fontName='Helvetica-Bold', fontSize=11, leading=14))],
+            [Paragraph('BIOLavaTU — Lavanderia Automatica Ecocompatibile',
+                       _s('fl2', fontSize=8.5, textColor=C_TEAL, leading=12))],
+            [Paragraph((s.company_addr if s else '') or 'Via F.lli Rosselli 14/16 - 20019 Settimo Milanese (MI)',
+                       _s('fl3', fontSize=8, textColor=C_GRAY, leading=12))],
+            [Paragraph((s.company_web if s else '') or 'www.biolavatu.it',
+                       _s('fl4', fontSize=8, textColor=C_BLU, leading=12))],
+        ], colWidths=[_fw1 - 8]),
+        Table([
+            [sp(38)],
+            [HRFlowable(width=_fw2 * 0.80, thickness=0.7, color=C_LGRAY)],
+            [Paragraph('Firma autorizzata', _s('fls', fontSize=8, textColor=C_GRAY,
+                                                alignment=TA_CENTER, leading=12))],
+            [sp(8)],
+            [HRFlowable(width=_fw2 * 0.80, thickness=0.7, color=C_LGRAY)],
+            [Paragraph('Timbro aziendale', _s('flt', fontSize=8, textColor=C_GRAY,
+                                               alignment=TA_CENTER, leading=12))],
+        ], colWidths=[_fw2 - 8]),
+    ]], colWidths=[_fw1, _fw2])
+    firma_lett.setStyle(TableStyle([
+        ('VALIGN',       (0,0),(-1,-1), 'TOP'),
+        ('LEFTPADDING',  (1,0),(1,0), 12),
+        ('RIGHTPADDING', (0,0),(0,0), 0),
+    ]))
     story.append(firma_lett)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -858,16 +874,18 @@ def build_pdf(pratica, settings):
         prezzo = float(m.get('prezzo', 0) or 0)
         qty    = int(m.get('qty', 0) or 0)
         tot    = prezzo * qty
+        desc_extra = m.get('descrizione', m.get('sub', ''))
+        nome_full = m.get('nome','')
+        if desc_extra and desc_extra != nome_full:
+            nome_display = f"<b>{nome_full}</b><br/><font size='7' color='#64748B'>{desc_extra}</font>"
+        else:
+            nome_display = f"<b>{nome_full}</b>"
         rows_mac.append([
             Paragraph(str(idx), _s(f'mi{idx}', fontSize=9, alignment=TA_CENTER)),
-            Table([[
-                Paragraph(f"<b>{m.get('nome','')}</b>",
-                          _s(f'mnn{idx}', fontName='Helvetica-Bold', fontSize=9, leading=13)),
-                Paragraph(m.get('descrizione', m.get('sub', '')),
-                          _s(f'mds{idx}', fontSize=7.5, textColor=C_GRAY, leading=11)),
-            ]], colWidths=[CW*0.38]),
-            Paragraph(m.get('modello', m.get('sub', '—')),
-                      _s(f'mmod{idx}', fontSize=8, textColor=C_GRAY, alignment=TA_CENTER)),
+            Paragraph(nome_display, _s(f'mnn{idx}', fontSize=9, leading=13)),
+            Paragraph(m.get('modello', m.get('codice', '—')),
+                      _s(f'mmod{idx}', fontSize=8, textColor=C_GRAY, alignment=TA_CENTER,
+                         leading=11)),
             Paragraph(f'<b>{qty}</b>', _s(f'mqt{idx}', fontName='Helvetica-Bold',
                                            fontSize=11, textColor=C_TEAL, alignment=TA_CENTER)),
             Paragraph(f"<b>€ {int(tot):,}</b>".replace(',','.'),
