@@ -68,10 +68,11 @@ with app.app_context():
             db.session.add(Settings(
                 brand_name='BIOLavaTU by Rotondi Group',
                 company_name='Rotondi Group Srl',
-                company_addr="Via di Sant'Alessandro 349, Roma",
-                company_piva='IT 00000000000',
-                company_email='info@garanzierotondi.it',
-                company_web='garanzierotondi.it',
+                company_addr='Via F.lli Rosselli 14/16 - 20019 Settimo Milanese (MI)',
+                company_piva='P.IVA 09975740151',
+                company_email='info@rotondigroup.it',
+                company_web='www.biolavatu.it',
+                company_tel='+39 02 33910031',
                 condizioni_vendita="""CONDIZIONI GENERALI DI VENDITA
 
 1. OGGETTO DEL CONTRATTO
