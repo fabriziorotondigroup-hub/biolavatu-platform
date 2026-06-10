@@ -154,3 +154,48 @@ class Pratica(db.Model):
             'utile_mese': self.utile_mese,
             'payback_mesi': self.payback_mesi,
         }
+
+    # ── VERSIONE INVESTITORE — Sopralluogo obbligatorio ───────────────────────
+    tipo_pratica = db.Column(db.String(20), default='standard')
+    # 'standard' | 'investitore'
+
+    # Sopralluogo A — Traffico pedonale (6 fasce orarie × 2 direzioni)
+    sopralluogo_json = db.Column(db.Text)   # JSON strutturato completo
+    sopralluogo_completato = db.Column(db.Boolean, default=False)
+
+    # Sopralluogo B — Concorrenza rilevata sul campo
+    concorrenza_campo_json = db.Column(db.Text)  # JSON per concorrente
+
+    # Analisi avanzata risultati
+    score_investitore = db.Column(db.Float, default=0.0)
+    confidenza_pct = db.Column(db.Integer, default=0)   # 0-100
+    confidenza_label = db.Column(db.String(20))          # Alta/Media/Bassa
+    raccomandazione = db.Column(db.String(20))           # Procedi/Approfondisci/Sconsigliato
+    analisi_investitore_json = db.Column(db.Text)        # report completo AI
+
+    # Segnali extra zona
+    visibilita_vetrina = db.Column(db.Integer, default=0)   # 1-10
+    parcheggio_diretto = db.Column(db.Boolean, default=False)
+    n_posti_parcheggio = db.Column(db.Integer, default=0)
+    distanza_arteria_m = db.Column(db.Integer, default=0)
+    lato_soleggiato = db.Column(db.Boolean, default=True)
+    cantieri_previsti = db.Column(db.Boolean, default=False)
+    note_sopralluogo = db.Column(db.Text)
+
+    def get_sopralluogo(self):
+        if self.sopralluogo_json:
+            try: return json.loads(self.sopralluogo_json)
+            except: return {}
+        return {}
+
+    def get_concorrenza_campo(self):
+        if self.concorrenza_campo_json:
+            try: return json.loads(self.concorrenza_campo_json)
+            except: return []
+        return []
+
+    def get_analisi_investitore(self):
+        if self.analisi_investitore_json:
+            try: return json.loads(self.analisi_investitore_json)
+            except: return {}
+        return {}
