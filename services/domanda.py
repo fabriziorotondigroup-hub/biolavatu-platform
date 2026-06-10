@@ -252,6 +252,12 @@ def calcola_domanda_avanzata(
     mese: int = 0,
     # Scenario
     scenario: str = 'realistico',
+    # Nuovi parametri avanzati (opzionali, compatibili con versioni precedenti)
+    n_parcheggi: int = 0,
+    n_fermate_metro: int = 0,
+    n_fermate_bus: int = 0,
+    indice_famiglie_lav: int = 0,    # ratio famiglie/lavanderie (Fabrizio method)
+    score_traffico_veicolare: int = 0,
 ) -> Dict:
 
     attractor_points = attractor_points or []
@@ -398,6 +404,35 @@ def calcola_domanda_avanzata(
             'positivo':  True,
             'icon':      '🎯',
             'nota':      'Generatori di domanda strutturale: studenti, personale sanitario, militari',
+        })
+
+    # ── Famiglie/Lavanderie (KPI Fabrizio) ─────────────────────────────────────
+    if indice_famiglie_lav > 0:
+        if   indice_famiglie_lav > 1500: fl_label = 'Mercato sotto-servito ✅';  fl_pos = True
+        elif indice_famiglie_lav > 800:  fl_label = 'Opportunità alta ✅';       fl_pos = True
+        elif indice_famiglie_lav > 400:  fl_label = 'Competitivo 🟡';            fl_pos = True
+        else:                             fl_label = 'Zona satura ❌';            fl_pos = False
+        fattori.append({
+            'label':    'Famiglie/Lavanderie',
+            'valore':   f'{indice_famiglie_lav:,} fam/lavanderia',
+            'peso':     '(KPI)',
+            'risultato': fl_label,
+            'positivo': fl_pos,
+            'icon':     '🏘️',
+            'nota':     'Formula: famiglie entro 5min ÷ lavanderie entro 10min. >800 = opportunità.',
+        })
+
+    # ── Mobilità/Accessibilità ──────────────────────────────────────────────────
+    if n_parcheggi + n_fermate_metro + n_fermate_bus > 0:
+        mob_score = n_fermate_metro * 3 + n_fermate_bus + n_parcheggi * 2
+        fattori.append({
+            'label':    'Accessibilità',
+            'valore':   f'Metro: {n_fermate_metro} · Bus: {n_fermate_bus} · Park: {n_parcheggi}',
+            'peso':     '(KPI)',
+            'risultato': '✅ Ben servita' if mob_score >= 5 else '🟡 Discreta' if mob_score >= 2 else '⚠️ Limitata',
+            'positivo': mob_score >= 3,
+            'icon':     '🚌',
+            'nota':     'Fermate metro/bus e parcheggi determinano accessibilità del punto vendita.',
         })
 
     # ── 13. BREAK-EVEN INFO ───────────────────────────────────────────────────
