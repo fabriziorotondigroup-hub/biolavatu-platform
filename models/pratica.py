@@ -77,6 +77,7 @@ class Pratica(db.Model):
     ai_zona = db.Column(db.Text)
     ai_bp   = db.Column(db.Text)
     bp_avanzato_json = db.Column(db.Text)  # JSON con tutti i dati modalità avanzata
+    lettera_presentazione = db.Column(db.Text)  # Lettera AI personalizzata per il PDF
     ai_risk = db.Column(db.Text)
 
     # Allegati
