@@ -15,6 +15,13 @@ from flask_login import login_required
 import os as _os
 from services.istat import get_demographic_data, get_market_assessment
 from services.domanda import calcola_stima_clienti, calcola_domanda_avanzata
+from services.analisi_competitiva import (
+    calcola_capacita_concorrenza,
+    calcola_indice_famiglie_lavanderie,
+    analizza_punti_deboli,
+    stima_traffico_veicolare,
+    calcola_score_ponderato,
+)
 
 def ricerca_info_struttura_militare(nome: str, citta: str) -> dict:
     """
@@ -240,6 +247,19 @@ def zona_analisi():
         raw_uffici       = gmaps_nearby(lat, lng, r5,  'establishment',
                                         keyword='ufficio azienda sede legale')
 
+        # ── NUOVI: parcheggi, metro, bus, strade principali ───────────────────
+        raw_parcheggi    = gmaps_nearby(lat, lng, r5, 'parking')
+        raw_metro        = gmaps_nearby(lat, lng, r5, 'subway_station')
+        raw_bus          = gmaps_nearby(lat, lng, r5, 'bus_station')
+        raw_fermate_bus  = gmaps_nearby(lat, lng, r5, 'transit_station',
+                                        keyword='fermata autobus')
+        # Strade ad alto traffico: proxy da punti di interesse su arterie principali
+        raw_strade_princ = gmaps_nearby(lat, lng, r5, 'point_of_interest',
+                                        keyword='viale corso piazza strada principale')
+        # Residenze/condomini per stima famiglie
+        raw_residenze    = gmaps_nearby(lat, lng, r5, 'point_of_interest',
+                                        keyword='condominio residence appartamenti affitto')
+
         # Contatori per classificazione tipo zona (usati da modello domanda avanzato)
         _n_rist  = len(raw_ristoranti)
         _n_bar   = len(raw_bar_cafe)
@@ -380,6 +400,13 @@ def zona_analisi():
         alta_affluenza   = []
         competitors_detail = []
 
+        # Nuovi contatori
+        n_parcheggi      = 0
+        n_fermate_metro  = 0
+        n_fermate_bus_tot = 0
+        n_strade_princ   = 0
+        n_residenze      = 0
+
         # Volume recensioni entro 400m (proxy traffico pedonale reale)
         recensioni_zona = 0
         # Catene GDO entro 500m (validazione zona)
@@ -415,6 +442,42 @@ def zona_analisi():
         add_pois(raw_ospedali,     'ospedale',      '#0891b2', '🏥', 1500)
         add_pois(raw_case_cura,    'casa_cura',     '#7c3aed', '🏠', 1500)
         add_pois(raw_turismo,      'turismo',       '#0891b2', '🛏️', 500)
+
+        # ── NUOVI POI: parcheggi, metro, bus ──────────────────────────────────────
+        for p in (raw_parcheggi or []):
+            poi = place_to_poi(p, lat, lng, 'altro', '#64748b', '🅿️')
+            if poi and poi['distanza_m'] <= r5:
+                pois.append(poi)
+                n_parcheggi += 1
+
+        _bus_visti = set()
+        for p in (raw_metro or []):
+            pid = p.get('place_id', p.get('name',''))
+            if pid not in _bus_visti:
+                _bus_visti.add(pid)
+                poi = place_to_poi(p, lat, lng, 'trasporti', '#6d28d9', '🚇')
+                if poi and poi['distanza_m'] <= r5:
+                    pois.append(poi)
+                    n_fermate_metro += 1
+
+        for p in (list(raw_bus or []) + list(raw_fermate_bus or [])):
+            pid = p.get('place_id', p.get('name',''))
+            if pid not in _bus_visti:
+                _bus_visti.add(pid)
+                poi = place_to_poi(p, lat, lng, 'trasporti', '#0284c7', '🚌')
+                if poi and poi['distanza_m'] <= r5:
+                    pois.append(poi)
+                    n_fermate_bus_tot += 1
+
+        _strade_viste = set()
+        for p in (raw_strade_princ or []):
+            pid = p.get('place_id', p.get('name',''))
+            if pid not in _strade_viste:
+                _strade_viste.add(pid)
+                n_strade_princ += 1
+
+        # Stima famiglie da residenze trovate + densità
+        n_residenze = len(raw_residenze or [])
 
         # ── ANALISI ATTRACTOR POINTS ──────────────────────────────────────────────
         attractor_points = []
@@ -768,6 +831,43 @@ def zona_analisi():
             n_ristoranti=_n_rist, n_bar=_n_bar,
         )
 
+        # ── ANALISI AVANZATA (nuovo modulo) ───────────────────────────────────
+        # Capacità installata concorrenza
+        _comp_analisi = calcola_capacita_concorrenza(competitors_detail)
+
+        # Indice famiglie/lavanderie (KPI principale Fabrizio method)
+        _indice_fam_lav = calcola_indice_famiglie_lavanderie(
+            pop_5min=pop_5min,
+            pop_10min=pop_10min,
+            n_lav_500m=concorrenti_500m,
+            n_lav_1km=concorrenti_1km,
+        )
+
+        # Analisi punti deboli concorrenza
+        _punti_deboli = analizza_punti_deboli(competitors_detail)
+
+        # Traffico veicolare/pedonale stimato
+        _traffico = stima_traffico_veicolare(
+            n_stazioni_metro=n_fermate_metro,
+            n_fermate_bus=n_fermate_bus_tot,
+            n_parcheggi=n_parcheggi,
+            n_strade_principali=n_strade_princ,
+            recensioni_zona=recensioni_zona,
+        )
+
+        # Score ponderato 7 dimensioni
+        _score_pond = calcola_score_ponderato(
+            pop_5min=pop_5min,
+            n_turismo=n_turismo,
+            n_lav_competitori=concorrenti_1km,
+            score_traffico=_traffico['score_totale'],
+            n_parcheggi=n_parcheggi,
+            n_mezzi_pubblici=n_fermate_metro + n_fermate_bus_tot,
+            reddito_medio=reddito_medio,
+            densita=densita,
+            indice_famiglie_lav=_indice_fam_lav['indice'],
+        )
+
         return jsonify({
             'pois':               pois,
             'competitors_detail': competitors_detail,
@@ -812,15 +912,29 @@ def zona_analisi():
             'n_stazioni':         n_stazioni,
             'n_vvf':              n_vvf,
             'n_case_cura':        n_case_cura,
-        'n_turismo':          n_turismo,
-        'n_parrucchieri':     n_parrucchieri,
-        'n_forni':            n_forni,
-        'n_pet':              n_pet,
-        'n_affitti':          n_affitti,
-        'affitti_latlng':     affitti_latlng,
+            'n_turismo':          n_turismo,
+            'n_parrucchieri':     n_parrucchieri,
+            'n_forni':            n_forni,
+            'n_pet':              n_pet,
+            'n_affitti':          n_affitti,
+            'affitti_latlng':     affitti_latlng,
             'verifica_richiesta': any(
                 ap.get('verifica_richiesta') for ap in attractor_points
             ),
+            # ── NUOVI CAMPI ANALISI AVANZATA ──────────────────────────────────
+            'mobilita': {
+                'n_parcheggi':       n_parcheggi,
+                'n_fermate_metro':   n_fermate_metro,
+                'n_fermate_bus':     n_fermate_bus_tot,
+                'n_strade_princ':    n_strade_princ,
+            },
+            'traffico_analisi':   _traffico,
+            'indice_famiglie_lav': _indice_fam_lav,
+            'concorrenza_avanzata': {
+                **_comp_analisi,
+                'punti_deboli': _punti_deboli,
+            },
+            'score_ponderato':    _score_pond,
         })
 
     except Exception as _err:
