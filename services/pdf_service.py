@@ -240,47 +240,64 @@ class _DocWithFooter(SimpleDocTemplate):
         canvas.saveState()
         y_line = FOOTER_H + 0.2*cm
 
-        # Linea divisoria
+        # Linea divisoria sopra il footer
         canvas.setStrokeColor(C_LGRAY)
         canvas.setLineWidth(0.5)
         canvas.line(M, y_line, W - M, y_line)
 
-        # Sfondo footer
+        # Sfondo footer navy full-width
         canvas.setFillColor(C_NAVY)
         canvas.rect(0, 0, W, FOOTER_H, fill=1, stroke=0)
 
-        # Testo footer sx
+        # ── Layout footer: 3 zone separate ───────────────────────────────────
+        # ZONA SX  (0 → 60% larghezza): brand + indirizzo + piva
+        # ZONA CTR (centratura): pratica + data
+        # ZONA DX  (ultimi 2.2cm): logo + numero pagina
+        # Logo occupa spazio fisso a destra, testo sx limitato in larghezza
+
         brand = (s.brand_name if s else 'BIOLavaTU') or 'BIOLavaTU'
-        addr  = (s.company_addr if s else '') or 'Via Trieste 2, 20019 Settimo Milanese (MI)'
+        addr  = (s.company_addr if s else '') or 'Via F.lli Rosselli 14/16 - 20019 Settimo Milanese (MI)'
+        piva  = (s.company_piva if s else '') or 'P.IVA 09975740151'
         web   = (s.company_web if s else '') or 'www.biolavatu.it'
-        tel   = (s.company_tel if s else '') or ''
-        footer_left = f"{brand}  ·  {addr}  ·  {web}{('  ·  ' + tel) if tel else ''}"
 
+        LOGO_W  = 0.9 * cm        # spazio riservato al logo
+        LOGO_X  = W - M - LOGO_W  # x inizio logo
+        PAG_X   = LOGO_X - 1.6*cm # x numero pagina (a sx del logo)
+
+        # Riga 1 (alta): brand + indirizzo  |  pratica+data al centro  |  n.pagina a dx
+        Y1 = 0.66 * cm
+        Y2 = 0.28 * cm
+
+        # Brand + indirizzo (sx, troncato al 55% della larghezza)
         canvas.setFillColor(C_WHITE)
-        canvas.setFont('Helvetica', 6.5)
-        canvas.drawString(M, 0.38*cm, footer_left)
+        canvas.setFont('Helvetica-Bold', 6.5)
+        canvas.drawString(M, Y1, brand)
 
-        # N° pratica + data centro
+        canvas.setFont('Helvetica', 6)
+        canvas.setFillColor(colors.HexColor('#CBD5E1'))
+        canvas.drawString(M, Y2, f"{addr}  ·  {piva}  ·  {web}")
+
+        # N° pratica + data (centro)
         canvas.setFont('Helvetica', 6.5)
         canvas.setFillColor(colors.HexColor('#93C5FD'))
-        mid_text = f"Pratica N° {p.numero}  ·  {TODAY}"
-        canvas.drawCentredString(W/2, 0.38*cm, mid_text)
+        mid_text = f"N° {p.numero}  ·  {TODAY}"
+        canvas.drawCentredString(W / 2, Y1, mid_text)
 
-        # Numero pagina dx
-        canvas.setFont('Helvetica-Bold', 7)
-        canvas.setFillColor(colors.HexColor('#FCA5A5'))
+        # Numero pagina (a sx del logo)
         pg = self.page
-        canvas.drawRightString(W - M, 0.38*cm, f"Pag. {pg}")
+        canvas.setFont('Helvetica-Bold', 7.5)
+        canvas.setFillColor(colors.HexColor('#FCA5A5'))
+        canvas.drawRightString(PAG_X - 0.2*cm, Y1, f"Pag. {pg}")
 
-        # Logo BIOLavaTU piccolo a dx (se disponibile)
+        # Logo BIOLavaTU (estrema destra, verticalmente centrato nel footer)
         logo_path = _get_logo_path()
         if logo_path:
             try:
-                logo_h = FOOTER_H * 0.72
-                logo_w = logo_h  # quadrato
+                logo_h = FOOTER_H * 0.80
+                logo_w = logo_h
                 canvas.drawImage(
                     logo_path,
-                    W - M - logo_w - 1.8*cm, 0.12*cm,
+                    LOGO_X, (FOOTER_H - logo_h) / 2,
                     width=logo_w, height=logo_h,
                     preserveAspectRatio=True, mask='auto'
                 )
