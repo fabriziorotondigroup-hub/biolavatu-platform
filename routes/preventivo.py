@@ -596,3 +596,80 @@ Rispondi in italiano. Usa intestazioni Markdown (##). Sii conciso ma completo.""
         return jsonify({'errore': str(e)}), 500
 
 
+
+@preventivo_bp.route('/api/genera-lettera', methods=['POST'])
+@login_required
+def genera_lettera():
+    """Genera lettera di presentazione AI e la salva in DB"""
+    import anthropic, os, json
+
+    data      = request.json
+    pratica_id = data.get('pratica_id')
+    if not pratica_id:
+        return jsonify({'errore': 'pratica_id mancante'}), 400
+
+    p = Pratica.query.get_or_404(pratica_id)
+
+    # Se già generata, ritorna quella salvata
+    if p.lettera_presentazione and len(p.lettera_presentazione.strip()) > 100:
+        return jsonify({'lettera': p.lettera_presentazione, 'cached': True})
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata'}), 500
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+    except Exception as e:
+        return jsonify({'errore': f'Errore init client: {str(e)}'}), 500
+
+    c        = p.cliente
+    macchine = p.get_macchine()
+    mac_txt  = '; '.join(
+        f"{m.get('qty',1)}x {m.get('nome','')} {m.get('capacita_kg','')}kg"
+        for m in macchine if int(m.get('qty', 0)) > 0
+    ) or 'configurazione personalizzata'
+    sc       = float(p.score_zona or 0)
+    sc_t     = p.score_label or ('Ottima' if sc >= 8 else 'Buona' if sc >= 6 else 'Da valutare')
+    cap_str  = f"€ {int(p.capex or 0):,}".replace(',', '.')
+    inc_str  = f"€ {int(p.incasso_mese or 0):,}".replace(',', '.')
+    pay_str  = f"{p.payback_mesi:.1f} mesi" if p.payback_mesi and p.payback_mesi < 999 else 'stimato'
+
+    prompt = f"""Sei il responsabile commerciale senior di BIOLavaTU by Rotondi Group Srl,
+azienda italiana leader nelle lavanderie self-service ecocompatibili dal 1972.
+
+Scrivi una lettera di presentazione professionale e personalizzata per il seguente progetto:
+
+DATI PROGETTO:
+- Cliente: {c.nome if c else 'Gentile Cliente'}
+- Città / Sede: {p.citta or 'N/D'}, {p.indirizzo or ''}
+- Zona analizzata: Score {sc}/10 — {sc_t}
+- Macchine proposte: {mac_txt}
+- Investimento totale: {cap_str}
+- Incasso mensile stimato: {inc_str}
+- Payback stimato: {pay_str}
+
+FORMATO RICHIESTO:
+- Inizia con "Gentile {c.nome if c else 'Cliente'},"
+- 4-5 paragrafi fluidi, tono professionale ma caldo
+- Fai riferimento specifico alla città/zona e alle macchine scelte
+- Sottolinea il valore dell'esclusiva tecnologica IPSO/Wascomat e del supporto Rotondi Group
+- Chiudi con formula di saluto formale e "Rotondi Group Srl — BIOLavaTU"
+- NO elenchi puntati, SOLO testo narrativo scorrevole
+- Lunghezza: circa 300-350 parole
+- Scrivi in italiano"""
+
+    try:
+        message = client.messages.create(
+            model='claude-sonnet-4-5',
+            max_tokens=800,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        lettera_text = message.content[0].text.strip()
+        # Salva in DB
+        p.lettera_presentazione = lettera_text
+        from app import db
+        db.session.commit()
+        return jsonify({'lettera': lettera_text, 'cached': False})
+    except Exception as e:
+        return jsonify({'errore': str(e)}), 500
