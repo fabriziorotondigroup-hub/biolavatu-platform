@@ -83,6 +83,25 @@ def _run_migrations():
         ('pratiche', 'ai_risk',          'TEXT'),
         ('pratiche', 'allegati_json',    'TEXT'),
         ('pratiche', 'foto_mappa',       'TEXT'),
+        # ── Versione Investitore ──────────────────────────────────────────
+        ('pratiche', 'tipo_pratica',             "VARCHAR(20) DEFAULT 'standard'"),
+        ('pratiche', 'sopralluogo_json',          'TEXT'),
+        ('pratiche', 'sopralluogo_completato',    'BOOLEAN DEFAULT FALSE'),
+        ('pratiche', 'concorrenza_campo_json',    'TEXT'),
+        ('pratiche', 'score_investitore',         'FLOAT DEFAULT 0.0'),
+        ('pratiche', 'confidenza_pct',            'INTEGER DEFAULT 0'),
+        ('pratiche', 'confidenza_label',          'VARCHAR(20)'),
+        ('pratiche', 'raccomandazione',           'VARCHAR(20)'),
+        ('pratiche', 'analisi_investitore_json',  'TEXT'),
+        ('pratiche', 'visibilita_vetrina',        'INTEGER DEFAULT 0'),
+        ('pratiche', 'parcheggio_diretto',        'BOOLEAN DEFAULT FALSE'),
+        ('pratiche', 'n_posti_parcheggio',        'INTEGER DEFAULT 0'),
+        ('pratiche', 'distanza_arteria_m',        'INTEGER DEFAULT 0'),
+        ('pratiche', 'lato_soleggiato',           'BOOLEAN DEFAULT TRUE'),
+        ('pratiche', 'cantieri_previsti',         'BOOLEAN DEFAULT FALSE'),
+        ('pratiche', 'note_sopralluogo',          'TEXT'),
+        # ── Lettera presentazione ─────────────────────────────────────────
+        ('pratiche', 'lettera_presentazione',     'TEXT'),
     ]
     with app.app_context():
         with db.engine.connect() as conn:
