@@ -4095,7 +4095,7 @@ function calcolaConfrontoGas(dEL) {
     racc.textContent = `⚠️ Gas conveniente ma con pazienza: breakeven in ${breakeven} mesi. Valuta disponibilità gas nel locale.`;
     racc.style.color = '#f59e0b';
   } else {
-    racc.textContent = `❌ Gas non conveniente in questo scenario: risparmio mensile troppo basso (€${Math.round(risparmioMese)}) rispetto all'investimento extra.`;
+    racc.textContent = `❌ Gas non conveniente: risparmio (€${Math.round(risparmioMese)}/mese) troppo basso rispetto all investimento extra.`;
     racc.style.color = '#ef4444';
   }
 }
