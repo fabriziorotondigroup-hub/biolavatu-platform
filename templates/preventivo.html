@@ -4668,8 +4668,7 @@ function invRenderAnalisi(d) {
 function invProssimo() {
   const n_obs = Object.keys(window._invState.osservazioni).length;
   if(modalita === 'investitore' && n_obs < 2) {
-    const ok = confirm('Hai inserito solo '+n_obs+' osservazione/i traffico (minimo 4 per analisi accurata).
-Vuoi procedere comunque?');
+    const ok = confirm('Hai inserito solo '+n_obs+' osservazioni traffico (min. 4 per analisi accurata). Procedere comunque?');
     if(!ok) return;
   }
   goStep(4);
