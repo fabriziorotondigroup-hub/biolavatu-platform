@@ -99,16 +99,19 @@ SCHEDA_CONCORRENTE = {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _occ_da_concorrenza(c500: int, c1km: int) -> float:
-    """Occupazione base calibrata sui 2 benchmark reali."""
+    """Occupazione base calibrata — aggiornata con media italiana reale.
+    Benchmark: Via Candia (25.7%) e Via Giuliana (57.9% top performer Roma).
+    Media italiana monopolio: 45% (più rappresentativa fuori Roma/Milano).
+    """
     if   c500 >= 5: return 0.10
     elif c500 == 4: return 0.257   # Via Candia ✅
     elif c500 == 3: return 0.32
     elif c500 == 2: return 0.42
     elif c500 == 1: return 0.52
-    elif c1km >= 4: return 0.58
-    elif c1km >= 2: return 0.62
-    elif c1km == 1: return 0.65
-    else:           return 0.579   # Via Giuliana ✅
+    elif c1km >= 4: return 0.55
+    elif c1km >= 2: return 0.58
+    elif c1km == 1: return 0.60
+    else:           return 0.45   # media italiana reale (non top performer)
 
 
 def stima_metodo1_capacita(
@@ -125,6 +128,30 @@ def stima_metodo1_capacita(
     mult = {'pessimistico': 0.70, 'realistico': 1.00, 'ottimistico': 1.30}.get(scenario, 1.0)
 
     occ_base = _occ_da_concorrenza(concorrenti_500m, concorrenti_1km)
+
+    # ── Fattore dimensione città ──────────────────────────────────────────────
+    # Da kwargs opzionali — default 1.0 se non disponibile
+    pop_comune   = kwargs.get('pop_comune', 0) if kwargs else 0
+    tipo_zona_s  = (kwargs.get('tipo_zona', '') or '').lower() if kwargs else ''
+    if   pop_comune >= 500000: f_citta = 1.00
+    elif pop_comune >= 200000: f_citta = 0.88
+    elif pop_comune >= 100000: f_citta = 0.78
+    elif pop_comune >= 50000:  f_citta = 0.68
+    elif pop_comune > 0:        f_citta = 0.58
+    else:                       f_citta = 0.75  # default medio se non disponibile
+
+    # ── Stagionalità ──────────────────────────────────────────────────────────
+    import datetime as _dt
+    mese = _dt.date.today().month
+    _stag = {
+        'turistica':    {1:0.45,2:0.45,3:0.65,4:0.80,5:0.90,
+                         6:1.20,7:1.80,8:1.80,9:1.10,10:0.80,11:0.55,12:0.45},
+        'universitaria':{1:1.15,2:1.20,3:1.20,4:1.15,5:1.10,
+                         6:0.70,7:0.55,8:0.50,9:0.80,10:1.15,11:1.20,12:1.00},
+        'residenziale': {1:0.95,2:0.95,3:1.00,4:1.00,5:1.05,
+                         6:1.00,7:0.90,8:0.85,9:1.00,10:1.05,11:1.05,12:0.95},
+    }
+    f_stagionalita = _stag.get(tipo_zona_s, _stag['residenziale']).get(mese, 1.0)
 
     # Correzioni additive (max ±20%)
     corr = 0.0
@@ -162,7 +189,7 @@ def stima_metodo1_capacita(
     corr += min((mult_attractor - 1.0) * 0.10, 0.08)
     corr  = max(-0.20, min(0.20, corr))
 
-    occ = min(0.80, occ_base * (1.0 + corr) * mult)
+    occ = min(0.82, occ_base * (1.0 + corr) * f_citta * f_stagionalita * mult)
 
     incasso_lav = (n_std * 18 * t_std + n_med * 18 * t_med + n_grd * 18 * t_grd) * occ * giorni
     incasso_asc = n_asc * 52 * t_asc * occ * giorni
