@@ -18,7 +18,7 @@ DATI = {
     'company_piva':  'P.IVA 09975740151',
     'company_email': 'info@rotondigroup.it',
     'company_web':   'www.biolavatu.it',
-    'company_tel':   '+39 02 33910031',
+    'company_tel':   '+39 06 41400514 / +39 06 41400617',
 }
 
 with app.app_context():
