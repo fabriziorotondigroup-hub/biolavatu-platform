@@ -1653,10 +1653,17 @@ body { background: var(--bg); color: var(--text); }
         Il sistema calcola l'incasso con 3 metodi indipendenti e verifica la convergenza. 
         Se convergono entro ±15% → confidenza Alta. Se divergono → richiede più dati di campo.
       </div>
-      <button type="button" class="btn w-100" onclick="invEseguiAnalisi()"
-        style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;font-weight:700;padding:14px;font-size:15px;border-radius:10px">
-        <i class="bi bi-play-circle me-2"></i>Esegui Analisi Completa Investitore
-      </button>
+      <div class="d-flex gap-2 mt-2">
+        <button type="button" class="btn flex-fill" onclick="invEseguiAnalisi()"
+          style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;font-weight:700;padding:14px;font-size:14px;border-radius:10px">
+          <i class="bi bi-play-circle me-2"></i>Esegui Analisi Completa
+        </button>
+        <button type="button" class="btn" onclick="invStampaSopralluogo()"
+          style="background:#0e7490;color:white;font-weight:600;padding:14px 18px;font-size:13px;border-radius:10px;white-space:nowrap"
+          title="Stampa scheda da portare sul campo">
+          <i class="bi bi-printer me-1"></i>Stampa Scheda Campo
+        </button>
+      </div>
     </div>
 
     <!-- Risultati analisi -->
@@ -4662,6 +4669,19 @@ function invRenderAnalisi(d) {
     bloccoBox.style.display = 'flex';
     bloccoTxt.textContent = d.n_critici+' segnale/i critico/i — completare sopralluogo';
   }
+}
+
+// ── Stampa scheda sopralluogo ────────────────────────────────────────────
+function invStampaSopralluogo() {
+  const pid = window._invState.praticaId;
+  let url;
+  if(pid) {
+    url = '/api/investitore/' + pid + '/pdf-campo';
+  } else {
+    url = '/api/investitore/pdf-campo';
+  }
+  // Apre in nuova tab — il browser mostra il PDF e permette di stamparlo
+  window.open(url, '_blank');
 }
 
 // ── Prossimo step (verifica minima) ──────────────────────────────────────
