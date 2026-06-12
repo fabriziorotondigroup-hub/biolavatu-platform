@@ -330,9 +330,9 @@ def _genera_pdf_interno(id):
 
     # ── DATI AZIENDA ─────────────────────────────────────────────────────────
     company = (s and s.nome_azienda) or 'Rotondi Group Srl'
-    web     = (s and s.sito_web)    or 'biolavatu.it'
-    tel     = (s and s.telefono)    or '+39 02 0000000'
-    via     = (s and s.indirizzo)   or 'Via Vignate 2 · 20019 Settimo Milanese (MI)'
+    web     = (s and s.sito_web)    or 'www.biolavatu.it'
+    tel     = (s and s.telefono)    or '+39 06 41400514 / +39 06 41400617'
+    via     = (s and s.indirizzo)   or 'Via F.lli Rosselli 14/16 - 20019 Settimo Milanese (MI)'
     piva    = (s and s.partita_iva) or ''
     cliente = p.cliente
     nome_cl = cliente.nome_completo if cliente else (p.nome_cliente or 'Cliente')
