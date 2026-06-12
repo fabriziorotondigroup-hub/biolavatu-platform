@@ -157,6 +157,7 @@ class Pratica(db.Model):
 
     # ── VERSIONE INVESTITORE — Sopralluogo obbligatorio ───────────────────────
     tipo_pratica = db.Column(db.String(20), default='standard')
+    tipo_zona    = db.Column(db.String(20), default='residenziale')
     # 'standard' | 'investitore'
 
     # Sopralluogo A — Traffico pedonale (6 fasce orarie × 2 direzioni)
