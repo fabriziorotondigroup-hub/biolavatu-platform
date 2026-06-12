@@ -309,16 +309,21 @@ def calcola_bp():
     pop10 = float(data.get('pop_10min', 0) or 0)
     mult_attr = float(data.get('mult_attractor', 1.0) or 1.0)
 
-    # ── 1. OCCUPAZIONE BASE da concorrenza (benchmark Via Candia/Giuliana) ──
-    if   c500 >= 5: occ_base = 0.10   # zona satura → 10%
-    elif c500 == 4: occ_base = 0.25   # Via Candia → 25% → €8k ✅
+    # ── 1. OCCUPAZIONE BASE da concorrenza ────────────────────────────────────
+    # CALIBRAZIONE AGGIORNATA:
+    #   Via Candia Roma:    4 conc 500m → 25% → €8.000/mese  ✅ benchmark reale
+    #   Via Giuliana Roma:  monopolio   → 57.9% → €18.000/mese ✅ top performer Roma
+    #   Media italiana monopolio: 45% (più rappresentativa fuori Roma/Milano)
+    #   57.9% usato solo come scenario ottimistico (x1.30 del realistico)
+    if   c500 >= 5: occ_base = 0.10   # zona satura
+    elif c500 == 4: occ_base = 0.25   # Via Candia → €8k ✅
     elif c500 == 3: occ_base = 0.32
     elif c500 == 2: occ_base = 0.42
     elif c500 == 1: occ_base = 0.52
-    elif c1k  >= 4: occ_base = 0.58
-    elif c1k  >= 2: occ_base = 0.62
-    elif c1k  == 1: occ_base = 0.65
-    else:           occ_base = 0.68   # monopolio → 65-68% (benchmark Giuliana)
+    elif c1k  >= 4: occ_base = 0.55
+    elif c1k  >= 2: occ_base = 0.58
+    elif c1k  == 1: occ_base = 0.60
+    else:           occ_base = 0.45   # monopolio → media italiana reale (non top performer)
 
     # ── 2. CORREZIONE ZONA (additiva, max ±20% sull'occupazione base) ─────────
     # I fattori zonali correggono l'occupazione base di piccole percentuali.
@@ -355,12 +360,59 @@ def calcola_bp():
     # Attractor points (università, ospedali ecc.)
     corr += min((mult_attr - 1.0) * 0.10, 0.08)  # max +8%
 
+    # ── FATTORE DIMENSIONE CITTÀ ──────────────────────────────────────────────
+    # Le città grandi hanno cultura self-service più consolidata,
+    # maggiore densità e più turismo rispetto alle città medie/piccole.
+    # Moltiplicatore applicato DOPO le correzioni additive.
+    pop_comune = float(data.get('pop_comune', 0) or 0)
+    if   pop_comune >= 500000:  f_citta = 1.00   # Roma, Milano, Napoli, Torino
+    elif pop_comune >= 200000:  f_citta = 0.88   # Bologna, Firenze, Palermo, Bari
+    elif pop_comune >= 100000:  f_citta = 0.78   # Bergamo, Brescia, Padova, Taranto
+    elif pop_comune >= 50000:   f_citta = 0.68   # città medie
+    elif pop_comune >= 20000:   f_citta = 0.58   # comuni grandi
+    else:                        f_citta = 0.50   # comuni piccoli / borghi
+
+    # Se pop_comune non disponibile, stima dalla densità e pop_10min
+    if pop_comune == 0:
+        pop_est = float(data.get('pop_10min', 0) or 0) * 3.5  # stima grossolana
+        if   pop_est >= 500000: f_citta = 1.00
+        elif pop_est >= 200000: f_citta = 0.88
+        elif pop_est >= 100000: f_citta = 0.78
+        elif pop_est >= 50000:  f_citta = 0.68
+        else:                    f_citta = 0.60  # default conservativo
+
     # Correzione totale clamped a [-20%, +20%]
     corr = max(-0.20, min(0.20, corr))
 
-    # ── 3. OCCUPAZIONE FINALE ─────────────────────────────────────────────────
-    occ_finale = min(0.80, occ_base * (1.0 + corr) * mult)
-    # cap a 80%: nessuna lavanderia reale supera 80% di occupazione media
+    # ── 3. STAGIONALITÀ PER TIPO DI ZONA ─────────────────────────────────────
+    # Moltiplicatore mensile in base al tipo di zona e al mese corrente.
+    # Fondamentale per valutare la tenuta finanziaria nei mesi morti.
+    import datetime as _dt
+    mese_corrente = _dt.date.today().month
+    tipo_zona = (data.get('tipo_zona') or '').lower()
+
+    # Profili stagionali per tipo di zona
+    _stagionalita = {
+        # Zona turistica estiva: picco luglio-agosto, crollo invernale
+        'turistica': {1:0.45, 2:0.45, 3:0.65, 4:0.80, 5:0.90,
+                      6:1.20, 7:1.80, 8:1.80, 9:1.10, 10:0.80, 11:0.55, 12:0.45},
+        # Zona universitaria: picco ott-maggio, crollo estate
+        'universitaria': {1:1.15, 2:1.20, 3:1.20, 4:1.15, 5:1.10,
+                          6:0.70, 7:0.55, 8:0.50, 9:0.80, 10:1.15, 11:1.20, 12:1.00},
+        # Zona residenziale pura: stabile tutto l'anno
+        'residenziale': {1:0.95, 2:0.95, 3:1.00, 4:1.00, 5:1.05,
+                         6:1.00, 7:0.90, 8:0.85, 9:1.00, 10:1.05, 11:1.05, 12:0.95},
+        # Zona mista/commerciale: leggera variazione
+        'mista': {1:0.95, 2:0.95, 3:1.00, 4:1.05, 5:1.05,
+                  6:1.00, 7:0.90, 8:0.85, 9:1.00, 10:1.05, 11:1.05, 12:0.95},
+    }
+    # Default residenziale se non specificato
+    _profilo = _stagionalita.get(tipo_zona, _stagionalita['residenziale'])
+    f_stagionalita = _profilo.get(mese_corrente, 1.0)
+
+    # ── 4. OCCUPAZIONE FINALE ─────────────────────────────────────────────────
+    occ_finale = min(0.82, occ_base * (1.0 + corr) * f_citta * f_stagionalita * mult)
+    # cap a 82%: picchi stagionali possono superare 80% in zone turistiche luglio-agosto
 
     # ── 4. INCASSO DA CAPACITÀ MACCHINE ───────────────────────────────────────
     # Cicli max/giorno: 14h operative
@@ -382,13 +434,13 @@ def calcola_bp():
 
     # Salva dettaglio occupazione per il report
     _occ_detail = {
-        'occ_base':   round(occ_base * 100, 1),
-        'f_den':      round(f_den, 2),
-        'f_traf':     round(f_traf, 2),
-        'f_gdo':      round(f_gdo, 2),
-        'f_red':      round(f_red, 2),
-        'f_attr':     round(f_attr, 2),
-        'occ_finale': round(occ_finale * 100, 1),
+        'occ_base':        round(occ_base * 100, 1),
+        'correzione_zona': round(corr * 100, 1),
+        'f_citta':         round(f_citta, 2),
+        'f_stagionalita':  round(f_stagionalita, 2),
+        'tipo_zona':       tipo_zona or 'residenziale',
+        'mese':            mese_corrente,
+        'occ_finale':      round(occ_finale * 100, 1),
     }
 
     # ── COSTI VARIABILI (proporzionali ai cicli reali) ───────────────────────
