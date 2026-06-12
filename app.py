@@ -102,6 +102,7 @@ def _run_migrations():
         ('pratiche', 'note_sopralluogo',          'TEXT'),
         # ── Lettera presentazione ─────────────────────────────────────────
         ('pratiche', 'lettera_presentazione',     'TEXT'),
+        ('pratiche', 'tipo_zona',                "VARCHAR(20) DEFAULT 'residenziale'"),
     ]
     with app.app_context():
         with db.engine.connect() as conn:
