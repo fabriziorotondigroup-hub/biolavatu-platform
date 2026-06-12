@@ -3,7 +3,7 @@ routes/investitore.py — BIOLavaTU LaundryPro Platform
 API endpoints versione investitore.
 """
 import os, json
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify, abort, send_file
 from flask_login import login_required, current_user
 from app import db
 from models.pratica import Pratica
@@ -330,3 +330,36 @@ def aggiorna_locale(id):
     db.session.commit()
 
     return jsonify({'ok': True})
+
+# ── PDF CAMPO ─────────────────────────────────────────────────────────────────
+
+@inv_bp.route('/api/investitore/pdf-campo')
+@login_required
+def pdf_campo_generico():
+    """PDF scheda sopralluogo senza pratica specifica"""
+    from services.pdf_campo import build_pdf_campo
+    from models.settings import Settings
+    s = Settings.query.first()
+    buf = build_pdf_campo(pratica=None, settings=s)
+    return send_file(
+        buf, mimetype='application/pdf',
+        as_attachment=False,
+        download_name='BIOLavaTU_Scheda_Sopralluogo.pdf'
+    )
+
+
+@inv_bp.route('/api/investitore/<int:id>/pdf-campo')
+@login_required
+def pdf_campo_pratica(id):
+    """PDF scheda sopralluogo pre-compilato con dati pratica"""
+    from services.pdf_campo import build_pdf_campo
+    from models.settings import Settings
+    p = _check_pratica(id)
+    s = Settings.query.first()
+    buf = build_pdf_campo(pratica=p, settings=s)
+    nome = f"BIOLavaTU_Sopralluogo_{p.numero}.pdf"
+    return send_file(
+        buf, mimetype='application/pdf',
+        as_attachment=False,
+        download_name=nome
+    )
