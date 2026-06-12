@@ -875,6 +875,19 @@ body { background: var(--bg); color: var(--text); }
             <label class="form-label">Superficie (mq)</label>
             <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
           </div>
+          <div class="col-md-3">
+            <label class="form-label">Tipo di zona
+              <span style="font-size:10px;color:#64748b;margin-left:4px" title="Influenza la stagionalità del fatturato">ℹ️</span>
+            </label>
+            <select name="tipo_zona" id="f_tipo_zona" class="form-select"
+              onchange="aggiornaTipoZona()"
+              style="background:#111827;border-color:#334155;color:#e2e8f0">
+              <option value="residenziale" {% if pratica and pratica.tipo_zona == 'residenziale' %}selected{% endif %}>🏠 Residenziale</option>
+              <option value="universitaria" {% if pratica and pratica.tipo_zona == 'universitaria' %}selected{% endif %}>🎓 Universitaria</option>
+              <option value="turistica" {% if pratica and pratica.tipo_zona == 'turistica' %}selected{% endif %}>🏖️ Turistica estiva</option>
+              <option value="mista" {% if pratica and pratica.tipo_zona == 'mista' %}selected{% endif %}>🏙️ Mista / Commerciale</option>
+            </select>
+          </div>
         </div>
         <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
 
@@ -4697,7 +4710,42 @@ function invRenderAnalisi(d) {
   }
 }
 
-// ── Stampa scheda sopralluogo ────────────────────────────────────────────
+// ── Tipo zona e stagionalità ─────────────────────────────────────────────
+const STAGIONALITA = {
+  residenziale:  {1:.95,2:.95,3:1.0,4:1.0,5:1.05,6:1.0,7:.90,8:.85,9:1.0,10:1.05,11:1.05,12:.95},
+  universitaria: {1:1.15,2:1.20,3:1.20,4:1.15,5:1.10,6:.70,7:.55,8:.50,9:.80,10:1.15,11:1.20,12:1.0},
+  turistica:     {1:.45,2:.45,3:.65,4:.80,5:.90,6:1.20,7:1.80,8:1.80,9:1.10,10:.80,11:.55,12:.45},
+  mista:         {1:.95,2:.95,3:1.0,4:1.05,5:1.05,6:1.0,7:.90,8:.85,9:1.0,10:1.05,11:1.05,12:.95},
+};
+const MESI = ['','Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+function aggiornaTipoZona() {
+  const tipo = document.getElementById('f_tipo_zona').value;
+  const mese = new Date().getMonth() + 1;
+  const f = STAGIONALITA[tipo] ? STAGIONALITA[tipo][mese] : 1.0;
+  const pct = Math.round((f - 1) * 100);
+  const segno = pct >= 0 ? '+' : '';
+  const col = pct > 10 ? '#10b981' : pct < -10 ? '#ef4444' : '#f59e0b';
+
+  // Mostra badge stagionalità vicino al campo
+  let badge = document.getElementById('stagionalita-badge');
+  if(!badge) {
+    badge = document.createElement('div');
+    badge.id = 'stagionalita-badge';
+    badge.style.cssText = 'font-size:11px;margin-top:4px;font-weight:600';
+    const sel = document.getElementById('f_tipo_zona');
+    sel.parentNode.appendChild(badge);
+  }
+  badge.innerHTML = `<span style="color:${col}">Mese corrente (${MESI[mese]}): ${segno}${pct}% vs media annua</span>`;
+}
+
+// Inizializza al caricamento
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('f_tipo_zona');
+  if(sel) aggiornaTipoZona();
+});
+
+// ── Stampa scheda sopralluogo ─────────────────────────────────────────────
 function invStampaSopralluogo() {
   const pid = window._invState.praticaId;
   let url;
