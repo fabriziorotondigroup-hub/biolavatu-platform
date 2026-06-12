@@ -830,7 +830,7 @@ def build_pdf(pratica, settings):
                                         textColor=C_TEAL, letterSpacing=0.8))],
             [Paragraph('<b>Rotondi Group Srl</b>',
                        _s('ofn', fontName='Helvetica-Bold', fontSize=10, leading=13))],
-            [Paragraph((s.company_addr if s else '') or 'Via Trieste 2, 20019 Settimo Milanese (MI)',
+            [Paragraph((s.company_addr if s else '') or 'Via F.lli Rosselli 14/16 - 20019 Settimo Milanese (MI)',
                        _s('ofa', fontSize=8, textColor=C_GRAY, leading=11))],
             [Paragraph((s.company_piva if s else '') or 'P.IVA 04XXXXXXXX',
                        _s('ofp', fontSize=8, textColor=C_GRAY, leading=11))],
