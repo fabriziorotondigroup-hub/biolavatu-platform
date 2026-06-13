@@ -731,26 +731,27 @@ def zona_analisi():
 
         # ── DATI DEMOGRAFICI — auto-detect IT / RO ───────────────────────────────
         _indirizzo_raw = request.args.get('indirizzo', '').lower()
+        _market_param  = request.args.get('market', '').upper()
         _is_romania = (
+            _market_param == 'RO' or
             'romania' in _indirizzo_raw or
             ', ro' in _indirizzo_raw or
-            request.args.get('market','').upper() == 'RO' or
-            any(c in provincia.upper() for c in ['B','CJ','TM','IS','CT','BV',
-                'PH','IF','AG','BC','BH','SB','DJ','GL','MM','NT','SV','VS'])
+            (provincia and any(provincia.upper() == c for c in
+                ['B','CJ','TM','IS','CT','BV','PH','IF','AG','BC',
+                 'BH','SB','DJ','GL','MM','NT','SV','VS']))
         )
+        _paese = 'RO' if _is_romania else 'IT'  # default sicuro
 
         if _is_romania:
             demo          = get_demographic_data_ro(provincia, citta)
             eta_media     = demo.get('eta_media', 42.0)
             reddito_medio = demo.get('reddito_medio', 30000)  # RON/anno
             densita_istat = demo.get('densita', 200)
-            _paese        = 'RO'
         else:
             demo          = get_demographic_data(citta, provincia)
             eta_media     = demo.get('eta_media', 46.4)
             reddito_medio = demo.get('reddito_medio', 19800)  # EUR/anno
             densita_istat = demo.get('densita', 200)
-            _paese        = 'IT'
 
         # ── DENSITÀ REALE da Google Maps (proxy da POI nel raggio) ───────────────
         # Contiamo i luoghi unici entro 400m come proxy di urbanizzazione reale
@@ -1381,9 +1382,57 @@ def esplora_zona():
     })
 
 
+# ── GEOCODIFICA ROMANIA ───────────────────────────────────────────────────────
 
+@geo_bp.route('/api/geocode-ro')
+@login_required
+def geocode_ro():
+    """Geocodifica un indirizzo rumeno via Google Maps e ritorna lat/lng + analisi zona."""
+    import requests as _req
+    indirizzo = request.args.get('indirizzo', '')
+    citta     = request.args.get('citta', '')
+    judet     = request.args.get('judet', '')
 
+    gmaps_key = os.environ.get('GMAPS_KEY', '')
+    if not gmaps_key:
+        return jsonify({'error': 'GMAPS_KEY non configurata'}), 500
 
+    # Costruisci stringa indirizzo completa per Romania
+    addr_parts = [p for p in [indirizzo, citta, judet, 'România'] if p]
+    addr_str   = ', '.join(addr_parts)
 
+    # Geocodifica
+    try:
+        resp = _req.get(
+            'https://maps.googleapis.com/maps/api/geocode/json',
+            params={'address': addr_str, 'key': gmaps_key,
+                    'region': 'ro', 'language': 'ro'},
+            timeout=8
+        )
+        geo = resp.json()
+        if geo.get('status') != 'OK' or not geo.get('results'):
+            return jsonify({'error': f'Geocode fallito: {geo.get("status")}'}), 400
 
+        location = geo['results'][0]['geometry']['location']
+        lat = location['lat']
+        lng = location['lng']
 
+        # Dati INS per il județ
+        demo = get_demographic_data_ro(judet, citta)
+
+        return jsonify({
+            'lat':           lat,
+            'lng':           lng,
+            'indirizzo_fmt': geo['results'][0].get('formatted_address', addr_str),
+            'reddito_medio': demo['reddito_medio'],
+            'densita':       demo['densita'],
+            'eta_media':     demo['eta_media'],
+            'perc_stranieri':demo['perc_stranieri'],
+            'reddito_eur':   demo['reddito_eur'],
+            'potenziale':    get_market_assessment_ro(
+                demo['reddito_medio'], demo['densita'])['potenziale'],
+            'paese':         'RO',
+            'market':        'RO',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
