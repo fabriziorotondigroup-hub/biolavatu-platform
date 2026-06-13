@@ -944,7 +944,7 @@ def zona_analisi():
                 'col':   stima.get('confidenza_col', '#64748b'),
             },
             'tipo_zona':          stima.get('tipo_zona', 'misto'),
-        'zona_turistica':     n_affitti >= 5,  # 5+ strutture = zona ad alta densità turistica
+            'zona_turistica':     n_affitti >= 5,  # 5+ strutture = zona ad alta densita turistica
             'attractor_points':   attractor_points,
             'mult_attractor':     round(mult_attractor, 2),
             'n_universita':       n_universita,
