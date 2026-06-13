@@ -227,6 +227,25 @@ def zona_analisi():
         lng      = float(request.args.get('lng', 0))
         citta    = request.args.get('citta', '')
         provincia = request.args.get('provincia', '')
+        # Per Romania: se lat/lng mancanti ma market=RO, geocodifica automaticamente
+        _market_check = request.args.get('market','').upper()
+        if (not lat or not lng) and _market_check == 'RO':
+            # Geocodifica l'indirizzo internamente
+            _citta_ro  = request.args.get('citta', '')
+            _prov_ro   = request.args.get('provincia', '')
+            _addr_ro   = request.args.get('indirizzo', _citta_ro + ', Romania')
+            _gmk = os.environ.get('GMAPS_KEY','')
+            if _gmk and _citta_ro:
+                import requests as _req
+                _gr = _req.get(
+                    'https://maps.googleapis.com/maps/api/geocode/json',
+                    params={'address': _addr_ro, 'key': _gmk, 'region': 'ro'},
+                    timeout=5
+                ).json()
+                if _gr.get('status') == 'OK' and _gr.get('results'):
+                    _loc = _gr['results'][0]['geometry']['location']
+                    lat  = float(_loc['lat'])
+                    lng  = float(_loc['lng'])
         if not lat or not lng:
             return jsonify({'error': 'Coordinate mancanti'}), 400
 
@@ -1421,18 +1440,19 @@ def geocode_ro():
         demo = get_demographic_data_ro(judet, citta)
 
         return jsonify({
-            'lat':           lat,
-            'lng':           lng,
+            'lat':           float(lat),
+            'lng':           float(lng),
             'indirizzo_fmt': geo['results'][0].get('formatted_address', addr_str),
-            'reddito_medio': demo['reddito_medio'],
-            'densita':       demo['densita'],
-            'eta_media':     demo['eta_media'],
-            'perc_stranieri':demo['perc_stranieri'],
-            'reddito_eur':   demo['reddito_eur'],
+            'reddito_medio': float(demo['reddito_medio']),
+            'densita':       float(demo['densita']),
+            'eta_media':     float(demo['eta_media']),
+            'perc_stranieri':float(demo['perc_stranieri']),
+            'reddito_eur':   float(demo.get('reddito_eur', demo['reddito_medio']/4.97)),
             'potenziale':    get_market_assessment_ro(
                 demo['reddito_medio'], demo['densita'])['potenziale'],
             'paese':         'RO',
             'market':        'RO',
+            'ok':            True,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
