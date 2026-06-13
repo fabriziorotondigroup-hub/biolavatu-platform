@@ -43,10 +43,11 @@ def create_app():
     from routes.admin import admin_bp
     from routes.geo import geo_bp
     from routes.investitore import inv_bp
+    from routes.romania import ro_bp
     from routes.pdf import pdf_bp
 
     for bp in (auth_bp, dashboard_bp, preventivo_bp, pratiche_bp,
-               clienti_bp, admin_bp, geo_bp, pdf_bp, inv_bp):
+               clienti_bp, admin_bp, geo_bp, pdf_bp, inv_bp, ro_bp):
         app.register_blueprint(bp)
 
     # Custom Jinja filters
@@ -103,6 +104,13 @@ def _run_migrations():
         # ── Lettera presentazione ─────────────────────────────────────────
         ('pratiche', 'lettera_presentazione',     'TEXT'),
         ('pratiche', 'tipo_zona',                "VARCHAR(20) DEFAULT 'residenziale'"),
+        # ── Modulo Romania ────────────────────────────────────────────
+        ('pratiche', 'market',                  "VARCHAR(5) DEFAULT 'IT'"),
+        ('pratiche', 'valuta',                  "VARCHAR(5) DEFAULT 'EUR'"),
+        ('pratiche', 'cambio_ron',               'FLOAT DEFAULT 4.97'),
+        ('pratiche', 'judet_cod',                'VARCHAR(10)'),
+        ('users',    'market',                  "VARCHAR(5) DEFAULT 'IT'"),
+        ('users',    'lingua',                  "VARCHAR(5) DEFAULT 'it'"),
     ]
     with app.app_context():
         with db.engine.connect() as conn:
