@@ -422,45 +422,45 @@ def analisi_ai_ro():
     if not conc_txt:
         conc_txt = '  Niciun concurent detectat / Nessun concorrente rilevato'
 
-    prompt = f"""Ești un analist de piată specializat în sectorul spălătoriilor self-service din România.
+    prompt = f"""Esti un analist de piata specializat in sectorul spalatoriilor self-service din Romania.
 Produceti o ANALIZA OBIECTIVA a zonei — doar date, fapte, masuratori.
 NU dati recomandari, NU spuneti daca sa deschideti sau nu, NU exprimati judecati de valoare.
 Scrieti in {"ROMANA si ITALIANA" if lingua == 'ro' else "ITALIANA e RUMENO"} — intai romana, apoi italiana.
 
-═══ DATE LOCATIE ═══
-Adresa: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')}, România
+=== DATE LOCATIE ===
+Adresa: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')}, Romania
 Suprafata local: {data.get('mq',60)} mp
 
-═══ BAZIN DEMOGRAFIC ═══
+=== BAZIN DEMOGRAFIC ===
 Populatie accesibila:
-  • 3 minute pe jos (~240m): {int(data.get('pop_3min',0) or 0):,} locuitori
-  • 5 minute pe jos (~400m): {int(data.get('pop_5min',0) or 0):,} locuitori
-  • 10 minute pe jos (~800m): {int(data.get('pop_10min',0) or 0):,} locuitori
-Densitate: {int(data.get('densita',0) or 0):,} loc/km²
+  - 3 minute pe jos (~240m): {int(data.get('pop_3min',0) or 0):,} locuitori
+  - 5 minute pe jos (~400m): {int(data.get('pop_5min',0) or 0):,} locuitori
+  - 10 minute pe jos (~800m): {int(data.get('pop_10min',0) or 0):,} locuitori
+Densitate: {int(data.get('densita',0) or 0):,} loc/km2
 Salariu mediu net judet: {int(data.get('reddito_medio',0) or 0):,} RON/an (sursa: INS Romania 2021)
 Echivalent EUR: circa €{int((data.get('reddito_medio',0) or 0)/cambio):,}/an (curs {cambio:.2f} RON/EUR)
 
-═══ TRAFIC SI VIZIBILITATE ═══
+=== TRAFIC SI VIZIBILITATE ===
 Indicator trafic real (recenzii Google in 400m): {int(data.get('recensioni_zona',0) or 0):,}
 Magazine alimentare (GDO) in 500m: {data.get('gdo_500m',0)}
 Scor zona: {data.get('score_zona',0)}/100
 
-═══ CONCURENTA ═══
+=== CONCURENTA ===
 Spalatorii self-service in 500m: {data.get('concorrenti_500m',0)}
 Total spalatorii in 1km: {data.get('concorrenti_1km',0)}
 Detaliu operatori detectati:
 {conc_txt}
 
-═══ GENERATORI DE CERERE (Attractor Points) ═══
+=== GENERATORI DE CERERE (Attractor Points) ===
 {attractor_txt}
 
-═══ STRUCTURA ECONOMICA ═══
+=== STRUCTURA ECONOMICA ===
 Investitie estimata: {int(cap_ron):,} RON + TVA 19% = {int(cap_ron*1.19):,} RON (≈ €{cap_eur:,})
 Incasari lunare estimate: {int(inc_ron):,} RON (≈ €{inc_eur:,}/luna)
 Costuri lunare: {int(cos_ron):,} RON
 Profit net estimat: {int(uti_ron):,} RON/luna
 
-═══ STRUCTURA ANALIZEI (obligatorie) ═══
+=== STRUCTURA ANALIZEI (obligatorie) ===
 
 ## 1. BAZIN DEMOGRAFIC / BACINO DEMOGRAFICO
 Descrie numeric bazinul. Compara cu media nationala romana.
