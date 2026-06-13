@@ -686,76 +686,85 @@ function geocodificaRO() {
   const indirizzo = document.getElementById('f_indirizzo').value;
   const citta     = document.getElementById('f_citta').value;
   const judet     = document.getElementById('f_provincia').value;
-  if(!citta) { alert(LINGUA==='ro' ? 'Introduceți orașul!' : 'Inserisci la città!'); return; }
+  if(!citta) { alert(LINGUA==='ro' ? 'Introduceți orașul!' : 'Inserisci la citta!'); return; }
 
   const status = document.getElementById('geo-status-ro');
-  status.textContent = LINGUA==='ro' ? '⏳ Analizez...' : '⏳ Analisi in corso...';
+  status.textContent = LINGUA==='ro' ? 'Geocodific adresa...' : 'Geocodifica in corso...';
 
-  // Carica dati INS per il județ
-  fetch('/ro/api/demografici?judet='+encodeURIComponent(judet)+'&oras='+encodeURIComponent(citta))
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('f_reddito').value = d.reddito_medio;
-      document.getElementById('f_densita').value = d.densita;
-      document.getElementById('f_judet').value   = judet;
+  // STEP 1: Geocodifica + dati INS Romania
+  fetch('/ro/api/geocode-ro'
+    +'?indirizzo='+encodeURIComponent(indirizzo)
+    +'&citta='+encodeURIComponent(citta)
+    +'&judet='+encodeURIComponent(judet))
+  .then(r => r.json())
+  .then(function(geo) {
+    if(geo.error) { status.textContent = 'Errore: '+geo.error; return Promise.resolve(null); }
 
-      // Mostra dati INS
-      const box = document.getElementById('ins-data-box');
-      box.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
-          ${[
-            [LINGUA==='ro'?'Salariu mediu net':'Salario medio netto', Math.round(d.reddito_medio).toLocaleString()+' RON / an', '#f59e0b'],
-            [LINGUA==='ro'?'Salariu în EUR':'Salario in EUR', '€ '+Math.round(d.reddito_eur)+' / anno', '#94a3b8'],
-            [LINGUA==='ro'?'Densitate':'Densità', d.densita+' loc/km²', '#3b82f6'],
-            [LINGUA==='ro'?'Vârstă medie':'Età media', d.eta_media+' ani', '#10b981'],
-            [LINGUA==='ro'?'% Străini':'% Stranieri', d.perc_stranieri+'%', '#7c3aed'],
-            ['Potenziale', d.potenziale || '—', d.potenziale==='alto'?'#10b981':d.potenziale==='medio'?'#f59e0b':'#ef4444'],
-          ].map(([l,v,c]) => `
-            <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:8px;padding:10px">
-              <div style="font-size:10px;color:#64748b">${l}</div>
-              <div style="font-size:14px;font-weight:700;color:${c};margin-top:2px">${v}</div>
-            </div>`).join('')}
-        </div>`;
+    document.getElementById('f_lat').value     = geo.lat;
+    document.getElementById('f_lng').value     = geo.lng;
+    document.getElementById('f_reddito').value = geo.reddito_medio;
+    document.getElementById('f_densita').value = geo.densita;
+    document.getElementById('f_judet').value   = judet;
 
-      status.textContent = '✅ ' + (LINGUA==='ro' ? 'Date INS încărcate' : 'Dati INS caricati');
+    var rows = [
+      [LINGUA==='ro'?'Salariu mediu net':'Salario medio netto',
+       Math.round(geo.reddito_medio).toLocaleString('ro-RO')+' RON/an', '#f59e0b'],
+      ['EUR', 'circa EUR '+Math.round(geo.reddito_eur)+'/anno', '#94a3b8'],
+      [LINGUA==='ro'?'Densitate':'Densita', geo.densita+' loc/km2', '#3b82f6'],
+      [LINGUA==='ro'?'Varsta medie':'Eta media', geo.eta_media+' ani', '#10b981'],
+      ['Potentiale', geo.potenziale||'—',
+       geo.potenziale==='alto'?'#10b981':geo.potenziale==='medio'?'#f59e0b':'#ef4444'],
+    ];
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">';
+    rows.forEach(function(r) {
+      html += '<div style="background:#0f172a;border:1px solid #1e2d45;border-radius:8px;padding:10px">'
+        +'<div style="font-size:10px;color:#64748b">'+r[0]+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:'+r[2]+';margin-top:2px">'+r[1]+'</div>'
+        +'</div>';
+    });
+    html += '</div>';
+    document.getElementById('ins-data-box').innerHTML = html;
 
-      // Poi chiama geo italiano per Google Maps (stessa logica)
-      return fetch('/api/analisi-zona?indirizzo='+encodeURIComponent(indirizzo+', '+citta+', Romania')
-        +'&lat=&lng=&citta='+encodeURIComponent(citta)+'&provincia='+encodeURIComponent(judet));
-    })
-    .then(r => r && r.ok ? r.json() : null)
-    .then(d => {
-      if(!d) return;
-      document.getElementById('f_lat').value    = d.lat || '';
-      document.getElementById('f_lng').value    = d.lng || '';
-      document.getElementById('f_pop3').value   = d.pop_3min || 0;
-      document.getElementById('f_pop5').value   = d.pop_5min || 0;
-      document.getElementById('f_pop10').value  = d.pop_10min || 0;
-      document.getElementById('f_score').value  = d.score_zona || 0;
-      document.getElementById('f_mult').value   = d.mult_attractor || 1.0;
-      document.getElementById('f_rec').value    = d.segnali_reali?.recensioni_zona || 0;
-      document.getElementById('f_gdo').value    = d.segnali_reali?.gdo_500m || 0;
-      document.getElementById('f_c500').value   = d.concorrenti_500m || 0;
-      document.getElementById('f_c1k').value    = d.concorrenti_1km || 0;
-      document.getElementById('f_pop_comune').value = d.pop_10min ? d.pop_10min * 3.5 : 0;
+    status.textContent = LINGUA==='ro' ? 'Analizez zona...' : 'Analisi zona in corso...';
 
-      // Aggiorna KPI
-      document.getElementById('ro-pop-5min').textContent = (d.pop_5min||0).toLocaleString('ro-RO');
-      document.getElementById('ro-concorr').textContent  = d.concorrenti_500m || 0;
-      const sc = d.score_zona || 0;
-      const scEl = document.getElementById('ro-score');
-      scEl.textContent = Math.round(sc)+'/100';
-      scEl.style.color = sc>=70?'#10b981':sc>=50?'#f59e0b':'#ef4444';
+    // STEP 2: Analisi zona Google Maps con coordinate reali
+    return fetch('/api/zona-analisi'
+      +'?lat='+geo.lat
+      +'&lng='+geo.lng
+      +'&citta='+encodeURIComponent(citta)
+      +'&provincia='+encodeURIComponent(judet)
+      +'&indirizzo='+encodeURIComponent(indirizzo+', '+citta+', Romania')
+      +'&market=RO');
+  })
+  .then(function(r) { return r && r.ok ? r.json() : null; })
+  .then(function(d) {
+    if(!d) return;
+    document.getElementById('f_pop3').value   = d.pop_3min  || 0;
+    document.getElementById('f_pop5').value   = d.pop_5min  || 0;
+    document.getElementById('f_pop10').value  = d.pop_10min || 0;
+    document.getElementById('f_score').value  = d.score_zona || 0;
+    document.getElementById('f_mult').value   = d.mult_attractor || 1.0;
+    document.getElementById('f_rec').value    = (d.segnali_reali||{}).recensioni_zona || 0;
+    document.getElementById('f_gdo').value    = (d.segnali_reali||{}).gdo_500m || 0;
+    document.getElementById('f_c500').value   = d.concorrenti_500m || 0;
+    document.getElementById('f_c1k').value    = d.concorrenti_1km  || 0;
+    document.getElementById('f_pop_comune').value = d.pop_10min ? Math.round(d.pop_10min*3.5) : 0;
 
-      const red = parseFloat(document.getElementById('f_reddito').value) || 0;
-      document.getElementById('ro-reddito').textContent =
-        red > 0 ? Math.round(red).toLocaleString('ro-RO')+' RON' : '—';
-
-      document.getElementById('kpi-zona-ro').style.display = 'block';
-    })
-    .catch(e => { status.textContent = '⚠️ '+e.message; });
+    document.getElementById('ro-pop-5min').textContent = (d.pop_5min||0).toLocaleString('ro-RO');
+    document.getElementById('ro-concorr').textContent  = d.concorrenti_500m || 0;
+    var sc = d.score_zona || 0;
+    var scEl = document.getElementById('ro-score');
+    scEl.textContent = Math.round(sc)+'/100';
+    scEl.style.color = sc>=70 ? '#10b981' : sc>=50 ? '#f59e0b' : '#ef4444';
+    var red = parseFloat(document.getElementById('f_reddito').value)||0;
+    document.getElementById('ro-reddito').textContent =
+      red > 0 ? Math.round(red).toLocaleString('ro-RO')+' RON' : '—';
+    document.getElementById('kpi-zona-ro').style.display = 'block';
+    status.textContent = LINGUA==='ro' ? 'Analiza completa!' : 'Analisi completata!';
+    aggiornaBPRO();
+  })
+  .catch(function(e) { status.textContent = 'Errore: '+e.message; });
 }
-
 // ── Business Plan Romania ─────────────────────────────────────────────────
 function aggiornaBPRO() {
   const payload = {
