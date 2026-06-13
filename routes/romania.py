@@ -359,8 +359,7 @@ def salva_nuovo():
         score_zona       = float(data.get('score_zona') or 0),
         concorrenti_500m = int(data.get('concorrenti_500m') or 0),
         concorrenti_1km  = int(data.get('concorrenti_1km') or 0),
-        densita          = float(data.get('densita') or 0),
-        reddito_medio    = float(data.get('reddito_medio') or 0),
+
         tariffa_lavaggio_std = float(data.get('tariffa_lavaggio_std') or 20),
         tariffa_lavaggio_med = float(data.get('tariffa_lavaggio_med') or 25),
         tariffa_lavaggio_grd = float(data.get('tariffa_lavaggio_grd') or 35),
@@ -369,7 +368,6 @@ def salva_nuovo():
         incasso_mese     = float(data.get('incasso_mese') or 0),
         costi_mese       = float(data.get('costi_mese') or 0),
         utile_mese       = float(data.get('utile_mese') or 0),
-        modalita_analisi = data.get('modalita_analisi','rapida'),
     )
     db.session.add(p)
     db.session.commit()
