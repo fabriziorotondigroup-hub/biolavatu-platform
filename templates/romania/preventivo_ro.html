@@ -698,7 +698,16 @@ function geocodificaRO() {
     +'&judet='+encodeURIComponent(judet))
   .then(r => r.json())
   .then(function(geo) {
-    if(geo.error) { status.textContent = 'Errore: '+geo.error; return Promise.resolve(null); }
+    if(geo.error || !geo.ok) {
+      status.textContent = 'Errore geocodifica: '+(geo.error||'risposta non valida');
+      return Promise.resolve(null);
+    }
+    // Verifica lat/lng reali
+    if(!geo.lat || !geo.lng || geo.lat === 0) {
+      status.textContent = 'Indirizzo non trovato in Romania. Prova con citta e via piu precisi.';
+      return Promise.resolve(null);
+    }
+    console.log('Geocode RO ok:', geo.lat, geo.lng, geo.indirizzo_fmt);
 
     document.getElementById('f_lat').value     = geo.lat;
     document.getElementById('f_lng').value     = geo.lng;
