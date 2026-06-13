@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ tr.dashboard }} — BIOLavaTU România{% endblock %}
+{% block content %}
+<div style="max-width:1200px;margin:0 auto;padding:20px">
+
+  <!-- Header Romania -->
+  <div style="background:linear-gradient(135deg,#0B1F3A,#1B4F72);border-radius:14px;padding:20px 24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:11px;color:#93C5FD;letter-spacing:1px;font-weight:600">BIOLAVATU — PIAȚA ROMÂNĂ</div>
+      <div style="font-size:22px;font-weight:700;color:white;margin-top:2px">
+        🇷🇴 {{ tr.dashboard }}
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:2px">
+        1 EUR = {{ "%.2f"|format(cambio_ron) }} RON
+        <span style="color:#334155;margin:0 6px">·</span>
+        <a href="{{ url_for('romania.set_lingua', lang='ro' if lingua=='it' else 'it') }}"
+           style="color:#3b82f6;text-decoration:none">
+          {{ '🇷🇴 Română' if lingua == 'it' else '🇮🇹 Italiano' }}
+        </a>
+      </div>
+    </div>
+    <a href="{{ url_for('romania.nuovo_preventivo') }}"
+       class="btn" style="background:#10b981;color:white;font-weight:600;padding:10px 20px;border-radius:8px">
+      <i class="bi bi-plus-circle me-1"></i>{{ tr.nuova_pratica }}
+    </a>
+  </div>
+
+  <!-- KPI -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
+    {% set tot = pratiche|length %}
+    {% set attive = pratiche|selectattr('stato','equalto','attiva')|list|length %}
+    <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:#3b82f6">{{ tot }}</div>
+      <div style="font-size:11px;color:#64748b">{{ tr.pratiche }} totali</div>
+    </div>
+    <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:#10b981">{{ attive }}</div>
+      <div style="font-size:11px;color:#64748b">Dosare active</div>
+    </div>
+    <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:16px;text-align:center">
+      <div style="font-size:14px;font-weight:700;color:#f59e0b">{{ "%.2f"|format(cambio_ron) }}</div>
+      <div style="font-size:11px;color:#64748b">RON / 1 EUR</div>
+    </div>
+  </div>
+
+  <!-- Ultime pratiche -->
+  <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;overflow:hidden">
+    <div style="background:#0B1F3A;padding:14px 18px;font-weight:600;color:#e2e8f0">
+      <i class="bi bi-file-earmark-text me-2" style="color:#3b82f6"></i>
+      {% if lingua == 'ro' %}Ultimele dosare{% else %}Ultime pratiche Romania{% endif %}
+    </div>
+    {% if pratiche %}
+    <table class="table table-dark table-hover mb-0" style="font-size:13px">
+      <thead style="background:#0d1a2e;color:#64748b;font-size:11px">
+        <tr>
+          <th>N°</th>
+          <th>{{ tr.clienti }}</th>
+          <th>{{ tr.citta }}</th>
+          <th>Incasso (RON)</th>
+          <th>Incasso (EUR)</th>
+          <th>Score</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pratiche[:15] %}
+        <tr>
+          <td><span style="color:#3b82f6;font-weight:600">{{ p.numero }}</span></td>
+          <td>{{ p.cliente.nome if p.cliente else '—' }}</td>
+          <td>{{ p.citta or '—' }}</td>
+          <td style="color:#10b981;font-weight:600">
+            {% if p.incasso_mese %}
+              {{ "{:,.0f}".format(p.incasso_mese * cambio_ron).replace(',','.') }} RON
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:#94a3b8">
+            {% if p.incasso_mese %}€ {{ "{:,.0f}".format(p.incasso_mese).replace(',','.') }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if p.score_zona %}
+              <span style="color:{% if p.score_zona >= 70 %}#10b981{% elif p.score_zona >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
+                {{ p.score_zona|round(0)|int }}/100
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('romania.modifica_preventivo', id=p.id) }}"
+               class="btn btn-sm btn-outline-primary" style="font-size:11px">
+              {% if lingua == 'ro' %}Editează{% else %}Modifica{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:#64748b">
+      {% if lingua == 'ro' %}
+        Niciun dosar România creat încă.
+      {% else %}
+        Nessuna pratica Romania ancora creata.
+      {% endif %}
+      <br><br>
+      <a href="{{ url_for('romania.nuovo_preventivo') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>{{ tr.nuova_pratica }}
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
