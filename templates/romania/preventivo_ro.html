@@ -1088,7 +1088,7 @@ function aggiornaCambio() {
     .then(r => r.json())
     .then(d => {
       _cambioLive = d.eur_ron;
-      document.getElementById('cambio-display').textContent = d.eur_ron.toFixed(2);
+      var _cd=document.getElementById('cambio-display'); if(_cd) _cd.textContent = d.eur_ron.toFixed(2);
       document.getElementById('f_cambio_ron').value = d.eur_ron;
       aggiornaCambioAffitto();
       aggiornaCambioCapex();
@@ -1098,16 +1098,16 @@ function aggiornaCambio() {
 function aggiornaCambioAffitto() {
   const ron = parseFloat(document.getElementById('f_affitto_ron').value) || 0;
   const eur = ron / _cambioLive;
-  document.getElementById('affitto-eur-display').textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
+  var _aed=document.getElementById('affitto-eur-display'); if(_aed) _aed.textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
 }
 
 function aggiornaCambioCapex() {
   const ron = parseFloat(document.getElementById('f_capex_ron').value) || 0;
   const eur = ron / _cambioLive;
   const tva = ron * 0.19;
-  document.getElementById('capex-eur-display').textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
-  document.getElementById('tva-display').textContent = tva > 0 ? Math.round(tva).toLocaleString('ro-RO')+' RON' : '—';
-  document.getElementById('capex-tva-display').textContent = ron > 0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON' : '—';
+  var _ced=document.getElementById('capex-eur-display'); if(_ced) _ced.textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
+  var _tvd=document.getElementById('tva-display'); if(_tvd) _tvd.textContent = tva > 0 ? Math.round(tva).toLocaleString('ro-RO')+' RON' : '—';
+  var _ctd=document.getElementById('capex-tva-display'); if(_ctd) _ctd.textContent = ron > 0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON' : '—';
 }
 
 // ── Geocodifica Romania ───────────────────────────────────────────────────
@@ -1195,8 +1195,7 @@ function geocodificaRO() {
     var scEl = document.getElementById('ro-score');
     if(scEl) { scEl.textContent = Math.round(sc)+'/100'; scEl.style.color = sc>=70 ? '#10b981' : sc>=50 ? '#f59e0b' : '#ef4444'; }
     var red = parseFloat(document.getElementById('f_reddito').value)||0;
-    document.getElementById('ro-reddito').textContent =
-      red > 0 ? Math.round(red).toLocaleString('ro-RO')+' RON' : '—';
+    var _rr=document.getElementById('ro-reddito'); if(_rr) _rr.textContent = red > 0 ? Math.round(red).toLocaleString('ro-RO')+' RON' : '—';
     var _kpi = document.getElementById('kpi-zona-ro'); if(_kpi) _kpi.style.display = 'block';
     status.textContent = LINGUA==='ro' ? 'Analiza completa!' : 'Analisi completata!';
     aggiornaBPRO();
@@ -1238,8 +1237,8 @@ function aggiornaBPRO() {
     const fmt = n => Math.abs(n).toLocaleString('ro-RO');
     const fmtE = n => '€ '+Math.abs(Math.round(n)).toLocaleString('it-IT');
 
-    document.getElementById('bp-incasso-ron').textContent = fmt(d.incasso_ron)+' RON';
-    document.getElementById('bp-incasso-eur').textContent = fmtE(d.incasso_eur);
+    var _bir=document.getElementById('bp-incasso-ron'); if(_bir) _bir.textContent = fmt(d.incasso_ron)+' RON';
+    var _bie=document.getElementById('bp-incasso-eur'); if(_bie) _bie.textContent = fmtE(d.incasso_eur);
     document.getElementById('bp-costi-ron').textContent   = fmt(d.costi_ron)+' RON';
     document.getElementById('bp-costi-eur').textContent   = fmtE(d.costi_ron/_cambioLive);
     document.getElementById('bp-utile-ron').textContent   = fmt(d.utile_ron)+' RON';
@@ -1300,7 +1299,7 @@ function aggiornaRiepilogo() {
 // ── Modalita ──────────────────────────────────────────────────────────────
 function setModalita(m) {
   document.getElementById('f_modalita').value = m;
-  document.getElementById('modalita-label').textContent =
+  var _mlEl=document.getElementById('modalita-label'); if(_mlEl) _mlEl.textContent =
     m==='investitore'
       ? (LINGUA==='ro' ? 'Analiză Investitor' : 'Analisi Investitore')
       : (LINGUA==='ro' ? 'Analiză Rapidă'     : 'Analisi Rapida');
