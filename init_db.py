@@ -72,7 +72,7 @@ with app.app_context():
                 company_piva='P.IVA 09975740151',
                 company_email='info@rotondigroup.it',
                 company_web='www.biolavatu.it',
-                company_tel='+39 06 41400514 / +39 06 41400617',
+                company_tel='+39 06 41400514',
                 condizioni_vendita="""CONDIZIONI GENERALI DI VENDITA
 
 1. OGGETTO DEL CONTRATTO
