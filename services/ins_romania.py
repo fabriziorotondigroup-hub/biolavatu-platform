@@ -174,7 +174,9 @@ def converti_eur_ron(importo_eur: float) -> float:
     return round(importo_eur * EUR_RON_RATE, 2)
 
 def get_market_assessment_ro(reddito_ron: float, densita: float) -> dict:
-    """Valutazione mercato rumeno — equivalente di get_market_assessment ISTAT."""
+    """Valutazione mercato rumeno — compatibile con get_market_assessment ISTAT.
+    Ritorna gli stessi campi: score, label, colore, note + campi Romania extra.
+    """
     reddito_eur = converti_ron_eur(reddito_ron)
 
     if   reddito_ron > 48000: mercato = 'premium'
@@ -187,10 +189,50 @@ def get_market_assessment_ro(reddito_ron: float, densita: float) -> dict:
     elif densita > 100:  tipo_area = 'semi_urbano'
     else:                tipo_area = 'rurale'
 
+    # Calcola score compatibile con get_market_assessment italiano
+    score = 0
+    note  = []
+
+    # Densita (peso 30)
+    if   densita > 3000: score += 30; note.append('Densitate mare — piata excelenta')
+    elif densita > 1000: score += 22; note.append('Densitate buna')
+    elif densita > 300:  score += 14; note.append('Densitate medie')
+    elif densita > 80:   score += 8;  note.append('Densitate scazuta')
+    else:                score += 2;  note.append('Densitate foarte scazuta')
+
+    # Reddito Romania (peso 25) — in RON
+    if   reddito_ron > 48000: score += 25; note.append('Salariu mare — putere de cumparare buna')
+    elif reddito_ron > 36000: score += 20; note.append('Salariu mediu-mare')
+    elif reddito_ron > 24000: score += 14; note.append('Salariu mediu')
+    elif reddito_ron > 18000: score += 8;  note.append('Salariu mic')
+    else:                      score += 3;  note.append('Salariu foarte mic')
+
+    # Bonus zona urbana densa (peso 20)
+    if   tipo_area == 'urbano_denso': score += 20
+    elif tipo_area == 'urbano':       score += 14
+    elif tipo_area == 'semi_urbano':  score += 7
+
+    # Potenziale
+    potenziale = ('alto'  if reddito_ron > 36000 and densita > 500 else
+                  'medio' if reddito_ron > 24000 else 'basso')
+
+    # Label e colore
+    if   score >= 70: label = 'Excelent';  colore = '#10b981'
+    elif score >= 55: label = 'Bun';        colore = '#3b82f6'
+    elif score >= 35: label = 'Mediu';      colore = '#f59e0b'
+    elif score >= 20: label = 'Slab';       colore = '#f97316'
+    else:             label = 'Critic';     colore = '#ef4444'
+
     return {
+        # Campi compatibili con get_market_assessment italiano
+        'score':         min(100, score),
+        'label':         label,
+        'colore':        colore,
+        'note':          note,
+        # Campi extra Romania
         'tipo_mercato':  mercato,
         'tipo_area':     tipo_area,
         'reddito_eur':   reddito_eur,
-        'potenziale':    'alto' if reddito_ron > 36000 and densita > 500 else
-                         'medio' if reddito_ron > 24000 else 'basso',
+        'potenziale':    potenziale,
+        'paese':         'RO',
     }
