@@ -652,7 +652,29 @@
         Avanti <i class="bi bi-arrow-right ms-1"></i>
       </button>
     </div>
+  
+
+  <!-- Analisi AI Romania -->
+  <div style="background:rgba(124,58,237,0.08);border:1px solid #7c3aed44;border-radius:12px;padding:16px;margin:12px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span style="color:#a78bfa;font-size:13px;font-weight:600">
+        <i class="bi bi-stars me-2"></i>Analisi AI — Zona Romania
+      </span>
+      <button type="button" onclick="generaAI_RO()"
+        style="background:#7c3aed;color:white;border:none;border-radius:8px;
+          padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">
+        <i class="bi bi-magic me-1"></i> Genera Analisi AI / Generează Analiză AI
+      </button>
+    </div>
+    <div id="ai-ro-text" style="font-size:12.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap">
+      Clicca per generare l'analisi AI della zona Romania (IT+RO).
+    </div>
+    <div id="ai-ro-loading" style="display:none;text-align:center;padding:12px">
+      <div class="spinner-border spinner-border-sm" style="color:#7c3aed"></div>
+      <span style="color:#94a3b8;font-size:12px;margin-left:8px">Generez / Generazione...</span>
+    </div>
   </div>
+</div>
 </div>
 
 
@@ -1171,5 +1193,68 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('input', aggiornaBPRO);
   });
 });
+// ── Analisi AI Romania ────────────────────────────────────────────────────────
+function generaAI_RO() {
+  var btn    = document.getElementById('btn-genera-ai-ro') ||
+               document.querySelector('[onclick="generaAI_RO()"]');
+  var txtEl  = document.getElementById('ai-ro-text');
+  var loadEl = document.getElementById('ai-ro-loading');
+  if(loadEl) loadEl.style.display = 'block';
+  if(txtEl)  txtEl.style.display  = 'none';
+  if(btn)    btn.disabled = true;
+
+  // Raccoglie dati dalla pagina
+  var payload = {
+    lingua:           LINGUA,
+    cambio_ron:       _cambioLive || CAMBIO,
+    indirizzo:        (document.getElementById('f_indirizzo')||{value:''}).value,
+    citta:            (document.getElementById('f_citta')||{value:''}).value,
+    mq:               (document.getElementById('f_mq')||{value:60}).value,
+    pop_3min:         (document.getElementById('f_pop3')||{value:0}).value,
+    pop_5min:         (document.getElementById('f_pop5')||{value:0}).value,
+    pop_10min:        (document.getElementById('f_pop10')||{value:0}).value,
+    densita:          (document.getElementById('f_densita')||{value:500}).value,
+    reddito_medio:    (document.getElementById('f_reddito')||{value:30000}).value,
+    score_zona:       (document.getElementById('f_score')||{value:0}).value,
+    concorrenti_500m: (document.getElementById('f_c500')||{value:0}).value,
+    concorrenti_1km:  (document.getElementById('f_c1k')||{value:0}).value,
+    recensioni_zona:  (document.getElementById('f_rec')||{value:0}).value,
+    gdo_500m:         (document.getElementById('f_gdo')||{value:0}).value,
+    incasso_mese_ron: parseInt((document.getElementById('bp-incasso-ron')||
+                       {textContent:'0'}).textContent.replace(/[^0-9]/g,''))||0,
+    costi_mese_ron:   parseInt((document.getElementById('bp-costi-ron')||
+                       {textContent:'0'}).textContent.replace(/[^0-9]/g,''))||0,
+    capex_ron:        (document.getElementById('f_capex_ron')||{value:0}).value,
+    attractor_points: [],
+    competitors_detail: [],
+  };
+
+  fetch('/ro/api/analisi-ai-ro', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if(loadEl) loadEl.style.display = 'none';
+    if(txtEl) {
+      txtEl.style.display = 'block';
+      if(d.errore) {
+        txtEl.textContent = 'Errore: ' + d.errore;
+        txtEl.style.color = '#ef4444';
+      } else {
+        txtEl.textContent = d.analisi || '';
+        txtEl.style.color = '#e2e8f0';
+      }
+    }
+    if(btn) btn.disabled = false;
+  })
+  .catch(function(e) {
+    if(loadEl) loadEl.style.display = 'none';
+    if(txtEl) { txtEl.style.display='block'; txtEl.textContent='Errore: '+e.message; txtEl.style.color='#ef4444'; }
+    if(btn) btn.disabled = false;
+  });
+}
+
 </script>
 {% endblock %}
