@@ -18,7 +18,7 @@ DATI = {
     'company_piva':  'P.IVA 09975740151',
     'company_email': 'info@rotondigroup.it',
     'company_web':   'www.biolavatu.it',
-    'company_tel':   '+39 06 41400514 / +39 06 41400617',
+    'company_tel':   '+39 06 41400514',,
 }
 
 with app.app_context():
@@ -32,6 +32,9 @@ with app.app_context():
         setattr(s, campo, valore)
         print(f"  ✅ {campo} = {valore}")
 
+    # Secondo numero in company_tel2 se esiste, altrimenti nella nota
+    if hasattr(s, 'company_tel2'):
+        s.company_tel2 = '+39 06 41400617'
     db.session.commit()
     print("\n[update_settings] Dati aziendali aggiornati nel DB.")
     print(f"  brand_name   = {s.brand_name}")
