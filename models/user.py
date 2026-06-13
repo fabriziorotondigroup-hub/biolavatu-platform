@@ -14,7 +14,9 @@ class User(db.Model, UserMixin):
     nome = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default='sales')  # admin | sales
+    role   = db.Column(db.String(20), default='sales')  # owner|admin|sales|sales_ro
+    market = db.Column(db.String(5),  default='IT')     # IT | RO
+    lingua = db.Column(db.String(5),  default='it')     # it | ro  # admin | sales
     attivo = db.Column(db.Boolean, default=True)
     created = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -23,6 +25,10 @@ class User(db.Model, UserMixin):
 
     def check_password(self, pw):
         return bcrypt.check_password_hash(self.password, pw)
+
+    @property
+    def is_ro(self):
+        return self.market == 'RO'
 
     @property
     def is_admin(self):
