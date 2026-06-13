@@ -1049,12 +1049,48 @@ function eseguiAnalisi(lat, lng) {
     var kpiEl = document.getElementById('kpi-zona-ro');
     if(kpiEl) kpiEl.style.display = 'block';
     
-    // Mappa Leaflet (usa il codice italiano se disponibile)
-    if(d.pois && typeof L !== 'undefined') {
-      var mapEl = document.getElementById('map');
-      if(mapEl && mapEl._leaflet_id) {
-        // Mappa già inizializzata — aggiorna
-        if(typeof aggiornaMarkers === 'function') aggiornaMarkers(d);
+    // Mappa Leaflet — rendering completo come wizard italiano
+    var _lat = parseFloat((document.getElementById('f_lat')||{value:0}).value) || 0;
+    var _lng = parseFloat((document.getElementById('f_lng')||{value:0}).value) || 0;
+    if(_lat && _lng && typeof L !== 'undefined') {
+      try {
+        if(!map) initMap();
+        map.eachLayer(function(l){ if(!l._url) map.removeLayer(l); });
+        map.setView([_lat, _lng], 15);
+        map.invalidateSize();
+        disegnaCerchi(_lat, _lng);
+        var compDet = d.competitors_detail || [];
+        compDet.forEach(function(c){
+          if(!c || !c.lat || !c.lng) return;
+          L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
+            color:c.cerchio_colore||'#ef4444',weight:2,
+            fillColor:c.cerchio_colore||'#ef4444',fillOpacity:0.18}).addTo(map)
+            .bindPopup('<b>'+c.nome+'</b><br>'+c.distanza_m+'m');
+        });
+        (d.pois||[]).forEach(function(p){
+          if(!p.lat||!p.lng) return;
+          var col = p.colore||'#3b82f6';
+          var ic = L.divIcon({className:'',
+            html:'<div style="background:'+col+';width:10px;height:10px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>',
+            iconSize:[10,10],iconAnchor:[5,5]});
+          L.marker([p.lat,p.lng],{icon:ic}).addTo(map)
+            .bindPopup('<b>'+(p.nome||p.tipo||'POI')+'</b>');
+        });
+        (d.attractor_points||[]).forEach(function(ap){
+          if(!ap.lat||!ap.lng) return;
+          var ic = L.divIcon({className:'',
+            html:'<div style="background:#7c3aed;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:9px">★</div>',
+            iconSize:[14,14],iconAnchor:[7,7]});
+          L.marker([ap.lat,ap.lng],{icon:ic}).addTo(map)
+            .bindPopup('<b>'+ap.nome+'</b><br><small>'+ap.tipo+'</small>');
+        });
+        // Marker sede
+        L.marker([_lat,_lng],{icon:L.divIcon({className:'',
+          html:'<div style="background:#1d4ed8;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>',
+          iconSize:[20,20],iconAnchor:[10,10]})}).addTo(map)
+          .bindPopup('<b>Sediu propus / Sede proposta</b>');
+      } catch(mapErr) {
+        console.warn('[RO] Errore mappa:', mapErr);
       }
     }
     
@@ -1378,5 +1414,38 @@ function generaAI_RO() {
   });
 }
 
+
+// ── Funzioni mappa Leaflet ──────────────────────────────
+let map = null;
+let mapEsplora
+
+function initMap() {
+  const lat = parseFloat(document.getElementById('f_lat').value) || 41.9;
+  const lng = parseFloat(document.getElementById('f_lng').value) || 12.5;
+  map = L.map('map').setView([lat, lng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+}
+
+// Disegna cerchi 3/5/10 min — chiamato subito al geocoding, indipendente dall'API
+function disegnaCerchi(lat, lng) {
+  if (!map || !lat || !lng) return;
+  if (window._cerchiLayer) {
+    window._cerchiLayer.forEach(function(c){ try{ map.removeLayer(c); }catch(e){} });
+  }
+  window._cerchiLayer = [
+    L.circle([lat,lng],{radius:240, color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.10}).addTo(map).bindPopup('<b>3 min a piedi</b><br>~240m · bacino primario'),
+    L.circle([lat,lng],{radius:400, color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.07}).addTo(map).bindPopup('<b>5 min a piedi</b><br>~400m · bacino secondario'),
+    L.circle([lat,lng],{radius:800, color:'#ec4899',weight:1.5,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('<b>10 min a piedi</b><br>~800m · bacino terziario'),
+    L.circle([lat,lng],{radius:1200,color:'#f59e0b',weight:1,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('<b>15 min</b><br>~1.2km · bacino esteso'),
+  ];
+  if (window._markerSede) { try{ map.removeLayer(window._markerSede); }catch(e){} }
+  window._markerSede = L.marker([lat,lng], {
+    icon: L.divIcon({className:'',
+      html:'<div style="background:#2563eb;color:white;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:16px">📍</div>',
+      iconSize:[32,32], iconAnchor:[16,16]})
+  }).addTo(map).bindPopup('<b>📍 Sede proposta</b>');
+}
 </script>
 {% endblock %}
