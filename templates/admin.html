@@ -100,12 +100,24 @@
   <div class="card">
     <div class="card-body p-0">
       <table class="table mb-0">
-        <thead><tr><th>Nome</th><th>Email</th><th>Stato</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Email</th><th>Mercato</th><th>Stato</th><th></th></tr></thead>
         <tbody>
           {% for v in venditori %}
           <tr>
             <td class="fw-semibold">{{ v.nome }}</td>
             <td class="text-muted">{{ v.email }}</td>
+            <td>
+              {% set mkt = v.market if v.market else 'IT' %}
+              <form method="POST" action="{{ url_for('admin.cambia_market', id=v.id) }}"
+                style="display:inline">
+                <select name="market" onchange="this.form.submit()"
+                  style="background:#1e293b;border:1px solid #334155;color:#e2e8f0;
+                  border-radius:6px;padding:3px 6px;font-size:12px;cursor:pointer">
+                  <option value="IT" {{ 'selected' if mkt=='IT' else '' }}>🇮🇹 Italia</option>
+                  <option value="RO" {{ 'selected' if mkt=='RO' else '' }}>🇷🇴 Romania</option>
+                </select>
+              </form>
+            </td>
             <td>
               {% if v.attivo %}<span class="badge bg-success bg-opacity-15 text-success">Attivo</span>
               {% else %}<span class="badge bg-secondary bg-opacity-15 text-muted">Disattivo</span>{% endif %}
