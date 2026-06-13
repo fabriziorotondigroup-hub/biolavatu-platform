@@ -306,3 +306,72 @@ def pratiche():
         cambio_ron=cambio,
         market='RO',
     )
+
+# ── SALVA PREVENTIVO ROMANIA ─────────────────────────────────────────────────
+
+@ro_bp.route('/preventivo/nuovo', methods=['POST'])
+@login_required
+def salva_nuovo():
+    if not _check_ro_access():
+        return redirect(url_for('dashboard.index'))
+
+    from models.cliente import Cliente
+    import datetime
+
+    data = request.form
+    cambio = float(data.get('cambio_ron') or _cambio_ron_live())
+
+    # Cliente
+    cliente = Cliente(
+        nome      = data.get('cliente_nome','').strip(),
+        azienda   = data.get('cliente_azienda',''),
+        email     = data.get('cliente_email',''),
+        telefono  = data.get('cliente_tel',''),
+        piva      = data.get('cliente_piva',''),
+    )
+    db.session.add(cliente)
+    db.session.flush()
+
+    # Numero pratica Romania
+    count = Pratica.query.filter_by(market='RO').count() + 1
+    numero = f"RO-{datetime.date.today().year}-{count:04d}"
+
+    p = Pratica(
+        numero           = numero,
+        cliente_id       = cliente.id,
+        agente_id        = current_user.id,
+        market           = 'RO',
+        valuta           = 'RON',
+        cambio_ron       = cambio,
+        judet_cod        = data.get('judet_cod',''),
+        indirizzo        = data.get('indirizzo',''),
+        citta            = data.get('citta',''),
+        cap              = data.get('cap',''),
+        provincia        = data.get('provincia',''),
+        mq               = int(data.get('mq') or 60),
+        affitto_mese     = float(data.get('affitto_ron') or 0),
+        tipo_zona        = data.get('tipo_zona','residenziale'),
+        lat              = float(data.get('lat') or 0) or None,
+        lng              = float(data.get('lng') or 0) or None,
+        pop_3min         = int(data.get('pop_3min') or 0),
+        pop_5min         = int(data.get('pop_5min') or 0),
+        pop_10min        = int(data.get('pop_10min') or 0),
+        score_zona       = float(data.get('score_zona') or 0),
+        concorrenti_500m = int(data.get('concorrenti_500m') or 0),
+        concorrenti_1km  = int(data.get('concorrenti_1km') or 0),
+        densita          = float(data.get('densita') or 0),
+        reddito_medio    = float(data.get('reddito_medio') or 0),
+        tariffa_lavaggio_std = float(data.get('tariffa_lavaggio_std') or 20),
+        tariffa_lavaggio_med = float(data.get('tariffa_lavaggio_med') or 25),
+        tariffa_lavaggio_grd = float(data.get('tariffa_lavaggio_grd') or 35),
+        tariffa_asciugatura  = float(data.get('tariffa_asciugatura') or 5),
+        capex            = float(data.get('capex') or 0),
+        incasso_mese     = float(data.get('incasso_mese') or 0),
+        costi_mese       = float(data.get('costi_mese') or 0),
+        utile_mese       = float(data.get('utile_mese') or 0),
+        modalita_analisi = data.get('modalita_analisi','rapida'),
+    )
+    db.session.add(p)
+    db.session.commit()
+
+    return redirect(url_for('romania.modifica_preventivo', id=p.id))
