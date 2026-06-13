@@ -751,13 +751,16 @@ def zona_analisi():
         # ── DATI DEMOGRAFICI — auto-detect IT / RO ───────────────────────────────
         _indirizzo_raw = request.args.get('indirizzo', '').lower()
         _market_param  = request.args.get('market', '').upper()
+        # IMPORTANTE: il codice provincia da solo NON basta per distinguere IT/RO
+        # (IS=Isernia/Iași, CT=Catania/Constanța, AG=Agrigento/Argeș, SV=Savona/Suceava)
+        # Usiamo SOLO market=RO o 'romania' nell'indirizzo come segnali affidabili
         _is_romania = (
             _market_param == 'RO' or
             'romania' in _indirizzo_raw or
-            ', ro' in _indirizzo_raw or
-            (provincia and any(provincia.upper() == c for c in
-                ['B','CJ','TM','IS','CT','BV','PH','IF','AG','BC',
-                 'BH','SB','DJ','GL','MM','NT','SV','VS']))
+            'românia' in _indirizzo_raw or
+            ', ro,' in _indirizzo_raw or
+            _indirizzo_raw.endswith(', ro') or
+            _indirizzo_raw.endswith(', romania')
         )
         _paese = 'RO' if _is_romania else 'IT'  # default sicuro
 
