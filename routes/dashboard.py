@@ -14,14 +14,26 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def index():
     if current_user.is_admin:
         pratiche = Pratica.query.order_by(Pratica.created.desc()).limit(10).all()
-        tot_pratiche = Pratica.query.count()
+        tot_pratiche = Pratica.query.filter_by(market='IT').count()
+        tot_pratiche_ro = Pratica.query.filter_by(market='RO').count()
         tot_clienti = Cliente.query.count()
+        # Cambio RON per dashboard
+        try:
+            import urllib.request as _ur, json as _json
+            with _ur.urlopen('https://api.frankfurter.app/latest?from=EUR&to=RON', timeout=2) as r:
+                cambio_ron = float(_json.loads(r.read())['rates']['RON'])
+        except Exception:
+            cambio_ron = 4.97
         tot_venditori = User.query.filter_by(role='sales', attivo=True).count()
         pratiche_aperte = Pratica.query.filter(
             Pratica.stato.in_(['bozza', 'inviato', 'trattativa'])
         ).all()
         valore_pipeline = sum(
             p.capex * (p.fattibilita / 100.0) for p in pratiche_aperte
+        )
+        valore_pipeline_ro = sum(
+            p.incasso_mese or 0
+            for p in Pratica.query.filter_by(market='RO').all()
         )
         firmate = Pratica.query.filter_by(stato='firmato').count()
     else:
@@ -41,6 +53,9 @@ def index():
     return render_template('dashboard.html',
         pratiche=pratiche,
         tot_pratiche=tot_pratiche,
+        tot_pratiche_ro=tot_pratiche_ro,
+        valore_pipeline_ro=locals().get('valore_pipeline_ro',0),
+        cambio_ron=locals().get('cambio_ron',4.97),
         tot_clienti=tot_clienti,
         tot_venditori=tot_venditori,
         valore_pipeline=valore_pipeline,
