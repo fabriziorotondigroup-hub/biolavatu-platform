@@ -4,6 +4,8 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root { --bg1:#0a0e1a; --bg2:#111827; --bg3:#1e293b; --text:#e2e8f0;
   --border:#1e2d45; --primary:#2563eb; --primary-light:#3b82f6; }
@@ -302,98 +304,358 @@
       </div>
     </div>
 
-    <!-- ══ STEP 3: ANALIZA ZONA ══ -->
-    <div class="wizard-panel" id="panel-3">
-      <!-- KPI zona -->
-      <div id="kpi-zona-ro" style="display:none;margin-bottom:16px">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
-          <div class="kpi-box">
-            <div class="kpi-val" id="ro-pop-5min">—</div>
-            <div class="kpi-label">{{ 'Pop. 5 min pe jos' if lingua=='ro' else 'Pop. 5 min a piedi' }}</div>
-          </div>
-          <div class="kpi-box">
-            <div class="kpi-val" id="ro-concorr">—</div>
-            <div class="kpi-label">{{ 'Concurenți 500m' if lingua=='ro' else 'Concorrenti 500m' }}</div>
-          </div>
-          <div class="kpi-box">
-            <div class="kpi-val" id="ro-score" style="color:#10b981">—</div>
-            <div class="kpi-label">Score {{ 'zonă' if lingua=='ro' else 'zona' }}</div>
-          </div>
-          <div class="kpi-box">
-            <div class="kpi-val" id="ro-reddito" style="color:#f59e0b">—</div>
-            <div class="kpi-label">{{ 'Salariu mediu net' if lingua=='ro' else 'Salario medio netto' }}</div>
-          </div>
-        </div>
-      </div>
+<!-- ═══ STEP 3: ZONA ROMANIA ═══ -->
+<div class="wizard-panel" id="panel-3">
+  <!-- Loading overlay -->
+  <div id="loading-zona" style="display:none;text-align:center;padding:40px;background:rgba(10,14,26,.9);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;border-radius:16px;border:1px solid #1e2d45;min-width:280px">
+    <div class="spinner-border mb-3" style="color:#3b82f6;width:48px;height:48px"></div>
+    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#e2e8f0">Analisi zona in corso...</div>
+    <div style="font-size:13px;color:#64748b;margin-top:6px">Rilevamento POI, concorrenti e dati demografici</div>
+  </div>
 
-      <!-- Dati demografici INS -->
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-bar-chart me-2" style="color:#7c3aed"></i>
-          {{ 'Date demografice INS Romania 2021' if lingua=='ro' else 'Dati demografici INS Romania 2021' }}
-        </div>
-        <div class="card-body" id="ins-data-box">
-          <div style="color:#64748b;font-size:13px;text-align:center;padding:20px">
-            {{ 'Apasă pe "Analizează zona" în pasul anterior pentru a încărca datele.' if lingua=='ro'
-               else 'Clicca "Analizza zona" nello step precedente per caricare i dati.' }}
+  <!-- Legenda categorie mappa -->
+  <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding:0 0 6px;scrollbar-width:none;margin-bottom:4px">
+    <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🔴 Concorrenti</span>
+    <span style="white-space:nowrap;color:#10b981;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(16,185,129,.15);flex-shrink:0">🟢 Supermercati</span>
+    <span style="white-space:nowrap;color:#f59e0b;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(245,158,11,.15);flex-shrink:0">🟠 Bar/Ristoranti</span>
+    <span style="white-space:nowrap;color:#60a5fa;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(59,130,246,.15);flex-shrink:0">🔵 Trasporti</span>
+    <span style="white-space:nowrap;color:#a78bfa;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(167,139,250,.15);flex-shrink:0">🎓 Università</span>
+    <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🏥 Ospedali</span>
+    <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🪖 Caserme</span>
+    <span style="white-space:nowrap;color:#7c3aed;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(124,58,237,.15);flex-shrink:0">🏠 Case cura</span>
+    <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🛏️ Turismo</span>
+  </div>
+
+  <!-- Mappa -->
+  <div class="row g-2">
+    <div class="col-12">
+      <div id="map" style="height:480px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
+    </div>
+
+    <!-- KPI zona -->
+    <div class="col-12">
+      <div class="row g-3">
+        <!-- Popolazione -->
+        <div class="col-md-4">
+          <div class="card h-100" style="border-color:#2563eb;background:rgba(37,99,235,.05)">
+            <div class="card-body">
+              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-people me-1"></i>Popolazione raggiungibile</div>
+              <div class="row g-2 text-center">
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#60a5fa" id="d_pop3">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 3 min</div>
+                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Abitanti nel raggio di ~240m — clienti molto vicini, alta frequenza">~240m · nucleo</div>
+                </div>
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#818cf8" id="d_pop5">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 5 min</div>
+                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Raggio ~400m — bacino PRIMARIO, peso 60% nel modello">~400m · primario</div>
+                </div>
+                <div class="col-4">
+                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#c084fc" id="d_pop10">—</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 10 min</div>
+                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Raggio ~800m — bacino secondario, peso 25% nel modello">~800m · secondario</div>
+                </div>
+              </div>
+              <div class="mt-2 p-2 rounded" style="background:#0a0e1a;font-size:10px;color:#64748b">
+                <span style="color:#818cf8">Bacino effettivo:</span>
+                <span id="d_bacino_pesato" style="color:#e2e8f0;font-weight:600">—</span> ab.
+                <span style="color:#475569"> (pop5×60% + pop10-5×25%)</span>
+              </div>
+              <div class="mt-2 pt-2" style="border-top:1px solid #1e2d45">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span style="font-size:11px;color:#64748b">📍 Raggio 1 km</span>
+                    <div style="font-size:9px;color:#475569">zona di influenza allargata</div>
+                  </div>
+                  <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f472b6" id="d_pop1km">—</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Concorrenza -->
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-search me-2" style="color:#ef4444"></i>
-          {{ 'Concurență în zonă' if lingua=='ro' else 'Concorrenza in zona' }}
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Concurenți 500m' if lingua=='ro' else 'Concorrenti 500m' }}</label>
-              <input type="number" name="concorrenti_500m" id="f_c500" class="form-control"
-                min="0" value="{{ pratica.concorrenti_500m if pratica else 0 }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Concurenți 1km' if lingua=='ro' else 'Concorrenti 1km' }}</label>
-              <input type="number" name="concorrenti_1km" id="f_c1k" class="form-control"
-                min="0" value="{{ pratica.concorrenti_1km if pratica else 0 }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Densitate (loc/km²)' if lingua=='ro' else 'Densità (ab/km²)' }}</label>
-              <input type="number" name="densita" id="f_densita" class="form-control"
-                value="{{ pratica.densita if pratica else 500 }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Salariu mediu net (RON/an)' if lingua=='ro' else 'Reddito medio (RON/anno)' }}</label>
-              <input type="number" name="reddito_medio" id="f_reddito" class="form-control"
-                value="{{ pratica.reddito_medio if pratica else 30000 }}">
+        <!-- Score + traffico -->
+        <div class="col-md-4">
+          <div class="card h-100" id="score-card" style="border-color:#1e2d45">
+            <div class="card-body">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-star me-1"></i>Valutazione zona</div>
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;line-height:1" id="d_score">—</div>
+                  <div style="font-size:9px;color:#475569;margin-top:2px">su 100 punti</div>
+                </div>
+                <div>
+                  <div id="d_label" style="font-size:16px;font-weight:700;color:#e2e8f0">—</div>
+                  <div style="height:8px;background:#0a0e1a;border-radius:4px;overflow:hidden;width:130px;margin-top:6px">
+                    <div id="score-fill" style="height:100%;width:0%;border-radius:4px;transition:width .8s ease"></div>
+                  </div>
+                  <div style="font-size:9px;color:#475569;margin-top:3px">densità+età+reddito+traffico+GDO+concorrenza</div>
+                </div>
+              </div>
+              <div class="p-2 rounded" style="background:#0a0e1a">
+                <div style="font-size:11px;color:#64748b;margin-bottom:3px">Traffico pedonale reale</div>
+                <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700" id="d_traffico">—</div>
+                <div style="font-size:9px;color:#475569;margin-top:2px" id="d_traffico_nota">rec. Google locali entro 400m → proxy passaggio reale (metodo Lidl/Eurospin)</div>
+              </div>
+              <div class="mt-2 p-2 rounded" style="background:#0a0e1a">
+                <div style="font-size:11px;color:#64748b;margin-bottom:2px">GDO vicine</div>
+                <div style="font-size:13px;font-weight:600" id="d_gdo">—</div>
+                <div style="font-size:9px;color:#475569;margin-top:1px">se Lidl/Eurospin sono lì, la zona è già validata da esperti</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Campi nascosti geo -->
-      <input type="hidden" name="lat" id="f_lat" value="{{ pratica.lat if pratica else '' }}">
-      <input type="hidden" name="lng" id="f_lng" value="{{ pratica.lng if pratica else '' }}">
-      <input type="hidden" name="pop_3min" id="f_pop3" value="{{ pratica.pop_3min if pratica else 0 }}">
-      <input type="hidden" name="pop_5min" id="f_pop5" value="{{ pratica.pop_5min if pratica else 0 }}">
-      <input type="hidden" name="pop_10min" id="f_pop10" value="{{ pratica.pop_10min if pratica else 0 }}">
-      <input type="hidden" name="score_zona" id="f_score" value="{{ pratica.score_zona if pratica else 0 }}">
-      <input type="hidden" name="mult_attractor" id="f_mult" value="1.0">
-      <input type="hidden" name="recensioni_zona" id="f_rec" value="0">
-      <input type="hidden" name="gdo_500m" id="f_gdo" value="0">
-      <input type="hidden" name="judet_cod" id="f_judet" value="{{ pratica.judet_cod if pratica else '' }}">
-      <input type="hidden" name="pop_comune" id="f_pop_comune" value="0">
-
-      <div class="d-flex justify-content-between mt-3">
-        <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">
-          <i class="bi bi-arrow-left me-1"></i>{{ 'Înapoi' if lingua=='ro' else 'Indietro' }}
-        </button>
-        <button type="button" class="btn btn-primary" onclick="goStep(4)">
-          {{ 'Înainte' if lingua=='ro' else 'Avanti' }} <i class="bi bi-arrow-right ms-1"></i>
-        </button>
+        <!-- Concorrenza + servizi -->
+        <div class="col-md-4">
+          <div class="card h-100" style="border-color:#1e2d45">
+            <div class="card-body">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-shop me-1"></i>Analisi concorrenza</div>
+              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span style="font-size:12px;color:#ef4444">🪙 Self-service 500m</span>
+                    <div style="font-size:9px;color:#475569">competitor diretto — stessi clienti</div>
+                  </div>
+                  <span id="d_conc500" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#ef4444">—</span>
+                </div>
+              </div>
+              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span style="font-size:12px;color:#f59e0b">🏪 Tutte le lavanderie 1km</span>
+                    <div style="font-size:9px;color:#475569">incl. tintorie e lavasecco</div>
+                  </div>
+                  <span id="d_conc1km" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">—</span>
+                </div>
+              </div>
+              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span style="font-size:12px;color:#10b981">🟢 Attività commerciali 400m</span>
+                    <div style="font-size:9px;color:#475569">bar, ristoranti, negozi, farmacie</div>
+                  </div>
+                  <span id="d_serv" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#10b981">—</span>
+                </div>
+              </div>
+              <div id="d_conc_tipo" style="font-size:11px;padding:6px 8px;background:#0a0e1a;border-radius:6px;line-height:1.8"></div>
+              <div id="d_quota_mercato" class="mt-2 p-2 rounded" style="background:#0a0e1a;font-size:11px;display:none">
+                <span style="color:#64748b">Quota mercato stimata: </span>
+                <span id="d_quota_val" style="color:#e2e8f0;font-weight:700"></span>
+                <div id="d_quota_nota" style="font-size:9px;color:#475569;margin-top:2px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Contatori categorie -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-grid me-2 text-muted"></i>Distribuzione attività nella zona</div>
+        <div class="card-body">
+          <div class="row g-3 text-center" id="contatori-grid">
+            <div class="col text-center">
+              <div style="font-size:28px">🟢</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#10b981" id="cnt_super">—</div>
+              <div style="font-size:11px;color:#64748b">Supermercati</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🟠</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b" id="cnt_risto">—</div>
+              <div style="font-size:11px;color:#64748b">Ristoranti</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">☕</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#fb923c" id="cnt_bar">—</div>
+              <div style="font-size:11px;color:#64748b">Bar/Caffè</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">💊</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#34d399" id="cnt_farm">—</div>
+              <div style="font-size:11px;color:#64748b">Farmacie</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🚌</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#60a5fa" id="cnt_trasp">—</div>
+              <div style="font-size:11px;color:#64748b">Trasporti</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🎓</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#a78bfa" id="cnt_istr">—</div>
+              <div style="font-size:11px;color:#64748b">Istruzione</div>
+            </div>
+            <div class="col text-center">
+              <div style="font-size:28px">🔴</div>
+              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#ef4444" id="cnt_comp">—</div>
+              <div style="font-size:11px;color:#64748b">Concorrenti</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATI DEMOGRAFICI ISTAT + STRANIERI -->
+    <div class="col-12" id="demo-block" style="display:none">
+      <div class="card" style="border-color:#0891b2;background:rgba(8,145,178,.04)">
+        <div class="card-header" style="border-color:#0891b2">
+          <i class="bi bi-graph-up me-2" style="color:#22d3ee"></i>
+          <span style="color:#22d3ee">Dati demografici zona (ISTAT)</span>
+          <span id="demo-fonte" style="font-size:11px;color:#64748b;margin-left:8px"></span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 align-items-start">
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">👴</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#22d3ee" id="demo_eta">—</div>
+              <div style="font-size:11px;color:#64748b">Età media anni</div>
+            </div>
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">💰</div>
+              <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#34d399" id="demo_reddito">—</div>
+              <div style="font-size:11px;color:#64748b">Reddito medio/anno</div>
+            </div>
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">🏘️</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#a78bfa" id="demo_densita">—</div>
+              <div style="font-size:11px;color:#64748b">Ab/km²</div>
+            </div>
+
+            <div class="col-6 col-md-2 text-center">
+              <div style="font-size:24px">📊</div>
+              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800" id="demo_market_score">—</div>
+              <div style="font-size:11px;color:#64748b" id="demo_market_label">Potenziale mercato</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">Valutazione</div>
+              <div id="demo_notes" style="font-size:13px;line-height:2.2;font-weight:500"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGNALI REALI DI TRAFFICO -->
+    <div class="col-12" id="segnali-block" style="display:none">
+      <div class="card" style="border-color:#6366f1;background:rgba(99,102,241,.04)">
+        <div class="card-header" style="border-color:#6366f1">
+          <i class="bi bi-broadcast me-2" style="color:#818cf8"></i>
+          <span style="color:#818cf8">Segnali reali di traffico</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">Da Google Maps — stessi dati usati da Lidl, Eurospin, Decathlon per le aperture</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-3 text-center">
+              <div style="font-size:24px">⭐</div>
+              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#818cf8;line-height:1" id="sr_recensioni">—</div>
+              <div style="font-size:11px;color:#64748b">Recensioni Google nella zona</div>
+              <div id="sr_rec_badge" style="font-size:11px;margin-top:3px"></div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:24px">🛒</div>
+              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#34d399;line-height:1" id="sr_gdo_num">—</div>
+              <div style="font-size:11px;color:#64748b">Catene GDO entro 500m</div>
+              <div id="sr_gdo_badge" style="font-size:11px;margin-top:3px"></div>
+            </div>
+            <div class="col-md-6">
+              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">GDO rilevate</div>
+              <div id="sr_gdo_lista" style="font-size:12px;color:#94a3b8">—</div>
+              <div style="font-size:11px;color:#475569;margin-top:8px;line-height:1.5">
+                💡 Se una catena ha già aperto qui, il loro ufficio sviluppo ha già analizzato flussi, reddito e potenziale della zona.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STIMA CLIENTI POTENZIALI -->
+    <div class="col-12" id="stima-block" style="display:none">
+      <div class="card" style="border-color:#f59e0b;background:rgba(245,158,11,.04)">
+        <div class="card-header" style="border-color:#f59e0b">
+          <i class="bi bi-people me-2" style="color:#fbbf24"></i>
+          <span style="color:#fbbf24">Stima clienti potenziali</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">Modello pesato • Popolazione + Densità + Traffico reale (Google) + Validazione GDO + Concorrenza</span>
+        </div>
+        <div class="card-body">
+          <!-- Numero grande -->
+          <div class="row g-3 align-items-center mb-3">
+            <div class="col-md-3 text-center">
+              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Stima realistica</div>
+              <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:900;color:#fbbf24;line-height:1" id="stima_clienti_num">—</div>
+              <div style="font-size:13px;color:#64748b">clienti / giorno</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Pessimistico</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#ef4444" id="stima_pess">—</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Ottimistico</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#10b981" id="stima_ott">—</div>
+            </div>
+            <div class="col-md-3 text-center">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Visite/mese</div>
+              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#a78bfa" id="stima_mese">—</div>
+            </div>
+          </div>
+          <!-- Formula calcolo -->
+          <div id="stima_formula" style="display:none;font-size:10px;color:#475569;font-family:monospace;background:#0a0e1a;padding:8px 10px;border-radius:6px;margin-bottom:10px;word-break:break-all;border-left:3px solid #fbbf24"></div>
+          <!-- Fattori del modello -->
+          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+            Fattori del modello
+            <span style="font-size:9px;color:#475569;text-transform:none;letter-spacing:0;margin-left:6px">— passa il mouse su ogni fattore per leggere la spiegazione</span>
+          </div>
+          <div class="row g-2" id="stima_fattori"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEATMAP CONCORRENTI -->
+    <div class="col-12" id="competitors-block" style="display:none">
+      <div class="card" style="border-color:#dc2626;background:rgba(220,38,38,.03)">
+        <div class="card-header" style="border-color:#dc2626">
+          <i class="bi bi-geo-alt me-2" style="color:#f87171"></i>
+          <span style="color:#f87171">Mappa saturazione concorrenti</span>
+          <span style="font-size:11px;color:#64748b;margin-left:8px">
+            🟢 Zona libera &nbsp;|&nbsp; 🟠 Attenzione &nbsp;|&nbsp; 🔴 Zona satura
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <div id="competitors-list" style="font-size:13px;padding:12px;color:#94a3b8">
+            Nessun concorrente rilevato nel raggio di 1.5km.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POI List dettagliata -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-pin-map me-2 text-muted"></i>Punti di interesse vicini</div>
+        <div class="card-body p-0">
+          <div id="poi-list" class="p-3 text-muted" style="font-size:13px">L'analisi mostrerà qui i punti di interesse...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Navigazione sticky in fondo -->
+  <div style="position:sticky;bottom:0;z-index:50;background:var(--bg1);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:12px">
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">
+        <i class="bi bi-arrow-left me-1"></i> Indietro
+      </button>
+      <button type="button" class="btn btn-primary" onclick="goStep3Next()">
+        Avanti <i class="bi bi-arrow-right ms-1"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+
 
     <!-- ══ STEP 4: UTILAJE / MACCHINE ══ -->
     <div class="wizard-panel" id="panel-4">
@@ -637,6 +899,28 @@
 const LINGUA = '{{ lingua }}';
 const CAMBIO = {{ cambio_ron }};
 let _cambioLive = CAMBIO;
+
+// ── Override per Romania: aggiunge market=RO alla chiamata zona-analisi ──────
+const _originalFetch = window.fetch;
+// Intercetta chiamate a zona-analisi e aggiunge market=RO
+const _roFetchProxy = function(url, opts) {
+  if(typeof url === 'string' && url.includes('/api/zona-analisi') && !url.includes('market=')) {
+    url = url + '&market=RO';
+  }
+  return _originalFetch.apply(this, [url, opts]);
+};
+window.fetch = _roFetchProxy;
+
+// Carica Leaflet se non già caricato
+if(typeof L === 'undefined') {
+  var _leafletCss = document.createElement('link');
+  _leafletCss.rel = 'stylesheet';
+  _leafletCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(_leafletCss);
+  var _leafletJs = document.createElement('script');
+  _leafletJs.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  document.head.appendChild(_leafletJs);
+}
 
 // ── Wizard navigation ─────────────────────────────────────────────────────
 function goStep(n) {
