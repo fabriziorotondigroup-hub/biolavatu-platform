@@ -138,11 +138,18 @@
               <label class="form-label">{{ 'Județ client' if lingua=='ro' else 'Județ cliente' }}</label>
               <select name="cliente_judet" class="form-select">
                 <option value="">— {{ 'Selectează' if lingua=='ro' else 'Seleziona' }} —</option>
-                {% for cod, d in [('B','București'),('CJ','Cluj'),('TM','Timiș'),('IS','Iași'),
-                  ('CT','Constanța'),('BV','Brașov'),('PH','Prahova'),('IF','Ilfov'),
-                  ('AG','Argeș'),('BC','Bacău'),('BH','Bihor'),('SB','Sibiu')] %}
-                <option value="{{ cod }}">{{ d }}</option>
-                {% endfor %}
+                <option value="B">București</option>
+                <option value="CJ">Cluj</option>
+                <option value="TM">Timiș</option>
+                <option value="IS">Iași</option>
+                <option value="CT">Constanța</option>
+                <option value="BV">Brașov</option>
+                <option value="PH">Prahova</option>
+                <option value="IF">Ilfov</option>
+                <option value="AG">Argeș</option>
+                <option value="BC">Bacău</option>
+                <option value="BH">Bihor</option>
+                <option value="SB">Sibiu</option>
               </select>
             </div>
           </div>
@@ -722,19 +729,22 @@
 
           <!-- Macchine -->
           <div class="row g-2">
-            {% set tipi = [
-              ('std', 'Mașini spălat 8kg' if lingua=='ro' else 'Lavatrici 8kg', 'n_std'),
-              ('med', 'Mașini spălat 13kg' if lingua=='ro' else 'Lavatrici 13kg', 'n_med'),
-              ('grd', 'Mașini spălat 23kg' if lingua=='ro' else 'Lavatrici 23kg', 'n_grd'),
-              ('asc', 'Uscătoare' if lingua=='ro' else 'Asciugatrici', 'n_asc'),
-            ] %}
-            {% for tid, label, fname in tipi %}
             <div class="col-md-3">
-              <label class="form-label">{{ label }}</label>
-              <input type="number" name="{{ fname }}" id="f_{{ fname }}" class="form-control"
-                min="0" value="0" oninput="aggiornaBPRO()">
+              <label class="form-label">{{ 'Mașini spălat 8kg' if lingua=='ro' else 'Lavatrici 8kg' }}</label>
+              <input type="number" name="n_std" id="f_n_std" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
             </div>
-            {% endfor %}
+            <div class="col-md-3">
+              <label class="form-label">{{ 'Mașini spălat 13kg' if lingua=='ro' else 'Lavatrici 13kg' }}</label>
+              <input type="number" name="n_med" id="f_n_med" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'Mașini spălat 23kg' if lingua=='ro' else 'Lavatrici 23kg' }}</label>
+              <input type="number" name="n_grd" id="f_n_grd" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">{{ 'Uscătoare' if lingua=='ro' else 'Asciugatrici' }}</label>
+              <input type="number" name="n_asc" id="f_n_asc" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
+            </div>
           </div>
 
           <!-- CAPEX in RON -->
@@ -857,16 +867,21 @@
               {{ '3 scenarii de afaceri' if lingua=='ro' else '3 scenari di business' }}
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-              {% for sc, col in [('pessimistico','#ef4444'),('realistico','#10b981'),('ottimistico','#3b82f6')] %}
-              <div style="background:#0f172a;border:1px solid {{ col }}22;border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:10px;color:{{ col }};font-weight:700;letter-spacing:0.8px;margin-bottom:6px">
-                  {{ {'pessimistico':'PESIMIST','realistico':'REALIST','ottimistico':'OPTIMIST'}[sc] if lingua=='ro'
-                     else sc.upper() }}
-                </div>
-                <div id="sc-{{ sc }}-ron" style="font-size:14px;font-weight:700;color:{{ col }}">— RON</div>
-                <div id="sc-{{ sc }}-eur" style="font-size:11px;color:#64748b">—</div>
+              <div style="background:#0f172a;border:1px solid #ef444422;border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:#ef4444;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">PESIMIST / PESSIMISTICO</div>
+                <div id="sc-pessimistico-ron" style="font-size:14px;font-weight:700;color:#ef4444">— RON</div>
+                <div id="sc-pessimistico-eur" style="font-size:11px;color:#64748b">—</div>
               </div>
-              {% endfor %}
+              <div style="background:#0f172a;border:1px solid #10b98122;border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:#10b981;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">REALIST / REALISTICO</div>
+                <div id="sc-realistico-ron" style="font-size:14px;font-weight:700;color:#10b981">— RON</div>
+                <div id="sc-realistico-eur" style="font-size:11px;color:#64748b">—</div>
+              </div>
+              <div style="background:#0f172a;border:1px solid #3b82f622;border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:#3b82f6;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">OPTIMIST / OTTIMISTICO</div>
+                <div id="sc-ottimistico-ron" style="font-size:14px;font-weight:700;color:#3b82f6">— RON</div>
+                <div id="sc-ottimistico-eur" style="font-size:11px;color:#64748b">—</div>
+              </div>
             </div>
           </div>
 
