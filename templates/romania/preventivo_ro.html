@@ -959,6 +959,90 @@ if(typeof L === 'undefined') {
   document.head.appendChild(_leafletJs);
 }
 
+// ── Override eseguiAnalisi per Romania ──────────────────────────────────────
+// Sostituisce la funzione italiana per gestire elementi id diversi nel wizard RO
+var _origEseguiAnalisi = null;
+document.addEventListener('DOMContentLoaded', function() {
+  // Salva riferimento alla funzione originale se esiste
+  if(typeof eseguiAnalisi !== 'undefined') {
+    _origEseguiAnalisi = eseguiAnalisi;
+  }
+});
+
+// Override: quando siamo nel wizard Romania, usa questa versione
+function eseguiAnalisi(lat, lng) {
+  var _isRO = window.location.pathname.indexOf('/ro/') === 0;
+  
+  if(!_isRO && _origEseguiAnalisi) {
+    return _origEseguiAnalisi(lat, lng);
+  }
+  
+  // Versione Romania: chiama zona-analisi con market=RO
+  var citta    = (document.getElementById('f_citta')||{value:''}).value || '';
+  var judet    = (document.getElementById('f_provincia')||{value:''}).value || '';
+  var indrz    = (document.getElementById('f_indirizzo')||{value:''}).value || '';
+  var loadEl   = document.getElementById('loading-zona');
+  if(loadEl) loadEl.style.display = 'block';
+  
+  fetch('/api/zona-analisi'
+    +'?lat='+lat+'&lng='+lng
+    +'&citta='+encodeURIComponent(citta)
+    +'&provincia='+encodeURIComponent(judet)
+    +'&indirizzo='+encodeURIComponent(indrz+', '+citta+', Romania')
+    +'&market=RO')
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if(loadEl) loadEl.style.display = 'none';
+    
+    // Setta campi hidden
+    function sv(id, v) { var e=document.getElementById(id); if(e) e.value=v; }
+    sv('f_pop3',  d.pop_3min  || 0);
+    sv('f_pop5',  d.pop_5min  || 0);
+    sv('f_pop10', d.pop_10min || 0);
+    sv('f_score', d.score     || 0);
+    sv('f_c500',  d.concorrenti_500m || 0);
+    sv('f_c1k',   d.concorrenti_1km  || 0);
+    sv('f_mult',  d.mult_attractor   || 1.0);
+    sv('f_rec',   (d.segnali_reali||{}).recensioni_zona || 0);
+    sv('f_gdo',   (d.segnali_reali||{}).gdo_500m || 0);
+    sv('f_pop_comune', d.pop_10min ? Math.round(d.pop_10min*3.5) : 0);
+    // Compatibilità wizard italiano
+    sv('f_conc500', d.concorrenti_500m || 0);
+    sv('f_conc1km', d.concorrenti_1km  || 0);
+    sv('f_serv',    d.servizi_400m     || 0);
+    sv('f_label',   d.score_label      || '');
+    sv('f_densita', (d.demografici||{}).densita || 0);
+    sv('f_reddito_medio', (d.demografici||{}).reddito_medio || 0);
+    sv('f_eta_media', (d.demografici||{}).eta_media || 0);
+    
+    // KPI Romania
+    function st(id, v) { var e=document.getElementById(id); if(e) e.textContent=v; }
+    st('ro-pop-5min', (d.pop_5min||0).toLocaleString('ro-RO'));
+    st('ro-concorr',  d.concorrenti_500m || 0);
+    var sc = d.score || 0;
+    var scEl = document.getElementById('ro-score');
+    if(scEl) { scEl.textContent = Math.round(sc)+'/100'; scEl.style.color = sc>=70?'#10b981':sc>=50?'#f59e0b':'#ef4444'; }
+    var kpiEl = document.getElementById('kpi-zona-ro');
+    if(kpiEl) kpiEl.style.display = 'block';
+    
+    // Mappa Leaflet (usa il codice italiano se disponibile)
+    if(d.pois && typeof L !== 'undefined') {
+      var mapEl = document.getElementById('map');
+      if(mapEl && mapEl._leaflet_id) {
+        // Mappa già inizializzata — aggiorna
+        if(typeof aggiornaMarkers === 'function') aggiornaMarkers(d);
+      }
+    }
+    
+    // Aggiorna BP Romania
+    if(typeof aggiornaBPRO === 'function') aggiornaBPRO();
+  })
+  .catch(function(e) {
+    if(loadEl) loadEl.style.display = 'none';
+    console.error('Errore zona-analisi RO:', e);
+  });
+}
+
 // ── Wizard navigation ─────────────────────────────────────────────────────
 function goStep(n) {
   document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
@@ -1053,7 +1137,8 @@ function geocodificaRO() {
         +'</div>';
     });
     html += '</div>';
-    document.getElementById('ins-data-box').innerHTML = html;
+    var _insBox = document.getElementById('ins-data-box') || document.getElementById('ins-data-box-ro');
+    if(_insBox) _insBox.innerHTML = html;
 
     status.textContent = LINGUA==='ro' ? 'Analizez zona...' : 'Analisi zona in corso...';
 
@@ -1080,16 +1165,15 @@ function geocodificaRO() {
     document.getElementById('f_c1k').value    = d.concorrenti_1km  || 0;
     document.getElementById('f_pop_comune').value = d.pop_10min ? Math.round(d.pop_10min*3.5) : 0;
 
-    document.getElementById('ro-pop-5min').textContent = (d.pop_5min||0).toLocaleString('ro-RO');
-    document.getElementById('ro-concorr').textContent  = d.concorrenti_500m || 0;
+    var _p5 = document.getElementById('ro-pop-5min'); if(_p5) _p5.textContent = (d.pop_5min||0).toLocaleString('ro-RO');
+    var _rc = document.getElementById('ro-concorr'); if(_rc) _rc.textContent = d.concorrenti_500m || 0;
     var sc = d.score_zona || 0;
     var scEl = document.getElementById('ro-score');
-    scEl.textContent = Math.round(sc)+'/100';
-    scEl.style.color = sc>=70 ? '#10b981' : sc>=50 ? '#f59e0b' : '#ef4444';
+    if(scEl) { scEl.textContent = Math.round(sc)+'/100'; scEl.style.color = sc>=70 ? '#10b981' : sc>=50 ? '#f59e0b' : '#ef4444'; }
     var red = parseFloat(document.getElementById('f_reddito').value)||0;
     document.getElementById('ro-reddito').textContent =
       red > 0 ? Math.round(red).toLocaleString('ro-RO')+' RON' : '—';
-    document.getElementById('kpi-zona-ro').style.display = 'block';
+    var _kpi = document.getElementById('kpi-zona-ro'); if(_kpi) _kpi.style.display = 'block';
     status.textContent = LINGUA==='ro' ? 'Analiza completa!' : 'Analisi completata!';
     aggiornaBPRO();
   })
