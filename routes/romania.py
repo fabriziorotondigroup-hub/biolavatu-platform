@@ -373,3 +373,121 @@ def salva_nuovo():
     db.session.commit()
 
     return redirect(url_for('romania.modifica_preventivo', id=p.id))
+
+# ── ANALISI AI ZONA ROMANIA ───────────────────────────────────────────────────
+
+@ro_bp.route('/api/analisi-ai-ro', methods=['POST'])
+@login_required
+def analisi_ai_ro():
+    """Genera analisi AI della zona per il mercato Romania.
+    Prompt bilingue IT/RO, valori in RON, calibrato per mercato rumeno.
+    """
+    import anthropic as _anth
+    import os as _os
+
+    data    = request.json or {}
+    api_key = _os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata'}), 500
+
+    try:
+        client = _anth.Anthropic(api_key=api_key)
+    except Exception as e:
+        return jsonify({'errore': f'Errore init client: {str(e)}'}), 500
+
+    lingua = data.get('lingua', 'it')
+    cambio = float(data.get('cambio_ron', 4.97) or 4.97)
+
+    # Dati finanziari in RON
+    inc_ron = float(data.get('incasso_mese_ron', 0) or 0)
+    inc_eur = round(inc_ron / cambio)
+    cos_ron = float(data.get('costi_mese_ron', 0) or 0)
+    uti_ron = round(inc_ron - cos_ron)
+    cap_ron = float(data.get('capex_ron', 0) or 0)
+    cap_eur = round(cap_ron / cambio)
+
+    attractor_txt = ''
+    for ap in data.get('attractor_points', []):
+        nome = ap.get('nome', '')
+        tipo = ap.get('tipo', '').replace('_', ' ')
+        dist = ap.get('distanza_m', 0)
+        if nome:
+            attractor_txt += f'  • {nome} ({tipo}, {dist}m)\n'
+    if not attractor_txt:
+        attractor_txt = '  Niciun generator de cerere structural detectat / Nessun generatore rilevato'
+
+    conc_txt = ''
+    for c in data.get('competitors_detail', [])[:8]:
+        conc_txt += f"  • {c.get('nome','')} — {c.get('distanza_m',0)}m — Rating: {c.get('rating','N/D')}\n"
+    if not conc_txt:
+        conc_txt = '  Niciun concurent detectat / Nessun concorrente rilevato'
+
+    prompt = f"""Ești un analist de piată specializat în sectorul spălătoriilor self-service din România.
+Produceti o ANALIZA OBIECTIVA a zonei — doar date, fapte, masuratori.
+NU dati recomandari, NU spuneti daca sa deschideti sau nu, NU exprimati judecati de valoare.
+Scrieti in {"ROMANA si ITALIANA" if lingua == 'ro' else "ITALIANA e RUMENO"} — intai romana, apoi italiana.
+
+═══ DATE LOCATIE ═══
+Adresa: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')}, România
+Suprafata local: {data.get('mq',60)} mp
+
+═══ BAZIN DEMOGRAFIC ═══
+Populatie accesibila:
+  • 3 minute pe jos (~240m): {int(data.get('pop_3min',0) or 0):,} locuitori
+  • 5 minute pe jos (~400m): {int(data.get('pop_5min',0) or 0):,} locuitori
+  • 10 minute pe jos (~800m): {int(data.get('pop_10min',0) or 0):,} locuitori
+Densitate: {int(data.get('densita',0) or 0):,} loc/km²
+Salariu mediu net judet: {int(data.get('reddito_medio',0) or 0):,} RON/an (sursa: INS Romania 2021)
+Echivalent EUR: circa €{int((data.get('reddito_medio',0) or 0)/cambio):,}/an (curs {cambio:.2f} RON/EUR)
+
+═══ TRAFIC SI VIZIBILITATE ═══
+Indicator trafic real (recenzii Google in 400m): {int(data.get('recensioni_zona',0) or 0):,}
+Magazine alimentare (GDO) in 500m: {data.get('gdo_500m',0)}
+Scor zona: {data.get('score_zona',0)}/100
+
+═══ CONCURENTA ═══
+Spalatorii self-service in 500m: {data.get('concorrenti_500m',0)}
+Total spalatorii in 1km: {data.get('concorrenti_1km',0)}
+Detaliu operatori detectati:
+{conc_txt}
+
+═══ GENERATORI DE CERERE (Attractor Points) ═══
+{attractor_txt}
+
+═══ STRUCTURA ECONOMICA ═══
+Investitie estimata: {int(cap_ron):,} RON + TVA 19% = {int(cap_ron*1.19):,} RON (≈ €{cap_eur:,})
+Incasari lunare estimate: {int(inc_ron):,} RON (≈ €{inc_eur:,}/luna)
+Costuri lunare: {int(cos_ron):,} RON
+Profit net estimat: {int(uti_ron):,} RON/luna
+
+═══ STRUCTURA ANALIZEI (obligatorie) ═══
+
+## 1. BAZIN DEMOGRAFIC / BACINO DEMOGRAFICO
+Descrie numeric bazinul. Compara cu media nationala romana.
+
+## 2. TRAFIC SI ZONA / TRAFFICO E ZONA
+Interpreteaza indicatorul de trafic. Descrie tipul de zona.
+
+## 3. CONCURENTA / CONCORRENZA
+Analizeaza operatorii detectati. Calculeaza densitatea (operatori/1000 loc).
+
+## 4. GENERATORI DE CERERE / GENERATORI DI DOMANDA
+Descrie factorii structurali care genereaza cerere constanta.
+
+## 5. PROIECTIE ECONOMICA / PROIEZIONE ECONOMICA
+Comenteaza cifrele financiare in context romanesc.
+Compara cu piata italiana (Italia: €8.000-18.000/luna; Romania: estimat proportional cu salariile).
+
+Fii concis si precis. Max 600 cuvinte total.
+"""
+
+    try:
+        msg = client.messages.create(
+            model='claude-sonnet-4-5',
+            max_tokens=1200,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        testo = msg.content[0].text.strip()
+        return jsonify({'analisi': testo, 'lingua': lingua, 'mercato': 'RO'})
+    except Exception as e:
+        return jsonify({'errore': str(e)}), 500
