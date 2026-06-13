@@ -436,9 +436,14 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
     </div>
     {% if current_user.role in ('owner','admin') or current_user.market == 'RO' %}
     <a href="{{ url_for('romania.dashboard') }}"
-       class="nav-link {% if request.blueprint == 'romania' %}active{% endif %}"
+       class="nav-link {% if request.endpoint == 'romania.dashboard' %}active{% endif %}"
        style="color:#f59e0b;margin-top:4px">
       <i class="bi bi-globe me-2"></i>🇷🇴 România
+    </a>
+    <a href="{{ url_for('romania.pratiche') }}"
+       class="nav-link {% if request.endpoint == 'romania.pratiche' %}active{% endif %}"
+       style="padding-left:32px;font-size:12px;color:#92400e">
+      <i class="bi bi-folder me-2"></i>Dosare RO
     </a>
     {% endif %}
     <a href="{{ url_for('auth.logout') }}" class="nav-link mt-2" style="padding:8px 0">
