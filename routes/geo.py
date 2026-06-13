@@ -14,6 +14,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required
 import os as _os
 from services.istat import get_demographic_data, get_market_assessment
+from services.ins_romania import get_demographic_data_ro, get_market_assessment_ro, EUR_RON_RATE
 from services.domanda import calcola_stima_clienti, calcola_domanda_avanzata
 from services.analisi_competitiva import (
     calcola_capacita_concorrenza,
@@ -728,11 +729,28 @@ def zona_analisi():
                 'cerchio_fill':   cerchio_fill,
             })
 
-        # ── DATI DEMOGRAFICI ──────────────────────────────────────────────────────
-        demo          = get_demographic_data(citta, provincia)
-        eta_media     = demo.get('eta_media', 46.4)
-        reddito_medio = demo.get('reddito_medio', 19800)
-        densita_istat = demo.get('densita', 200)
+        # ── DATI DEMOGRAFICI — auto-detect IT / RO ───────────────────────────────
+        _indirizzo_raw = request.args.get('indirizzo', '').lower()
+        _is_romania = (
+            'romania' in _indirizzo_raw or
+            ', ro' in _indirizzo_raw or
+            request.args.get('market','').upper() == 'RO' or
+            any(c in provincia.upper() for c in ['B','CJ','TM','IS','CT','BV',
+                'PH','IF','AG','BC','BH','SB','DJ','GL','MM','NT','SV','VS'])
+        )
+
+        if _is_romania:
+            demo          = get_demographic_data_ro(provincia, citta)
+            eta_media     = demo.get('eta_media', 42.0)
+            reddito_medio = demo.get('reddito_medio', 30000)  # RON/anno
+            densita_istat = demo.get('densita', 200)
+            _paese        = 'RO'
+        else:
+            demo          = get_demographic_data(citta, provincia)
+            eta_media     = demo.get('eta_media', 46.4)
+            reddito_medio = demo.get('reddito_medio', 19800)  # EUR/anno
+            densita_istat = demo.get('densita', 200)
+            _paese        = 'IT'
 
         # ── DENSITÀ REALE da Google Maps (proxy da POI nel raggio) ───────────────
         # Contiamo i luoghi unici entro 400m come proxy di urbanizzazione reale
@@ -772,10 +790,13 @@ def zona_analisi():
         pop_5min   = int(densita * area_5min)
         pop_10min  = int(densita * area_10min)
 
-        assessment = get_market_assessment(
-            eta_media, reddito_medio, densita,
-            concorrenti_1km, recensioni_zona, gdo_500m
-        )
+        if _paese == 'RO':
+            assessment = get_market_assessment_ro(reddito_medio, densita)
+        else:
+            assessment = get_market_assessment(
+                eta_media, reddito_medio, densita,
+                concorrenti_1km, recensioni_zona, gdo_500m
+            )
         # ── PENALITÀ SCORE se bacino demografico insufficiente ────────────────────
         _score_raw = assessment['score']
         _pop_bacino = pop_3min
