@@ -215,6 +215,26 @@ def cambia_ruolo(id):
     return redirect(url_for('admin.index'))
 
 
+
+@admin_bp.route('/admin/venditori/<int:id>/cambia-market', methods=['POST'])
+@login_required
+@admin_required
+def cambia_market(id):
+    u = User.query.get_or_404(id)
+    if u.is_owner:
+        flash('Il proprietario non può essere modificato.', 'error')
+        return redirect(url_for('admin.index'))
+    nuovo_market = request.form.get('market', 'IT')
+    if nuovo_market not in ('IT', 'RO'):
+        flash('Mercato non valido.', 'error')
+        return redirect(url_for('admin.index'))
+    u.market = nuovo_market
+    u.lingua = 'ro' if nuovo_market == 'RO' else 'it'
+    db.session.commit()
+    flag = '🇷🇴' if nuovo_market == 'RO' else '🇮🇹'
+    flash(f'{u.nome} assegnato al mercato {flag} {nuovo_market}.', 'success')
+    return redirect(url_for('admin.index'))
+
 @admin_bp.route('/admin/venditori/<int:id>/reset-password', methods=['POST'])
 @login_required
 @admin_required
