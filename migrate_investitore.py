@@ -52,6 +52,8 @@ COLONNE = [
     ('lato_soleggiato',           'BOOLEAN',      'TRUE'),
     ('cantieri_previsti',         'BOOLEAN',      'FALSE'),
     ('note_sopralluogo',          'TEXT',         'NULL'),
+    # Modifica 3 — tipo zona per stagionalità
+    ('tipo_zona',                 "VARCHAR(20)",  "'residenziale'"),
 ]
 
 print("\n📋 Verifico colonne nella tabella pratiche...")
