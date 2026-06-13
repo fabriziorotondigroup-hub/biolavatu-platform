@@ -423,9 +423,9 @@ def analisi_ai_ro():
         conc_txt = '  Niciun concurent detectat / Nessun concorrente rilevato'
 
     prompt = f"""Esti un analist de piata specializat in sectorul spalatoriilor self-service din Romania.
-Produceti o ANALIZA OBIECTIVA a zonei — doar date, fapte, masuratori.
+Produceti o ANALIZA OBIECTIVA a zonei - doar date, fapte, masuratori.
 NU dati recomandari, NU spuneti daca sa deschideti sau nu, NU exprimati judecati de valoare.
-Scrieti in {"ROMANA si ITALIANA" if lingua == 'ro' else "ITALIANA e RUMENO"} — intai romana, apoi italiana.
+Scrieti in {"ROMANA si ITALIANA" if lingua == 'ro' else "ITALIANA e RUMENO"} - intai romana, apoi italiana.
 
 === DATE LOCATIE ===
 Adresa: {data.get('indirizzo','N/D')}, {data.get('citta','N/D')}, Romania
@@ -438,7 +438,7 @@ Populatie accesibila:
   - 10 minute pe jos (~800m): {int(data.get('pop_10min',0) or 0):,} locuitori
 Densitate: {int(data.get('densita',0) or 0):,} loc/km2
 Salariu mediu net judet: {int(data.get('reddito_medio',0) or 0):,} RON/an (sursa: INS Romania 2021)
-Echivalent EUR: circa €{int((data.get('reddito_medio',0) or 0)/cambio):,}/an (curs {cambio:.2f} RON/EUR)
+Echivalent EUR: circa EUR{int((data.get('reddito_medio',0) or 0)/cambio):,}/an (curs {cambio:.2f} RON/EUR)
 
 === TRAFIC SI VIZIBILITATE ===
 Indicator trafic real (recenzii Google in 400m): {int(data.get('recensioni_zona',0) or 0):,}
@@ -455,8 +455,8 @@ Detaliu operatori detectati:
 {attractor_txt}
 
 === STRUCTURA ECONOMICA ===
-Investitie estimata: {int(cap_ron):,} RON + TVA 19% = {int(cap_ron*1.19):,} RON (≈ €{cap_eur:,})
-Incasari lunare estimate: {int(inc_ron):,} RON (≈ €{inc_eur:,}/luna)
+Investitie estimata: {int(cap_ron):,} RON + TVA 19% = {int(cap_ron*1.19):,} RON (~ EUR{cap_eur:,})
+Incasari lunare estimate: {int(inc_ron):,} RON (~ EUR{inc_eur:,}/luna)
 Costuri lunare: {int(cos_ron):,} RON
 Profit net estimat: {int(uti_ron):,} RON/luna
 
@@ -476,7 +476,7 @@ Descrie factorii structurali care genereaza cerere constanta.
 
 ## 5. PROIECTIE ECONOMICA / PROIEZIONE ECONOMICA
 Comenteaza cifrele financiare in context romanesc.
-Compara cu piata italiana (Italia: €8.000-18.000/luna; Romania: estimat proportional cu salariile).
+Compara cu piata italiana (Italia: EUR8.000-18.000/luna; Romania: estimat proportional cu salariile).
 
 Fii concis si precis. Max 600 cuvinte total.
 """
@@ -490,4 +490,7 @@ Fii concis si precis. Max 600 cuvinte total.
         testo = msg.content[0].text.strip()
         return jsonify({'analisi': testo, 'lingua': lingua, 'mercato': 'RO'})
     except Exception as e:
-        return jsonify({'errore': str(e)}), 500
+        import traceback
+        err_detail = traceback.format_exc()
+        print(f"[analisi_ai_ro] ERRORE: {err_detail}")
+        return jsonify({'errore': str(e), 'detail': err_detail[:500]}), 500
