@@ -692,7 +692,7 @@ function geocodificaRO() {
   status.textContent = LINGUA==='ro' ? 'Geocodific adresa...' : 'Geocodifica in corso...';
 
   // STEP 1: Geocodifica + dati INS Romania
-  fetch('/ro/api/geocode-ro'
+  fetch('/api/geocode-ro'
     +'?indirizzo='+encodeURIComponent(indirizzo)
     +'&citta='+encodeURIComponent(citta)
     +'&judet='+encodeURIComponent(judet))
