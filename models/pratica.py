@@ -158,6 +158,10 @@ class Pratica(db.Model):
     # ── VERSIONE INVESTITORE — Sopralluogo obbligatorio ───────────────────────
     tipo_pratica = db.Column(db.String(20), default='standard')
     tipo_zona    = db.Column(db.String(20), default='residenziale')
+    market       = db.Column(db.String(5),  default='IT')    # IT | RO
+    valuta       = db.Column(db.String(5),  default='EUR')   # EUR | RON
+    cambio_ron   = db.Column(db.Float,      default=4.97)    # EUR/RON al momento della pratica
+    judet_cod    = db.Column(db.String(10), default='')      # codice judet Romania
     # 'standard' | 'investitore'
 
     # Sopralluogo A — Traffico pedonale (6 fasce orarie × 2 direzioni)
