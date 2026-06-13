@@ -56,6 +56,66 @@
   </div>
 </div>
 
+<!-- Pannello multi-mercato (solo owner/admin) -->
+{% if current_user.role in ('owner','admin') %}
+<div style="background:linear-gradient(135deg,#0B1F3A,#1B4F72);border-radius:14px;padding:16px 20px;margin-bottom:20px">
+  <div style="font-size:11px;color:#93C5FD;letter-spacing:1px;font-weight:600;margin-bottom:10px">
+    RIEPILOGO MULTI-MERCATO
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <!-- Italia -->
+    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px">
+      <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:10px">🇮🇹 Mercato Italia</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:#94a3b8">Pratiche totali</span>
+        <span style="font-size:13px;font-weight:700;color:#3b82f6">{{ tot_pratiche }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:#94a3b8">Pipeline</span>
+        <span style="font-size:13px;font-weight:700;color:#10b981">€ {{ "{:,.0f}".format(valore_pipeline) }}</span>
+      </div>
+      <a href="{{ url_for('pratiche.index') }}"
+         style="font-size:11px;color:#3b82f6;text-decoration:none">Vedi pratiche IT →</a>
+    </div>
+    <!-- Romania -->
+    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px">
+      <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:10px">🇷🇴 Piața România</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:#94a3b8">Dosare totale</span>
+        <span style="font-size:13px;font-weight:700;color:#f59e0b">{{ tot_pratiche_ro }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:#94a3b8">Pipeline (RON)</span>
+        <span style="font-size:13px;font-weight:700;color:#10b981">
+          {{ "{:,.0f}".format(valore_pipeline_ro * cambio_ron) }} RON
+          <small style="color:#64748b;font-weight:400"> / € {{ "{:,.0f}".format(valore_pipeline_ro) }}</small>
+        </span>
+      </div>
+      <a href="{{ url_for('romania.dashboard') }}"
+         style="font-size:11px;color:#f59e0b;text-decoration:none">Vedi dosare RO →</a>
+    </div>
+  </div>
+  <!-- Azioni rapide -->
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+    <a href="{{ url_for('preventivo.nuovo') }}"
+       class="btn btn-sm" style="background:#2563eb;color:white;font-size:12px">
+      <i class="bi bi-plus me-1"></i>Nuovo IT
+    </a>
+    <a href="{{ url_for('romania.nuovo_preventivo') }}"
+       class="btn btn-sm" style="background:#d97706;color:white;font-size:12px">
+      <i class="bi bi-plus me-1"></i>Nouveau RO
+    </a>
+    <a href="{{ url_for('admin.index') }}"
+       class="btn btn-sm btn-outline-secondary" style="font-size:12px">
+      <i class="bi bi-gear me-1"></i>Admin
+    </a>
+    <span style="font-size:11px;color:#64748b;align-self:center;margin-left:4px">
+      1 EUR = {{ "%.2f"|format(cambio_ron) }} RON
+    </span>
+  </div>
+</div>
+{% endif %}
+
 <!-- Ultime pratiche -->
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between">
