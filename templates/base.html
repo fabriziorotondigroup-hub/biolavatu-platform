@@ -410,76 +410,133 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
     <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
       <i class="bi bi-grid-1x2"></i> Dashboard
     </a>
-    <a href="{{ url_for('preventivo.nuovo') }}" class="nav-link {% if 'preventivo' in request.endpoint %}active{% endif %}">
-      <i class="bi bi-plus-circle"></i> Nuovo Preventivo
-    </a>
-    <a href="{{ url_for('pratiche.index') }}" class="nav-link {% if request.endpoint == 'pratiche.index' %}active{% endif %}">
-      <i class="bi bi-folder2-open"></i> Pratiche
-    </a>
-    <a href="{{ url_for('clienti.index') }}" class="nav-link {% if 'clienti' in request.endpoint %}active{% endif %}">
-      <i class="bi bi-people"></i> Clienti
-    </a>
+
+
+    {% if current_user.role in ('owner','admin','segreteria') or current_user.market in ('RO','AL') %}
+    <!-- ── SEZIONE MERCATI INTERNAZIONALI ── -->
+    <div style="margin:14px 0 4px 0;border-top:1px solid #1e2d45;padding-top:10px"></div>
+
+    <!-- ── ITALIA ── -->
+    {% set it_open = request.endpoint and ('preventivo' in request.endpoint or 'pratiche' in request.endpoint or 'clienti' in request.endpoint or request.endpoint == 'dashboard.index') and 'romania' not in request.endpoint and 'albania' not in request.endpoint %}
+    <div class="mkt-header" onclick="toggleMkt('it')"
+         style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 10px 6px 8px;cursor:pointer;border-radius:8px;
+                margin:2px 4px;transition:background 0.15s;
+                background:{% if it_open %}#1e2d4566{% else %}transparent{% endif %}">
+      <span style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:0.8px">
+        IT  Italia
+      </span>
+      <span id="arrow-it" style="color:#64748b;font-size:12px;transition:transform 0.2s;
+            transform:{% if it_open %}rotate(180deg){% else %}rotate(0deg){% endif %}">&#9660;</span>
+    </div>
+    <div id="mkt-it" style="overflow:hidden;transition:max-height 0.25s ease;
+         max-height:{% if it_open %}200px{% else %}0{% endif %}">
+      <div style="padding:2px 0 4px 8px">
+        <a href="{{ url_for('preventivo.nuovo') }}"
+           class="nav-link {% if 'preventivo' in (request.endpoint or '') and 'romania' not in (request.endpoint or '') and 'albania' not in (request.endpoint or '') %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-plus-circle" style="color:#3b82f6"></i> Nuova pratica
+        </a>
+        <a href="{{ url_for('pratiche.index') }}"
+           class="nav-link {% if request.endpoint == 'pratiche.index' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-folder2-open" style="color:#3b82f6"></i> Pratiche IT
+        </a>
+        <a href="{{ url_for('clienti.index') }}"
+           class="nav-link {% if 'clienti' in (request.endpoint or '') %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#3b82f6"></i> Clienti
+        </a>
+      </div>
+    </div>
 
     {% if current_user.role in ('owner','admin','segreteria') or current_user.market == 'RO' %}
-    <!-- ── Romania ── -->
-    <div style="margin:16px 0 6px 12px;font-size:9px;font-weight:700;
-                color:#f59e0b;letter-spacing:1.2px;text-transform:uppercase">
-      🇷🇴 Romania
+    <!-- ── ROMANIA ── -->
+    {% set ro_open = request.endpoint and 'romania' in request.endpoint %}
+    <div class="mkt-header" onclick="toggleMkt('ro')"
+         style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 10px 6px 8px;cursor:pointer;border-radius:8px;
+                margin:2px 4px;transition:background 0.15s;
+                background:{% if ro_open %}#1e2d4566{% else %}transparent{% endif %}">
+      <span style="font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:0.8px">
+        RO  Romania
+      </span>
+      <span id="arrow-ro" style="color:#64748b;font-size:12px;transition:transform 0.2s;
+            transform:{% if ro_open %}rotate(180deg){% else %}rotate(0deg){% endif %}">&#9660;</span>
     </div>
-    <a href="{{ url_for('romania.dashboard') }}"
-       class="nav-link {% if request.endpoint and 'romania' in request.endpoint %}active{% endif %}"
-       style="color:{% if request.endpoint and 'romania' in request.endpoint %}#f59e0b{% else %}#94a3b8{% endif %}">
-      <i class="bi bi-grid"></i> Dashboard RO
-    </a>
-    <a href="{{ url_for('romania.nuovo_preventivo') }}"
-       class="nav-link"
-       style="color:#94a3b8">
-      <i class="bi bi-plus-circle"></i> Nuovo RO
-    </a>
-    <a href="{{ url_for('romania.pratiche') }}"
-       class="nav-link"
-       style="color:#94a3b8">
-      <i class="bi bi-folder2-open"></i> Dosare RO
-    </a>
-    {% if current_user.can_manage_venditori %}
-    <a href="{{ url_for('romania.venditori') }}"
-       class="nav-link {% if request.endpoint == 'romania.venditori' %}active{% endif %}"
-       style="color:#94a3b8">
-      <i class="bi bi-people"></i> Agenti RO
-    </a>
+    <div id="mkt-ro" style="overflow:hidden;transition:max-height 0.25s ease;
+         max-height:{% if ro_open %}200px{% else %}0{% endif %}">
+      <div style="padding:2px 0 4px 8px">
+        <a href="{{ url_for('romania.nuovo_preventivo') }}"
+           class="nav-link" style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-plus-circle" style="color:#f59e0b"></i> Dosar nou
+        </a>
+        <a href="{{ url_for('romania.pratiche') }}"
+           class="nav-link {% if request.endpoint == 'romania.pratiche' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-folder2-open" style="color:#f59e0b"></i> Dosare RO
+        </a>
+        {% if current_user.can_manage_venditori %}
+        <a href="{{ url_for('romania.venditori') }}"
+           class="nav-link {% if request.endpoint == 'romania.venditori' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#f59e0b"></i> Agenti RO
+        </a>
+        {% endif %}
+        <a href="{{ url_for('romania.normativa') }}"
+           class="nav-link {% if request.endpoint == 'romania.normativa' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-journal-text" style="color:#f59e0b"></i> Normativa RO
+        </a>
+        <a href="{{ url_for('romania.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'romania.dashboard' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#64748b">
+          <i class="bi bi-grid" style="color:#64748b"></i> Dashboard RO
+        </a>
+      </div>
+    </div>
     {% endif %}
-    <a href="{{ url_for('romania.normativa') }}"
-       class="nav-link {% if request.endpoint == 'romania.normativa' %}active{% endif %}"
-       style="color:#94a3b8">
-      <i class="bi bi-journal-text"></i> Normativa RO
-    </a>
-    {% endif %}
+
     {% if current_user.role in ('owner','admin','segreteria') or current_user.market == 'AL' %}
-    <!-- ── Albania ── -->
-    <div style="margin:16px 0 6px 12px;font-size:9px;font-weight:700;
-                color:#e11d48;letter-spacing:1.2px;text-transform:uppercase">
-      Albania
+    <!-- ── ALBANIA ── -->
+    {% set al_open = request.endpoint and 'albania' in request.endpoint %}
+    <div class="mkt-header" onclick="toggleMkt('al')"
+         style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 10px 6px 8px;cursor:pointer;border-radius:8px;
+                margin:2px 4px;transition:background 0.15s;
+                background:{% if al_open %}#1e2d4566{% else %}transparent{% endif %}">
+      <span style="font-size:11px;font-weight:700;color:#e11d48;letter-spacing:0.8px">
+        AL  Albania
+      </span>
+      <span id="arrow-al" style="color:#64748b;font-size:12px;transition:transform 0.2s;
+            transform:{% if al_open %}rotate(180deg){% else %}rotate(0deg){% endif %}">&#9660;</span>
     </div>
-    <a href="{{ url_for('albania.dashboard') }}"
-       class="nav-link {% if request.endpoint and 'albania' in request.endpoint %}active{% endif %}"
-       style="color:{% if request.endpoint and 'albania' in request.endpoint %}#e11d48{% else %}#94a3b8{% endif %}">
-      <i class="bi bi-grid"></i> Dashboard AL
-    </a>
-    <a href="{{ url_for('albania.nuovo_preventivo') }}"
-       class="nav-link"
-       style="color:#94a3b8">
-      <i class="bi bi-plus-circle"></i> Nuovo AL
-    </a>
-    <a href="{{ url_for('albania.pratiche') }}"
-       class="nav-link"
-       style="color:#94a3b8">
-      <i class="bi bi-folder2-open"></i> Dosaret AL
-    </a>
-    <a href="{{ url_for('albania.normativa') }}"
-       class="nav-link {% if request.endpoint == 'albania.normativa' %}active{% endif %}"
-       style="color:#94a3b8">
-      <i class="bi bi-journal-text"></i> Normativa AL
-    </a>
+    <div id="mkt-al" style="overflow:hidden;transition:max-height 0.25s ease;
+         max-height:{% if al_open %}200px{% else %}0{% endif %}">
+      <div style="padding:2px 0 4px 8px">
+        <a href="{{ url_for('albania.nuovo_preventivo') }}"
+           class="nav-link" style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-plus-circle" style="color:#e11d48"></i> Dosar i ri
+        </a>
+        <a href="{{ url_for('albania.pratiche') }}"
+           class="nav-link {% if request.endpoint == 'albania.pratiche' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-folder2-open" style="color:#e11d48"></i> Dosaret AL
+        </a>
+        <a href="{{ url_for('albania.normativa') }}"
+           class="nav-link {% if request.endpoint == 'albania.normativa' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-journal-text" style="color:#e11d48"></i> Normativa AL
+        </a>
+        <a href="{{ url_for('albania.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'albania.dashboard' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#64748b">
+          <i class="bi bi-grid" style="color:#64748b"></i> Dashboard AL
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
     {% endif %}
     {% if current_user.is_admin %}
     <div class="nav-section" style="margin-top:8px">Admin</div>
@@ -574,6 +631,38 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
+<script>
+// ── Menu nazioni collassabile ─────────────────────────────────────────────────
+function toggleMkt(id) {
+  var el    = document.getElementById('mkt-'+id);
+  var arrow = document.getElementById('arrow-'+id);
+  if (!el) return;
+  var open = el.style.maxHeight && el.style.maxHeight !== '0px' && el.style.maxHeight !== '0';
+  // Chiudi tutti
+  ['it','ro','al'].forEach(function(k) {
+    var e = document.getElementById('mkt-'+k);
+    var a = document.getElementById('arrow-'+k);
+    if (e) e.style.maxHeight = '0';
+    if (a) a.style.transform = 'rotate(0deg)';
+  });
+  // Apri solo quello cliccato se era chiuso
+  if (!open) {
+    el.style.maxHeight = '300px';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+  }
+}
+// Hover sui blocchi nazione
+document.querySelectorAll('.mkt-header').forEach(function(h){
+  h.addEventListener('mouseenter', function(){ this.style.background='#1e2d4533'; });
+  h.addEventListener('mouseleave', function(){
+    var id = this.getAttribute('onclick').replace("toggleMkt('","").replace("')","");
+    var el = document.getElementById('mkt-'+id);
+    var isOpen = el && el.style.maxHeight && el.style.maxHeight !== '0px';
+    this.style.background = isOpen ? '#1e2d4566' : 'transparent';
+  });
+});
+</script>
 </body>
 </html>
 
