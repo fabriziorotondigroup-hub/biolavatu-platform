@@ -25,7 +25,7 @@ WOJE_DATA = {
     'LU': {'nome': 'Lubuskie',          'pop': 1011000,  'eta_media': 42.4, 'reddito_medio': 63200,  'densita_judet': 73,   'densita_urbana': 3600, 'perc_stranieri': 0.9, 'citta': 'Zielona Góra'},
     'OP': {'nome': 'Opolskie',          'pop': 966000,   'eta_media': 43.6, 'reddito_medio': 64800,  'densita_judet': 103,  'densita_urbana': 3400, 'perc_stranieri': 0.8, 'citta': 'Opole'},
     'SK': {'nome': 'Świętokrzyskie',    'pop': 1207000,  'eta_media': 43.2, 'reddito_medio': 56000,  'densita_judet': 97,   'densita_urbana': 3600, 'perc_stranieri': 0.5, 'citta': 'Kielce'},
-},
+}
 
 # ── Dati abitativi per Województwo (GUS 2023 + stime) ────────────────────────
 ABITATIVI = {
