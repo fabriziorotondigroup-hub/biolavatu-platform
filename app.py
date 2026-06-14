@@ -107,6 +107,8 @@ def _run_migrations():
         ('pratiche', 'note_sopralluogo',          'TEXT'),
         # ── Lettera presentazione ─────────────────────────────────────────
         ('pratiche', 'lettera_presentazione',     'TEXT'),
+        # ── Mercato utenti ────────────────────────────────────────────────────
+        ('users',    'market',    "VARCHAR(5) DEFAULT 'IT'"),
     ]
     with app.app_context():
         with db.engine.connect() as conn:
