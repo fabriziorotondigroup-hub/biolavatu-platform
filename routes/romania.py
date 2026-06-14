@@ -14,6 +14,7 @@ from models.settings import Settings
 from services.ins_romania import (
     get_demographic_data_ro, get_market_assessment_ro, get_f_citta_ro,
     get_cambio_ron_live, converti_ron_eur, converti_eur_ron,
+    get_densita_urbana_ro,
     TARIFFE_DEFAULT_RO, EUR_RON_RATE, OCC_BASE_RO,
 )
 
@@ -370,10 +371,15 @@ def zona_analisi_ro():
         if len(gdo_types) >= 2: mult = min(1.6, mult + 0.04)
 
         demo = get_demographic_data_ro(judet, citta)
-        den  = float(demo['densita'])
-        pop3  = int(den * math.pi * 0.240**2)
-        pop5  = int(den * math.pi * 0.400**2)
-        pop10 = int(den * math.pi * 0.800**2)
+        # Densità urbana reale (non quella del judet intero)
+        # Usiamo il numero di POI trovati come proxy della densità urbana
+        n_poi_totali = len(pois)
+        den_urbana = get_densita_urbana_ro(judet, n_poi_totali)
+        den  = den_urbana  # usata per score e KPI
+        # Calcolo isocrone con densità urbana reale
+        pop3  = int(den_urbana * math.pi * 0.240**2)
+        pop5  = int(den_urbana * math.pi * 0.400**2)
+        pop10 = int(den_urbana * math.pi * 0.800**2)
 
         ass = get_market_assessment_ro(demo['reddito_medio'], den)
         sc  = ass['score']
