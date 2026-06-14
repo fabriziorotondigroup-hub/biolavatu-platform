@@ -53,7 +53,7 @@ def admin_required(f):
 @admin_required
 def index():
     macchine = Macchina.query.order_by(Macchina.categoria, Macchina.nome).all()
-    venditori = User.query.filter_by(role='sales').all()
+    venditori = User.query.filter(User.role != 'owner').order_by(User.market, User.nome).all()
     settings = Settings.query.first()
     return render_template('admin.html', macchine=macchine, venditori=venditori, settings=settings)
 
@@ -155,10 +155,17 @@ def nuovo_venditore():
     if User.query.filter_by(email=email).first():
         flash('Email già registrata.', 'error')
         return redirect(url_for('admin.index'))
+    role_input = request.form.get('role', 'sales')
+    valid_roles = ('admin', 'segreteria', 'sales', 'sales_ro', 'sales_al', 'sales_pl', 'sales_hr', 'sales_si')
+    role_input = role_input if role_input in valid_roles else 'sales'
+    market_input = request.form.get('market', 'IT')
+    valid_markets = ('IT', 'RO', 'AL', 'PL', 'HR', 'SI')
+    market_input = market_input if market_input in valid_markets else 'IT'
     u = User(
         nome=request.form.get('nome', ''),
         email=email,
-        role='sales',
+        role=role_input,
+        market=market_input,
         attivo=True,
     )
     u.set_password(request.form.get('password', 'Cambiapassword1!'))
@@ -205,13 +212,17 @@ def cambia_ruolo(id):
         flash('Non puoi cambiare il tuo stesso ruolo.', 'error')
         return redirect(url_for('admin.index'))
     nuovo_ruolo = request.form.get('ruolo', 'sales')
-    if nuovo_ruolo not in ('admin', 'sales'):
+    valid_roles = ('admin', 'segreteria', 'sales', 'sales_ro', 'sales_al', 'sales_pl', 'sales_hr', 'sales_si')
+    if nuovo_ruolo not in valid_roles:
         flash('Ruolo non valido.', 'error')
         return redirect(url_for('admin.index'))
+    nuovo_market = request.form.get('market', 'IT')
+    valid_markets = ('IT', 'RO', 'AL', 'PL', 'HR', 'SI')
+    if nuovo_market in valid_markets:
+        u.market = nuovo_market
     u.role = nuovo_ruolo
     db.session.commit()
-    etichetta = 'Amministratore' if nuovo_ruolo == 'admin' else 'Agente'
-    flash(f'{u.nome} è ora {etichetta}.', 'success')
+    flash(f'{u.nome} aggiornato: {nuovo_ruolo} / {u.market}.', 'success')
     return redirect(url_for('admin.index'))
 
 
