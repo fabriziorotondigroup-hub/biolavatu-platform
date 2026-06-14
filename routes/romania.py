@@ -529,8 +529,6 @@ def analisi_ai_ro():
 @ro_bp.route('/api/test-places')
 @login_required
 def test_places():
-    if not current_user.is_owner:
-        return jsonify({'error': 'Solo owner'}), 403
     import requests as _rq
     lat, lng = 45.6427, 25.5887  # Brasov centro test
     url = PLACES_URL + '?' + '&'.join([
