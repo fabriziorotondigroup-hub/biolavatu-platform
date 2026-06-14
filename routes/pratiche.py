@@ -252,7 +252,7 @@ def genera_pdf(id):
         from services.pdf_service import build_pdf
         from flask import send_file, abort
         p = Pratica.query.get_or_404(id)
-        if current_user.role not in ('owner', 'admin') and p.agente_id != current_user.id:
+        if current_user.role not in ('owner', 'admin', 'segreteria') and p.agente_id != current_user.id:
             abort(403)
         s   = Settings.query.first()
         buf = build_pdf(p, s)
