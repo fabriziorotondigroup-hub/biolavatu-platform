@@ -86,6 +86,12 @@ class Pratica(db.Model):
     allegati_json = db.Column(db.Text)  # lista path allegati
     note_interne = db.Column(db.Text)
 
+    # ── Mercato / Romania ────────────────────────────────────────────────────
+    market     = db.Column(db.String(5),  default='IT')   # IT | RO
+    valuta     = db.Column(db.String(5),  default='EUR')  # EUR | RON
+    cambio_ron = db.Column(db.Float,      default=4.97)   # cambio al momento della pratica
+    judet_cod  = db.Column(db.String(10))                 # codice judet Romania
+
     created = db.Column(db.DateTime, default=datetime.utcnow)
     updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
