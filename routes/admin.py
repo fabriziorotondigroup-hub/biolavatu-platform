@@ -38,6 +38,7 @@ def safe_int(val, default=0):
 
 
 def admin_required(f):
+    """Admin panel: owner + segreteria + admin."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -49,12 +50,36 @@ def admin_required(f):
 
 
 def owner_required(f):
-    """Solo il proprietario (owner) può accedere — nemmeno gli admin."""
+    """Solo Fabrizio (owner)."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_owner:
             flash('Accesso riservato al proprietario.', 'error')
+            return redirect(url_for('dashboard.index'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def macchine_required(f):
+    """Owner e segreteria — gestione macchine/impianti/BP."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.can_manage_macchine:
+            flash('Accesso riservato a proprietario e segreteria.', 'error')
+            return redirect(url_for('dashboard.index'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def venditori_required(f):
+    """Owner e admin — gestione venditori."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.can_manage_venditori:
+            flash('Accesso riservato a proprietario e amministratori.', 'error')
             return redirect(url_for('dashboard.index'))
         return f(*args, **kwargs)
     return decorated
@@ -161,7 +186,7 @@ def elimina_macchina(id):
 
 @admin_bp.route('/admin/venditori/nuovo', methods=['POST'])
 @login_required
-@owner_required
+@venditori_required
 def nuovo_venditore():
     email = request.form.get('email', '')
     if User.query.filter_by(email=email).first():
@@ -182,7 +207,7 @@ def nuovo_venditore():
 
 @admin_bp.route('/admin/venditori/<int:id>/toggle', methods=['POST'])
 @login_required
-@owner_required
+@venditori_required
 def toggle_venditore(id):
     u = User.query.get_or_404(id)
     u.attivo = not u.attivo
@@ -206,7 +231,7 @@ def elimina_venditore(id):
 
 @admin_bp.route('/admin/venditori/<int:id>/cambia-ruolo', methods=['POST'])
 @login_required
-@owner_required
+@venditori_required
 def cambia_ruolo(id):
     from flask_login import current_user
     u = User.query.get_or_404(id)
@@ -230,7 +255,7 @@ def cambia_ruolo(id):
 
 @admin_bp.route('/admin/venditori/<int:id>/cambia-market', methods=['POST'])
 @login_required
-@owner_required
+@venditori_required
 def cambia_market(id):
     u = User.query.get_or_404(id)
     if u.is_owner:
