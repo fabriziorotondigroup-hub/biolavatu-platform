@@ -5,7 +5,7 @@
 <!-- Intestazione -->
 <div style="padding:12px 24px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:12px">
   <a href="{{ url_for('romania.dashboard') }}" style="color:#64748b;font-size:13px;text-decoration:none">
-    ← Inapoi / Torna indietro
+    {{ tr.indietro if tr else '← Indietro' }}
   </a>
   <span style="color:#1e2d45">|</span>
   <span style="font-size:15px;font-weight:600;color:#f59e0b">
@@ -15,6 +15,22 @@
     <span style="font-size:12px;color:#64748b">
       1 EUR = <span id="cambio-display">{{ "%.2f"|format(cambio_ron) }}</span> RON
     </span>
+    <!-- Switch lingua -->
+    <div style="display:flex;gap:4px;background:#0a0f1a;border:1px solid #1e2d45;
+                border-radius:8px;padding:3px">
+      <a href="{{ url_for('romania.set_lingua', lang='it') }}"
+         style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;
+                text-decoration:none;
+                {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='it' else 'color:#64748b' }}">
+        🇮🇹 IT
+      </a>
+      <a href="{{ url_for('romania.set_lingua', lang='ro') }}"
+         style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;
+                text-decoration:none;
+                {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='ro' else 'color:#64748b' }}">
+        🇷🇴 RO
+      </a>
+    </div>
   </div>
 </div>
 
@@ -81,7 +97,7 @@
     </div>
     <div class="d-flex justify-content-end mt-4">
       <button type="button" class="btn btn-warning" onclick="goStep(2)">
-        Inainte / Avanti →
+        {{ tr.avanti if tr else 'Avanti →' }}
       </button>
     </div>
   </div>
@@ -156,7 +172,7 @@
     <div style="margin-top:16px">
       <button type="button" id="btn-analizza" class="btn btn-success"
               onclick="geocodificaRO()" style="background:#059669">
-        🔍 Analizeaza zona / Analizza zona
+        🔍 {{ tr.analizza_zona if tr else 'Analizza zona' }}
       </button>
       <span id="geo-status" style="font-size:12px;color:#64748b;margin-left:12px"></span>
     </div>
@@ -169,7 +185,7 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="ins-kpi-grid"></div>
     </div>
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">← Inapoi</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">← {{ 'Inapoi' if lingua=='ro' else 'Indietro' }}</button>
       <button type="button" class="btn btn-warning" onclick="goStep(3)">Inainte / Avanti →</button>
     </div>
   </div>
@@ -253,7 +269,7 @@
         <button type="button" onclick="generaAI_RO()"
           style="background:#7c3aed;color:white;border:none;border-radius:8px;
                  padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">
-          Genereaza / Genera Analisi AI
+          {{ tr.genera_ai if tr else 'Genera Analisi AI' }}
         </button>
       </div>
       <div id="ai-ro-text" style="font-size:12.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap">
@@ -266,7 +282,7 @@
     </div>
     <div class="d-flex justify-content-between mt-3">
       <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">← Inapoi</button>
-      <button type="button" class="btn btn-warning" onclick="goStep(4)">Inainte →</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(4)">{{ 'Inainte' if lingua=='ro' else 'Avanti' }} →</button>
     </div>
   </div>
 </div>
@@ -404,7 +420,7 @@
     <div class="d-flex justify-content-between mt-4">
       <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">← Inapoi</button>
       <button type="submit" class="btn btn-warning btn-lg">
-        💾 Salveaza / Salva pratica
+        💾 {{ tr.salva if tr else 'Salva pratica' }}
       </button>
     </div>
   </div>
