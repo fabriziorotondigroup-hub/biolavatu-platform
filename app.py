@@ -42,11 +42,12 @@ def create_app():
     from routes.clienti import clienti_bp
     from routes.admin import admin_bp
     from routes.geo import geo_bp
+    from routes.romania import ro_bp
     from routes.investitore import inv_bp
     from routes.pdf import pdf_bp
 
     for bp in (auth_bp, dashboard_bp, preventivo_bp, pratiche_bp,
-               clienti_bp, admin_bp, geo_bp, pdf_bp, inv_bp):
+               clienti_bp, admin_bp, geo_bp, pdf_bp, inv_bp, ro_bp):
         app.register_blueprint(bp)
 
     # Custom Jinja filters
