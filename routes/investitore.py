@@ -19,7 +19,7 @@ inv_bp = Blueprint('investitore', __name__)
 
 def _check_pratica(id):
     p = Pratica.query.get_or_404(id)
-    if current_user.role not in ('owner', 'admin') and p.agente_id != current_user.id:
+    if current_user.role not in ('owner', 'admin', 'segreteria') and p.agente_id != current_user.id:
         abort(403)
     return p
 
