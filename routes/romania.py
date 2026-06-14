@@ -525,6 +525,36 @@ def analisi_ai_ro():
         print(f"[analisi_ai_ro] ERRORE: {tb}")
         return jsonify({'errore': str(e), 'detail': tb[-400:]}), 200
 
+# ── Diagnostica Places API ───────────────────────────────────────────────────
+@ro_bp.route('/api/test-places')
+@login_required
+def test_places():
+    if not current_user.is_owner:
+        return jsonify({'error': 'Solo owner'}), 403
+    import requests as _rq
+    lat, lng = 45.6427, 25.5887  # Brasov centro test
+    url = PLACES_URL + '?' + '&'.join([
+        f'location={lat},{lng}',
+        'radius=500',
+        'type=supermarket',
+        f'key={GMAPS_KEY}',
+        'language=ro',
+    ])
+    try:
+        r = _rq.get(url, timeout=8)
+        data = r.json()
+        return jsonify({
+            'status': data.get('status'),
+            'n_results': len(data.get('results', [])),
+            'error_message': data.get('error_message', ''),
+            'gmaps_key_presente': bool(GMAPS_KEY),
+            'gmaps_key_prefix': GMAPS_KEY[:8] + '...' if GMAPS_KEY else 'VUOTA',
+            'url_chiamata': url[:80] + '...',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'gmaps_key_presente': bool(GMAPS_KEY)})
+
+
 # ── API Cambio ────────────────────────────────────────────────────────────────
 @ro_bp.route('/api/cambio')
 @login_required
