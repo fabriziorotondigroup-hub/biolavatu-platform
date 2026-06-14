@@ -11,6 +11,7 @@ from app import db
 from models.pratica import Pratica
 from models.cliente import Cliente
 from models.settings import Settings
+from services.normativa_romania import NORMATIVA_RO
 from services.ins_romania import (
     get_demographic_data_ro, get_market_assessment_ro, get_f_citta_ro,
     get_cambio_ron_live, converti_ron_eur, converti_eur_ron,
@@ -767,6 +768,32 @@ def salva_nuovo():
     )
     db.session.add(p); db.session.commit()
     return redirect(url_for('romania.modifica_preventivo', id=p.id))
+
+# ── Normativa Romania ────────────────────────────────────────────────────────
+@ro_bp.route('/normativa')
+@ro_bp.route('/normativa/<int:pratica_id>')
+@login_required
+def normativa(pratica_id=None):
+    if not _check_ro(): return redirect(url_for('dashboard.index'))
+    lingua = request.args.get('lingua', _get_lingua())
+    norm   = NORMATIVA_RO.get(lingua, NORMATIVA_RO['it'])
+    p      = None
+    cliente_nome = ''
+    citta        = ''
+    if pratica_id:
+        p = Pratica.query.get_or_404(pratica_id)
+        cliente_nome = p.cliente.nome if p.cliente else ''
+        citta        = p.citta or ''
+    return render_template('romania/normativa_ro.html',
+        norm=norm,
+        lingua=lingua,
+        cliente_nome=cliente_nome,
+        citta=citta,
+        pratica_id=pratica_id,
+        cambio_ron=_cambio(),
+        data_oggi=datetime.date.today().strftime('%d/%m/%Y'),
+    )
+
 
 # ── Lingua ────────────────────────────────────────────────────────────────────
 @ro_bp.route('/lingua/<lang>')
