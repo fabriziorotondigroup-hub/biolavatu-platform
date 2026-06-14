@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}{{ tr.venditori }} — Albania{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div>
+      <h4 class="mb-0" style="color:#f59e0b">🇦🇱 {{ tr.venditori }}</h4>
+      <span style="font-size:12px;color:#64748b">
+        {{ 'Gestione agenti mercato Albania' if lingua=='it' else 'Gestionare agenti piata Albania' }}
+      </span>
+    </div>
+    {% if current_user.can_manage_venditori %}
+    <button class="btn btn-warning ms-auto" data-bs-toggle="modal" data-bs-target="#modalNuovoAL">
+      <i class="bi bi-plus-circle me-1"></i> {{ tr.nuovo_venditore }}
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Cambio -->
+  <div class="alert" style="background:#0f172a;border:1px solid #f59e0b22;border-radius:10px;
+       padding:10px 16px;margin-bottom:16px;font-size:12px;color:#64748b">
+    💱 {{ tr.curs }} <stalg style="color:#f59e0b">{{ "%.2f"|format(cambio_al) }} ALN</stalg>
+    &nbsp;|&nbsp;
+    {{ agenti|length }}
+    {{ 'agenti attivi' if lingua=='it' else 'agenti activi' }}
+    nel mercato Albania
+  </div>
+
+  <!-- Tabella agenti -->
+  <div class="card" style="background:#111827;border:1px solid #1e2d45;border-radius:12px">
+    <div class="card-body p-0">
+      <table class="table table-dark table-hover mb-0" style="border-radius:12px;overflow:hidden">
+        <thead style="background:#0a0f1a">
+          <tr>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.nome }}
+            </th>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.email }}
+            </th>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.rol }}
+            </th>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ 'Lingua / Limba' if lingua=='it' else 'Limba' }}
+            </th>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.activ }}
+            </th>
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.creat }}
+            </th>
+            {% if current_user.can_manage_venditori %}
+            <th style="padding:14px 16px;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase">
+              {{ tr.actiuni }}
+            </th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in agenti %}
+          <tr id="row-{{ a.id }}">
+            <td style="padding:12px 16px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:32px;height:32px;border-radius:50%;background:#f59e0b22;
+                     display:flex;align-items:center;justify-content:center;
+                     font-weight:700;color:#f59e0b;font-size:14px">
+                  {{ a.nome[0].upper() if a.nome else '?' }}
+                </div>
+                <span style="font-weight:600;color:#e2e8f0">{{ a.nome }}</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px;color:#94a3b8;font-size:13px">{{ a.email }}</td>
+            <td style="padding:12px 16px">
+              {% if a.role == 'owner' %}
+                <span style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44;
+                      padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">
+                  👑 Owner
+                </span>
+              {% elif a.role == 'admin' %}
+                <span style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f644;
+                      padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">
+                  🔧 Admin
+                </span>
+              {% else %}
+                <span style="background:#10b98122;color:#10b981;border:1px solid #10b98144;
+                      padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">
+                  🇦🇱 {{ 'Agent' if a.role=='sales_al' else a.role }}
+                </span>
+              {% endif %}
+            </td>
+            <td style="padding:12px 16px;color:#94a3b8;font-size:13px">
+              {{ '🇦🇱 AL' if a.lingua=='ro' else '🇮🇹 IT' }}
+            </td>
+            <td style="padding:12px 16px">
+              <span id="badge-{{ a.id }}"
+                style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+                  {{ 'background:#10b98122;color:#10b981;border:1px solid #10b98144' if a.attivo
+                     else 'background:#ef444422;color:#ef4444;border:1px solid #ef444444' }}">
+                {{ ('Attivo' if lingua=='it' else 'Activ') if a.attivo
+                   else ('Disattivo' if lingua=='it' else 'Inactiv') }}
+              </span>
+            </td>
+            <td style="padding:12px 16px;color:#64748b;font-size:12px">
+              {{ a.created.strftime('%d/%m/%Y') if a.created else '—' }}
+            </td>
+            {% if current_user.can_manage_venditori %}
+            <td style="padding:12px 16px">
+              <div style="display:flex;gap:6px">
+                <button onclick="toggleAgente({{ a.id }})"
+                  class="btn btn-sm"
+                  style="background:#1e2d45;color:#94a3b8;border:1px solid #334155;
+                         padding:4px 10px;font-size:11px">
+                  {{ 'Disattiva' if a.attivo else 'Attiva' }}
+                </button>
+                {% if current_user.is_owner and not a.is_owner %}
+                <button onclick="eliminaAgente({{ a.id }}, '{{ a.nome }}')"
+                  class="btn btn-sm"
+                  style="background:#ef444422;color:#ef4444;border:1px solid #ef444444;
+                         padding:4px 10px;font-size:11px">
+                  Elimina
+                </button>
+                {% endif %}
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align:center;padding:40px;color:#64748b">
+              <i class="bi bi-people" style="font-size:32px;display:block;margin-bottom:12px"></i>
+              {{ 'Nessun agente Albania ancora creato.' if lingua=='it'
+                 else 'Niciun agent Albania creat inca.' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal nuovo agente AL -->
+{% if current_user.can_manage_venditori %}
+<div class="modal fade" id="modalNuovoAL" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:#111827;border:1px solid #1e2d45">
+      <div class="modal-header" style="border-bottom:1px solid #1e2d45">
+        <h5 class="modal-title" style="color:#f59e0b">
+          🇦🇱 {{ tr.nuovo_venditore }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('albania.nuovo_venditore_al') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label" style="color:#94a3b8">{{ tr.nome }} *</label>
+              <input type="text" name="nome" class="form-control" required
+                     placeholder="{{ 'Nome e cognome' if lingua=='it' else 'Nume si prenume' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label" style="color:#94a3b8">{{ tr.email }} *</label>
+              <input type="email" name="email" class="form-control" required
+                     placeholder="agent@firma.ro">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="color:#94a3b8">{{ tr.rol }}</label>
+              <select name="role" class="form-select">
+                <option value="sales_al">🇦🇱 {{ 'Agent Albania' if lingua=='it' else 'Agent Albania' }}</option>
+                <option value="admin">🔧 Admin</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="color:#94a3b8">
+                {{ 'Lingua interfaccia' if lingua=='it' else 'Limba interfata' }}
+              </label>
+              <select name="lingua" class="form-select">
+                <option value="al" selected>🇦🇱 Română</option>
+                <option value="it">🇮🇹 Italiano</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label" style="color:#94a3b8">
+                {{ 'Password temporanea' if lingua=='it' else 'Parola temporara' }}
+              </label>
+              <input type="text" name="password" class="form-control"
+                     value="Albania2026!" placeholder="Password">
+              <small style="color:#64748b;font-size:11px">
+                {{ "L'agente dovrà cambiarla al primo accesso." if lingua=='it'
+                   else 'Agentul trebuie sa o schimbe la prima conectare.' }}
+              </small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #1e2d45">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            {{ 'Annulla' if lingua=='it' else 'Anuleaza' }}
+          </button>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-person-plus me-1"></i>
+            {{ 'Crea agente' if lingua=='it' else 'Creeaza agent' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function toggleAgente(id) {
+  fetch('/al/venditori/'+id+'/toggle', {method:'POST',
+    headers:{'Content-Type':'application/json',
+             'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content||''}})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    var badge = document.getElementById('badge-'+id);
+    if(badge) {
+      badge.textContent = d.attivo ?
+        ('{{ "Attivo" if lingua=="it" else "Activ" }}') :
+        ('{{ "Disattivo" if lingua=="it" else "Inactiv" }}');
+      badge.style.cssText = d.attivo ?
+        'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#10b98122;color:#10b981;border:1px solid #10b98144' :
+        'padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#ef444422;color:#ef4444;border:1px solid #ef444444';
+    }
+  });
+}
+
+function eliminaAgente(id, nome) {
+  if(!confirm('{{ "Eliminare" if lingua=="it" else "Sterge" }} ' + nome + '?')) return;
+  fetch('/al/venditori/'+id+'/elimina', {method:'POST'})
+  .then(function(){ location.reload(); });
+}
+</script>
+{% endblock %}
