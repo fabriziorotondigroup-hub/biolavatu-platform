@@ -961,12 +961,12 @@ const LINGUA = '{{ lingua }}';
 const CAMBIO = {{ cambio_ron }};
 let _cambioLive = CAMBIO;
 
-// ── Override per Romania: aggiunge market=RO alla chiamata zona-analisi ──────
+// ── Romania: reindirizza zona-analisi alla route dedicata RO ─────────────────
+// Nessun monkey-patching di fetch — usiamo route separata /ro/api/zona-analisi-ro
 const _originalFetch = window.fetch;
-// Intercetta chiamate a zona-analisi e aggiunge market=RO
 const _roFetchProxy = function(url, opts) {
-  if(typeof url === 'string' && url.includes('/api/zona-analisi') && !url.includes('market=')) {
-    url = url + '&market=RO';
+  if(typeof url === 'string' && url.includes('/api/zona-analisi') && !url.includes('/ro/')) {
+    url = url.replace('/api/zona-analisi', '/ro/api/zona-analisi-ro');
   }
   return _originalFetch.apply(this, [url, opts]);
 };
