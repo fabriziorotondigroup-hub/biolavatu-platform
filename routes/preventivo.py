@@ -81,6 +81,10 @@ def _build_bp_avanzato_json(data):
 @preventivo_bp.route('/preventivo/nuovo', methods=['GET', 'POST'])
 @login_required
 def nuovo():
+    # Agenti di mercati esteri non accedono al wizard IT
+    if hasattr(current_user, 'market') and current_user.market and \
+       current_user.market != 'IT' and current_user.role not in ('owner','admin','segreteria'):
+        return redirect(url_for('dashboard.index'))
     macchine = Macchina.query.filter_by(attiva=True).order_by(Macchina.categoria, Macchina.nome).all()
     clienti = Cliente.query.order_by(Cliente.nome).all()
     settings = Settings.query.first()
