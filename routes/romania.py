@@ -17,6 +17,108 @@ from services.ins_romania import (
     TARIFFE_DEFAULT_RO, EUR_RON_RATE, OCC_BASE_RO,
 )
 
+
+# ── Dizionario traduzioni IT / RO ────────────────────────────────────────────
+TR = {
+    'it': {
+        'dashboard':        'Dashboard',
+        'nuovo':            'Nuova pratica',
+        'pratiche':         'Pratiche Romania',
+        'venditori':        'Venditori Romania',
+        'nuovo_venditore':  'Nuovo Venditore RO',
+        'cliente':          'Cliente',
+        'sede':             'Sede',
+        'zona':             'Zona',
+        'macchine':         'Macchine',
+        'business_plan':    'Business Plan',
+        'riepilogo':        'Riepilogo',
+        'salva':            'Salva pratica',
+        'avanti':           'Avanti →',
+        'indietro':         '← Indietro',
+        'analizza_zona':    'Analizza zona',
+        'genera_ai':        'Genera Analisi AI',
+        'incasari':         'Incasari lunare',
+        'profit':           'Profit net',
+        'investitie':       'Investimento',
+        'ocupare':          'Occupazione',
+        'curs':             '1 EUR =',
+        'ron':              'RON',
+        'nome':             'Nome',
+        'email':            'Email',
+        'telefon':          'Telefono',
+        'oras':             'Città',
+        'judet':            'Judet / Provincia',
+        'suprafata':        'Superficie (mq)',
+        'chirie':           'Affitto mensile (RON)',
+        'tip_zona':         'Tipo zona',
+        'strada':           'Via e numero civico',
+        'pesimist':         'Pessimistico',
+        'realist':          'Realistico',
+        'optimist':         'Ottimistico',
+        'populatie':        'Popolazione raggiungibile',
+        'scor_zona':        'Score zona',
+        'concurenta':       'Concorrenza',
+        'conc_500':         'Self-service 500m',
+        'conc_1km':         'Tutte 1km',
+        'rol':              'Ruolo',
+        'activ':            'Attivo',
+        'creat':            'Creato',
+        'actiuni':          'Azioni',
+    },
+    'ro': {
+        'dashboard':        'Panou de control',
+        'nuovo':            'Dosar nou',
+        'pratiche':         'Dosare Romania',
+        'venditori':        'Agenti Romania',
+        'nuovo_venditore':  'Agent nou RO',
+        'cliente':          'Client',
+        'sede':             'Sediu',
+        'zona':             'Zona',
+        'macchine':         'Utilaje',
+        'business_plan':    'Plan de afaceri',
+        'riepilogo':        'Rezumat',
+        'salva':            'Salveaza dosarul',
+        'avanti':           'Inainte →',
+        'indietro':         '← Inapoi',
+        'analizza_zona':    'Analizeaza zona',
+        'genera_ai':        'Genereaza Analiza AI',
+        'incasari':         'Incasari lunare',
+        'profit':           'Profit net',
+        'investitie':       'Investitie',
+        'ocupare':          'Ocupare',
+        'curs':             '1 EUR =',
+        'ron':              'RON',
+        'nome':             'Nume',
+        'email':            'Email',
+        'telefon':          'Telefon',
+        'oras':             'Oras',
+        'judet':            'Judet',
+        'suprafata':        'Suprafata (mp)',
+        'chirie':           'Chirie lunara (RON)',
+        'tip_zona':         'Tip zona',
+        'strada':           'Strada si numar',
+        'pesimist':         'Pesimist',
+        'realist':          'Realist',
+        'optimist':         'Optimist',
+        'populatie':        'Populatie accesibila',
+        'scor_zona':        'Scor zona',
+        'concurenta':       'Concurenta',
+        'conc_500':         'Spalatorii 500m',
+        'conc_1km':         'Total 1km',
+        'rol':              'Rol',
+        'activ':            'Activ',
+        'creat':            'Creat',
+        'actiuni':          'Actiuni',
+    }
+}
+
+def _tr(key, lingua='it'):
+    return TR.get(lingua, TR['it']).get(key, key)
+
+def _get_lingua():
+    from flask import session
+    return session.get('lingua', 'it')
+
 ro_bp = Blueprint('romania', __name__, url_prefix='/ro')
 GMAPS_KEY = os.environ.get('GMAPS_KEY', '')
 
@@ -108,18 +210,22 @@ def pratiche():
 @login_required
 def nuovo_preventivo():
     if not _check_ro(): return redirect(url_for('dashboard.index'))
+    ling = _get_lingua()
     return render_template('romania/preventivo_ro.html',
         pratica=None, cambio_ron=_cambio(),
-        tariffe=TARIFFE_DEFAULT_RO, settings=Settings.query.first())
+        tariffe=TARIFFE_DEFAULT_RO, settings=Settings.query.first(),
+        lingua=ling, tr=TR.get(ling, TR['it']))
 
 @ro_bp.route('/preventivo/<int:id>')
 @login_required
 def modifica_preventivo(id):
     if not _check_ro(): return redirect(url_for('dashboard.index'))
     p = Pratica.query.get_or_404(id)
+    ling = _get_lingua()
     return render_template('romania/preventivo_ro.html',
         pratica=p, cambio_ron=_cambio(),
-        tariffe=TARIFFE_DEFAULT_RO, settings=Settings.query.first())
+        tariffe=TARIFFE_DEFAULT_RO, settings=Settings.query.first(),
+        lingua=ling, tr=TR.get(ling, TR['it']))
 
 # ── API Geocodifica ───────────────────────────────────────────────────────────
 @ro_bp.route('/api/geocode')
@@ -437,3 +543,73 @@ def salva_nuovo():
 def set_lingua(lang):
     if lang in ('it','ro'): session['lingua'] = lang
     return redirect(request.referrer or url_for('romania.dashboard'))
+
+
+# ── Venditori Romania ─────────────────────────────────────────────────────────
+
+@ro_bp.route('/venditori')
+@login_required
+def venditori():
+    if not _check_ro(): return redirect(url_for('dashboard.index'))
+    if not current_user.can_manage_venditori:
+        flash('Accesso negato.', 'error')
+        return redirect(url_for('romania.dashboard'))
+    ling = _get_lingua()
+    agenti = User.query.filter(
+        User.market == 'RO',
+        User.role.in_(('sales', 'sales_ro', 'admin'))
+    ).order_by(User.created.desc()).all()
+    return render_template('romania/venditori_ro.html',
+        agenti=agenti, lingua=ling, tr=TR.get(ling, TR['it']),
+        cambio_ron=_cambio())
+
+
+@ro_bp.route('/venditori/nuovo', methods=['POST'])
+@login_required
+def nuovo_venditore_ro():
+    if not current_user.can_manage_venditori:
+        return redirect(url_for('romania.dashboard'))
+    from werkzeug.security import generate_password_hash
+    email = request.form.get('email', '').strip()
+    if not email or User.query.filter_by(email=email).first():
+        flash('Email non valida o già registrata.', 'error')
+        return redirect(url_for('romania.venditori'))
+    u = User(
+        nome    = request.form.get('nome', '').strip(),
+        email   = email,
+        role    = request.form.get('role', 'sales_ro'),
+        market  = 'RO',
+        lingua  = request.form.get('lingua', 'ro'),
+        attivo  = True,
+    )
+    u.set_password(request.form.get('password', 'Romania2026!'))
+    db.session.add(u)
+    db.session.commit()
+    flash(f'Agente {u.nome} creato.', 'success')
+    return redirect(url_for('romania.venditori'))
+
+
+@ro_bp.route('/venditori/<int:id>/toggle', methods=['POST'])
+@login_required
+def toggle_venditore_ro(id):
+    if not current_user.can_manage_venditori:
+        return jsonify({'error': 'Accesso negato'}), 403
+    u = User.query.get_or_404(id)
+    u.attivo = not u.attivo
+    db.session.commit()
+    return jsonify({'attivo': u.attivo, 'nome': u.nome})
+
+
+@ro_bp.route('/venditori/<int:id>/elimina', methods=['POST'])
+@login_required
+def elimina_venditore_ro(id):
+    if not current_user.is_owner:
+        return jsonify({'error': 'Solo il proprietario può eliminare agenti'}), 403
+    u = User.query.get_or_404(id)
+    if u.is_owner:
+        return jsonify({'error': 'Non puoi eliminare il proprietario'}), 403
+    db.session.delete(u)
+    db.session.commit()
+    flash(f'Agente eliminato.', 'success')
+    return redirect(url_for('romania.venditori'))
+
