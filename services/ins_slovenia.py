@@ -149,3 +149,37 @@ def calcola_costi_operativi_si(n_lavatrici, n_asciugatrici, cicli_giorno_lav=6, 
 
 def get_cambio_si_live() -> float:
     return 1.0  # Slovenia è in Eurozona dal 2007
+
+
+# ── Alias e costanti per compatibilità route ─────────────────────────────────
+EUR_SIT_RATE = 1.0   # Slovenia usa EUR dal 2007
+OCC_BASE_SI  = 0.42
+
+def converti_eur_eur(v: float) -> float:
+    return round(v, 2)  # già in EUR
+
+def calcola_incasso_da_lavaggi_si(
+    lavaggi_quota: int,
+    t_lav_medio_eur: float,
+    perc_asciugatura: float = 50,
+    t_asc_eur: float = 3.0,
+) -> float:
+    return round(lavaggi_quota * t_lav_medio_eur +
+                 lavaggi_quota * (perc_asciugatura / 100) * t_asc_eur)
+
+def calcola_affitto_max_si(fatturato_eur: float) -> dict:
+    return {
+        'affitto_max_10pct': round(fatturato_eur * 0.10),
+        'affitto_max_12pct': round(fatturato_eur * 0.12),
+        'regola': '10-12% del fatturato previsto',
+    }
+
+def calcola_saturazione_si(pop_5min: int, n_lavatrici_zona: int) -> dict:
+    if n_lavatrici_zona == 0:
+        return {'indice': 99999, 'label': 'Monopol', 'colore': '#10b981', 'n_lavatrici_zona': 0}
+    indice = pop_5min // n_lavatrici_zona
+    if   indice > 6000: label, colore = 'Optimalno',   '#10b981'
+    elif indice > 3000: label, colore = 'Konkurencno', '#3b82f6'
+    elif indice > 1500: label, colore = 'Nasiceno',    '#f59e0b'
+    else:               label, colore = 'Prenasiceno', '#ef4444'
+    return {'indice': indice, 'label': label, 'colore': colore, 'n_lavatrici_zona': n_lavatrici_zona}
