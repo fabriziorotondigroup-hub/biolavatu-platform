@@ -448,6 +448,11 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
       <i class="bi bi-people"></i> Agenti RO
     </a>
     {% endif %}
+    <a href="{{ url_for('romania.normativa') }}"
+       class="nav-link {% if request.endpoint == 'romania.normativa' %}active{% endif %}"
+       style="color:#94a3b8">
+      <i class="bi bi-journal-text"></i> Normativa RO
+    </a>
     {% endif %}
     {% if current_user.is_admin %}
     <div class="nav-section" style="margin-top:8px">Admin</div>
