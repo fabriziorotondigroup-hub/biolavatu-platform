@@ -196,18 +196,18 @@
   <div style="padding:16px">
     <!-- Legenda cliccabile ON/OFF -->
     <div id="legenda-poi" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:0 8px">
-      {% for cat, col, lab, ico in [
-        ('concorrenti','#ef4444','Concorrenti','⚔️'),
-        ('supermercati','#22c55e','Supermercati','🛒'),
-        ('bar','#f59e0b','Bar/Ristoranti','☕'),
-        ('farmacie','#ec4899','Farmacie','💊'),
-        ('trasporti','#6d28d9','Trasporti','🚌'),
-        ('istruzione','#0ea5e9','Universita','🎓'),
-        ('ospedali','#ef4444','Ospedali','🏥'),
-        ('banche','#06b6d4','Banche','🏦'),
-        ('hotel_bb','#a855f7','Hotel/B&B','🛏️'),
-        ('caserme','#dc2626','Caserme','🚔'),
-        ('altro','#14b8a6','Altro','📌'),
+      {% for cat, col, lab in [
+        ('concorrenti','#ef4444','Concorrenti'),
+        ('supermercati','#22c55e','Supermercati'),
+        ('bar','#f59e0b','Bar/Ristoranti'),
+        ('farmacie','#ec4899','Farmacie'),
+        ('trasporti','#6d28d9','Trasporti'),
+        ('istruzione','#0ea5e9','Universita'),
+        ('ospedali','#ef4444','Ospedali'),
+        ('banche','#06b6d4','Banche'),
+        ('hotel_bb','#a855f7','Hotel/B&B'),
+        ('caserme','#dc2626','Caserme'),
+        ('altro','#14b8a6','Altro'),
       ] %}
       <button type="button"
         onclick="toggleCategoria('{{ cat }}')"
@@ -218,7 +218,7 @@
                background:{{ col }};color:white;border:2px solid {{ col }};
                transition:all 0.25s ease;user-select:none;font-weight:600;
                box-shadow:0 0 10px {{ col }}55;outline:none">
-        {{ ico }} {{ lab }}
+        {{ lab }}
       </button>
       {% endfor %}
     </div>
