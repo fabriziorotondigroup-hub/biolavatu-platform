@@ -3,7 +3,7 @@ routes/romania.py — BIOLavaTU LaundryPro — Mercato Romania
 ISOLATO: zero import da geo.py, preventivo.py, investitore.py, istat.py.
 """
 import os, json, math
-import requests as _req
+import requests
 from flask import (Blueprint, render_template, request, jsonify,
                    redirect, url_for, session, flash)
 from flask_login import login_required, current_user
