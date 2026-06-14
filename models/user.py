@@ -27,7 +27,8 @@ class User(db.Model, UserMixin):
     attivo = db.Column(db.Boolean, default=True)
     created = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Email segreteria hardcoded — solo questa email ottiene i privilegi segreteria
+    # Email hardcoded — sicurezza assoluta, non modificabile da UI
+    OWNER_EMAIL      = 'fabrizio.rotondigroup@gmail.com'
     SEGRETERIA_EMAIL = 'roma.rotondigroup@gmail.com'
 
     def set_password(self, pw):
@@ -40,8 +41,9 @@ class User(db.Model, UserMixin):
 
     @property
     def is_owner(self):
-        """Solo Fabrizio — controllo su email + ruolo."""
-        return self.role == 'owner'
+        """Solo Fabrizio — DOPPIO controllo: ruolo E email.
+        Nessun admin può mai diventare owner senza avere questa email."""
+        return self.role == 'owner' and self.email == self.OWNER_EMAIL
 
     @property
     def is_segreteria(self):
