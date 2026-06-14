@@ -194,8 +194,10 @@ def _cambio():
 def dashboard():
     if not _check_ro(): return redirect(url_for('dashboard.index'))
     pratiche = Pratica.query.filter_by(market='RO').order_by(Pratica.created.desc()).limit(20).all()
+    ling = _get_lingua()
     return render_template('romania/dashboard_ro.html',
-        pratiche=pratiche, cambio_ron=_cambio())
+        pratiche=pratiche, cambio_ron=_cambio(),
+        lingua=ling, tr=TR.get(ling, TR['it']))
 
 @ro_bp.route('/pratiche')
 @login_required
