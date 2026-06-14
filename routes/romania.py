@@ -5,7 +5,7 @@ Struttura separata dall'Italia ma usa gli stessi motori di calcolo.
 Lingua: IT + RO (doppia)
 Valuta: RON + EUR con cambio automatico
 """
-import os, json
+import os, json, math
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
 from flask_login import login_required, current_user
 from app import db
@@ -18,8 +18,75 @@ from services.ins_romania import (
     TARIFFE_DEFAULT_RO, EUR_RON_RATE, OCC_BASE_RO, get_f_citta_ro
 )
 from services.i18n import t, get_all
+from services.domanda import calcola_stima_clienti
+from services.analisi_competitiva import (
+    calcola_score_ponderato, calcola_capacita_concorrenza, analizza_punti_deboli
+)
 
 ro_bp = Blueprint('romania', __name__, url_prefix='/ro')
+
+
+# ── Helper copiati da geo.py (isolato) ──────────────────────────────────────
+
+def walking_radius(minutes: int) -> int:
+    return minutes * 80
+
+
+
+def haversine(lat1, lng1, lat2, lng2) -> float:
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lng2 - lng1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+
+def gmaps_nearby(lat, lng, radius, place_type, keyword=None):
+    params = {
+        'location': f'{lat},{lng}',
+        'radius': radius,
+        'type': place_type,
+        'key': GMAPS_KEY,
+        'language': 'it',
+    }
+    if keyword:
+        params['keyword'] = keyword
+    try:
+        r = requests.get(PLACES_URL, params=params, timeout=10)
+        return r.json().get('results', [])
+    except Exception:
+        return []
+
+
+
+def place_to_poi(place, lat_c, lng_c, categoria, colore, icon):
+    try:
+        plat = place['geometry']['location']['lat']
+        plng = place['geometry']['location']['lng']
+    except (KeyError, TypeError):
+        return None  # risultato malformato
+    dist = int(haversine(lat_c, lng_c, plat, plng))
+    return {
+        'lat': plat, 'lng': plng,
+        'nome': place.get('name', ''),
+        'categoria': categoria,
+        'colore': colore,
+        'icon': icon,
+        'distanza_m': dist,
+        'rating': place.get('rating'),
+        'user_ratings_total': place.get('user_ratings_total', 0),
+        'open_now': place.get('opening_hours', {}).get('open_now'),
+        'vicinity': place.get('vicinity', ''),
+    }
+
+
+# ── GEOCODING ─────────────────────────────────────────────────────────────────
+
+@geo_bp.route('/api/geocode')
+@login_required
+
 
 
 def _check_ro_access():
