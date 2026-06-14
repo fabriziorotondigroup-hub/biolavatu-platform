@@ -242,8 +242,13 @@ def cambia_ruolo(id):
         flash('Non puoi cambiare il tuo stesso ruolo.', 'error')
         return redirect(url_for('admin.index'))
     nuovo_ruolo = request.form.get('ruolo', 'sales')
-    if nuovo_ruolo not in ('admin', 'sales'):
+    # owner non può essere assegnato da UI — solo da DB direttamente
+    if nuovo_ruolo not in ('admin', 'sales', 'sales_ro', 'segreteria'):
         flash('Ruolo non valido.', 'error')
+        return redirect(url_for('admin.index'))
+    # Doppio blocco: nessuno può diventare owner via UI
+    if nuovo_ruolo == 'owner':
+        flash('Il ruolo owner non può essere assegnato.', 'error')
         return redirect(url_for('admin.index'))
     u.role = nuovo_ruolo
     db.session.commit()
