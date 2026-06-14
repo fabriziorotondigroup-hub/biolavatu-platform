@@ -1,1303 +1,688 @@
 {% extends "base.html" %}
-{% block title %}
-  {{ tr.nuova_pratica if not pratica else pratica.numero }} — BIOLavaTU România
-{% endblock %}
+{% block title %}{{ 'Dosar nou' if not pratica else 'Modifica dosar' }} — Romania{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-:root { --bg1:#0a0e1a; --bg2:#111827; --bg3:#1e293b; --text:#e2e8f0;
-  --border:#1e2d45; --primary:#2563eb; --primary-light:#3b82f6; }
-.wizard-steps { display:flex; gap:0; margin-bottom:24px; overflow-x:auto; }
-.step { flex:1; min-width:80px; padding:10px 6px; text-align:center; cursor:pointer;
-  border-bottom:2px solid var(--border); font-size:12px; color:#64748b; transition:.2s; }
-.step.active { border-bottom-color:var(--primary-light); color:#e2e8f0; font-weight:700; }
-.step.done { border-bottom-color:#10b981; color:#10b981; }
-.step-num { font-size:16px; font-weight:700; display:block; }
-.wizard-panel { display:none; color:var(--text); }
-.wizard-panel.active { display:block; min-height:200px; }
-.card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; margin-bottom:14px; }
-.card-header { background:var(--bg3); border-bottom:1px solid var(--border);
-  padding:12px 16px; font-weight:600; font-size:13px; color:#e2e8f0; border-radius:12px 12px 0 0; }
-.card-body { padding:16px; }
-.form-control, .form-select { background:var(--bg1); border:1px solid var(--border);
-  color:#e2e8f0; border-radius:8px; font-size:13px; }
-.form-control:focus, .form-select:focus { background:var(--bg1); border-color:var(--primary);
-  color:#e2e8f0; box-shadow:0 0 0 2px rgba(37,99,235,.25); }
-.form-label { font-size:12px; color:#94a3b8; margin-bottom:4px; }
-.btn-primary { background:var(--primary); border-color:var(--primary); }
-.kpi-box { background:#0f172a; border:1px solid var(--border); border-radius:10px;
-  padding:14px; text-align:center; }
-.kpi-val { font-size:20px; font-weight:700; color:#3b82f6; }
-.kpi-ron { font-size:13px; color:#f59e0b; font-weight:600; }
-.kpi-label { font-size:10px; color:#64748b; margin-top:2px; }
-.lang-switch { display:flex; gap:8px; align-items:center; }
-.lang-btn { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:600;
-  border:1px solid var(--border); background:transparent; color:#64748b; cursor:pointer; }
-.lang-btn.active { background:var(--primary); color:white; border-color:var(--primary); }
-</style>
+<!-- Intestazione -->
+<div style="padding:12px 24px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:12px">
+  <a href="{{ url_for('romania.dashboard') }}" style="color:#64748b;font-size:13px;text-decoration:none">
+    ← Inapoi / Torna indietro
+  </a>
+  <span style="color:#1e2d45">|</span>
+  <span style="font-size:15px;font-weight:600;color:#f59e0b">
+    🇷🇴 {{ 'Dosar nou' if not pratica else pratica.numero }}
+  </span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <span style="font-size:12px;color:#64748b">
+      1 EUR = <span id="cambio-display">{{ "%.2f"|format(cambio_ron) }}</span> RON
+    </span>
+  </div>
+</div>
 
-<div style="max-width:900px;margin:0 auto;padding:20px">
+<!-- Progress steps -->
+<div style="display:flex;padding:0 24px;border-bottom:1px solid #1e2d45;background:#0a0f1a">
+  {% for num, label in [(1,'Cliente'),(2,'Sediu'),(3,'Zona'),(4,'Utilaje'),(5,'Business Plan'),(6,'Rezumat')] %}
+  <div onclick="goStep({{ num }})" id="step-tab-{{ num }}"
+       style="padding:14px 20px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;
+              color:#64748b;white-space:nowrap;transition:all 0.2s">
+    <span style="background:#1e2d45;border-radius:50%;width:20px;height:20px;display:inline-flex;
+                 align-items:center;justify-content:center;margin-right:6px;font-size:10px">{{ num }}</span>
+    {{ label }}
+  </div>
+  {% endfor %}
+</div>
 
-  <!-- Header Romania -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-    <div>
-      <a href="{{ url_for('romania.dashboard') }}" style="color:#64748b;font-size:12px;text-decoration:none">
-        ← {{ 'Înapoi la panou' if lingua=='ro' else 'Torna alla dashboard' }}
-      </a>
-      <div style="font-size:18px;font-weight:700;color:#e2e8f0;margin-top:4px">
-        🇷🇴 {{ tr.nuova_pratica if not pratica else pratica.numero }}
+<form method="POST" action="{{ url_for('romania.salva_nuovo') }}" id="form-ro">
+<input type="hidden" name="market" value="RO">
+<input type="hidden" name="valuta" value="RON">
+<input type="hidden" id="f_cambio_ron" name="cambio_ron" value="{{ cambio_ron }}">
+<input type="hidden" id="f_lat" name="lat" value="{{ pratica.lat if pratica else '' }}">
+<input type="hidden" id="f_lng" name="lng" value="{{ pratica.lng if pratica else '' }}">
+<input type="hidden" id="f_pop3" name="pop_3min" value="{{ pratica.pop_3min if pratica else 0 }}">
+<input type="hidden" id="f_pop5" name="pop_5min" value="{{ pratica.pop_5min if pratica else 0 }}">
+<input type="hidden" id="f_pop10" name="pop_10min" value="{{ pratica.pop_10min if pratica else 0 }}">
+<input type="hidden" id="f_score" name="score_zona" value="{{ pratica.score_zona if pratica else 0 }}">
+<input type="hidden" id="f_c500" name="concorrenti_500m" value="{{ pratica.concorrenti_500m if pratica else 0 }}">
+<input type="hidden" id="f_c1k" name="concorrenti_1km" value="{{ pratica.concorrenti_1km if pratica else 0 }}">
+<input type="hidden" id="f_mult" name="mult_attractor" value="1.0">
+<input type="hidden" id="f_rec" name="recensioni_zona" value="0">
+<input type="hidden" id="f_gdo" name="gdo_500m" value="0">
+<input type="hidden" id="f_densita" name="densita" value="0">
+<input type="hidden" id="f_reddito" name="reddito_medio" value="0">
+<input type="hidden" id="f_pois" name="pois_json" value="[]">
+<input type="hidden" id="f_incasso_eur" name="incasso_eur" value="0">
+<input type="hidden" id="f_costi_eur" name="costi_eur" value="0">
+<input type="hidden" id="f_utile_eur" name="utile_eur" value="0">
+
+<!-- ══ STEP 1: CLIENTE ══ -->
+<div class="wizard-step" id="panel-1" style="display:block">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">👤 Date client / Dati cliente</h5>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Nume client / Nome cliente *</label>
+        <input type="text" name="cliente_nome" class="form-control"
+               value="{{ pratica.cliente.nome if pratica and pratica.cliente else '' }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Firma / Azienda</label>
+        <input type="text" name="cliente_azienda" class="form-control"
+               value="{{ pratica.cliente.azienda if pratica and pratica.cliente else '' }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email</label>
+        <input type="email" name="cliente_email" class="form-control"
+               value="{{ pratica.cliente.email if pratica and pratica.cliente else '' }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Telefon / Telefono</label>
+        <input type="text" name="cliente_tel" class="form-control"
+               value="{{ pratica.cliente.telefono if pratica and pratica.cliente else '' }}">
       </div>
     </div>
-    <!-- Switch lingua -->
-    <div class="lang-switch">
-      <span style="font-size:11px;color:#64748b">Limbă / Lingua:</span>
-      <a href="{{ url_for('romania.set_lingua', lang='it') }}"
-         class="lang-btn {{ 'active' if lingua=='it' else '' }}">🇮🇹 IT</a>
-      <a href="{{ url_for('romania.set_lingua', lang='ro') }}"
-         class="lang-btn {{ 'active' if lingua=='ro' else '' }}">🇷🇴 RO</a>
-      <span style="font-size:11px;color:#64748b;margin-left:8px">
-        1 EUR = <span id="cambio-display">{{ "%.2f"|format(cambio_ron) }}</span> RON
-      </span>
+    <div class="d-flex justify-content-end mt-4">
+      <button type="button" class="btn btn-warning" onclick="goStep(2)">
+        Inainte / Avanti →
+      </button>
     </div>
   </div>
+</div>
 
-  <form id="form-ro" method="POST"
-    action="{{ url_for('romania.modifica_preventivo', id=pratica.id) if pratica else url_for('romania.nuovo_preventivo') }}">
-    <input type="hidden" name="market" value="RO">
-    <input type="hidden" name="valuta" value="RON">
-    <input type="hidden" id="f_cambio_ron" name="cambio_ron" value="{{ cambio_ron }}">
-    <!-- Campi hidden zona — popolati da geocodifica e zona-analisi -->
-    <input type="hidden" id="f_lat" name="lat" value="">
-    <input type="hidden" id="f_lng" name="lng" value="">
-    <input type="hidden" id="f_pop3" name="pop_3min" value="0">
-    <input type="hidden" id="f_pop5" name="pop_5min" value="0">
-    <input type="hidden" id="f_pop10" name="pop_10min" value="0">
-    <input type="hidden" id="f_score" name="score_zona" value="0">
-    <input type="hidden" id="f_reddito" name="reddito_medio" value="0">
-    <input type="hidden" id="f_densita" name="densita" value="0">
-    <input type="hidden" id="f_eta_media" name="eta_media" value="42">
-    <input type="hidden" id="f_perc_stranieri" name="perc_stranieri" value="0.8">
-    <input type="hidden" id="f_reddito_medio" name="reddito_medio_eur" value="0">
-    <input type="hidden" id="f_pop_comune" name="pop_comune" value="0">
-    <input type="hidden" id="f_c500" name="concorrenti_500m" value="0">
-    <input type="hidden" id="f_c1k" name="concorrenti_1km" value="0">
-    <input type="hidden" id="f_mult" name="mult_attractor" value="1.0">
-    <input type="hidden" id="f_rec" name="recensioni_zona" value="0">
-    <input type="hidden" id="f_gdo" name="gdo_500m" value="0">
-    <input type="hidden" id="f_judet" name="judet_cod" value="">
-    <input type="hidden" id="f_conc500" value="0">
-    <input type="hidden" id="f_conc1km" value="0">
-    <input type="hidden" id="f_serv" value="0">
-    <input type="hidden" id="f_label" value="">
-    <input type="hidden" id="f_pois" value="[]">
-
-    <!-- Steps -->
-    <div class="wizard-steps" id="steps">
-      <div class="step active" onclick="goStep(1)">
-        <span class="step-num">1</span>
-        {{ 'Client' if lingua=='ro' else 'Cliente' }}
+<!-- ══ STEP 2: SEDIU / SEDE ══ -->
+<div class="wizard-step" id="panel-2" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">📍 Sediu spalatorie / Sede lavanderia</h5>
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Strada si numar / Via e numero civico *</label>
+        <input type="text" name="indirizzo" id="f_indirizzo" class="form-control"
+               value="{{ pratica.indirizzo if pratica else '' }}"
+               placeholder="ex: Strada Mihai Eminescu 12">
       </div>
-      <div class="step" onclick="goStep(2)">
-        <span class="step-num">2</span>
-        {{ 'Locație' if lingua=='ro' else 'Sede' }}
+      <div class="col-md-5">
+        <label class="form-label">Oras / Città *</label>
+        <input type="text" name="citta" id="f_citta" class="form-control"
+               value="{{ pratica.citta if pratica else '' }}" placeholder="ex: Bucuresti">
       </div>
-      <div class="step" onclick="goStep(3)">
-        <span class="step-num">3</span>
-        {{ 'Analiză' if lingua=='ro' else 'Zona' }}
+      <div class="col-md-4">
+        <label class="form-label">Judet *</label>
+        <select name="judet_cod" id="f_judet" class="form-select">
+          <option value="">— Selecteaza —</option>
+          <option value="B">București</option>
+          <option value="CJ">Cluj</option>
+          <option value="TM">Timiș</option>
+          <option value="IS">Iași</option>
+          <option value="CT">Constanța</option>
+          <option value="BV">Brașov</option>
+          <option value="PH">Prahova</option>
+          <option value="IF">Ilfov</option>
+          <option value="AG">Argeș</option>
+          <option value="BC">Bacău</option>
+          <option value="BH">Bihor</option>
+          <option value="SB">Sibiu</option>
+          <option value="DJ">Dolj</option>
+          <option value="GL">Galați</option>
+          <option value="MM">Maramureș</option>
+          <option value="NT">Neamț</option>
+          <option value="SV">Suceava</option>
+          <option value="VS">Vaslui</option>
+          <option value="AR">Arad</option>
+          <option value="MS">Mureș</option>
+        </select>
       </div>
-      <div class="step" onclick="goStep(4)">
-        <span class="step-num">4</span>
-        {{ 'Utilaje' if lingua=='ro' else 'Macchine' }}
+      <div class="col-md-3">
+        <label class="form-label">Suprafata (mp)</label>
+        <input type="number" name="mq" id="f_mq" class="form-control" value="60" min="20">
       </div>
-      <div class="step" onclick="goStep(5)">
-        <span class="step-num">5</span>
-        {{ 'Plan afaceri' if lingua=='ro' else 'Business Plan' }}
-      </div>
-      <div class="step" onclick="goStep(6)">
-        <span class="step-num">6</span>
-        {{ 'Rezumat' if lingua=='ro' else 'Riepilogo' }}
-      </div>
-    </div>
-
-    <!-- ══ STEP 1: CLIENT / CLIENTE ══ -->
-    <div class="wizard-panel active" id="panel-1">
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-person me-2" style="color:#3b82f6"></i>
-          {{ 'Date client' if lingua=='ro' else 'Dati cliente' }}
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label">{{ 'Nume *' if lingua=='ro' else 'Nome *' }}</label>
-              <input type="text" name="cliente_nome" class="form-control" required
-                placeholder="{{ 'Nume sau denumire companie' if lingua=='ro' else 'Nome o ragione sociale' }}"
-                value="{{ pratica.cliente.nome if pratica and pratica.cliente else '' }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ 'Companie' if lingua=='ro' else 'Azienda' }}</label>
-              <input type="text" name="cliente_azienda" class="form-control"
-                placeholder="{{ 'SRL, PFA...' if lingua=='ro' else 'SRL, SpA...' }}"
-                value="{{ pratica.cliente.azienda if pratica and pratica.cliente else '' }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Email</label>
-              <input type="email" name="cliente_email" class="form-control"
-                value="{{ pratica.cliente.email if pratica and pratica.cliente else '' }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ 'Telefon' if lingua=='ro' else 'Telefono' }}</label>
-              <input type="text" name="cliente_tel" class="form-control"
-                value="{{ pratica.cliente.telefono if pratica and pratica.cliente else '' }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">CUI / CIF ({{ 'Cod fiscal' if lingua=='ro' else 'Codice fiscale Romania' }})</label>
-              <input type="text" name="cliente_piva" class="form-control"
-                placeholder="RO12345678"
-                value="{{ pratica.cliente.piva if pratica and pratica.cliente else '' }}">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">{{ 'Județ client' if lingua=='ro' else 'Județ cliente' }}</label>
-              <select name="cliente_judet" class="form-select">
-                <option value="">— {{ 'Selectează' if lingua=='ro' else 'Seleziona' }} —</option>
-                <option value="B">București</option>
-                <option value="CJ">Cluj</option>
-                <option value="TM">Timiș</option>
-                <option value="IS">Iași</option>
-                <option value="CT">Constanța</option>
-                <option value="BV">Brașov</option>
-                <option value="PH">Prahova</option>
-                <option value="IF">Ilfov</option>
-                <option value="AG">Argeș</option>
-                <option value="BC">Bacău</option>
-                <option value="BH">Bihor</option>
-                <option value="SB">Sibiu</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tipo analisi -->
-      <div class="card" style="border-color:#2563eb">
-        <div class="card-header" style="border-color:#2563eb">
-          <i class="bi bi-sliders me-2" style="color:#3b82f6"></i>
-          {{ 'Tip analiză' if lingua=='ro' else 'Tipo di analisi' }}
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div onclick="setModalita('rapida')"
-                style="cursor:pointer;border:2px solid #2563eb;border-radius:12px;padding:18px;background:rgba(37,99,235,0.15)">
-                <div style="font-size:20px;margin-bottom:6px">🚀</div>
-                <div style="font-size:15px;font-weight:700;color:#e2e8f0">
-                  {{ 'Analiză Rapidă' if lingua=='ro' else 'Analisi Rapida' }}
-                </div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:4px">
-                  {{ '10 min · Automat · Precizie ±35%' if lingua=='ro' else '10 min · Automatico · Precisione ±35%' }}
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div id="btn-investitore-ro" onclick="setModalita('investitore')"
-                style="cursor:pointer;border:2px solid #1e2d45;border-radius:12px;padding:18px;background:rgba(30,45,69,0.5)">
-                <div style="font-size:20px;margin-bottom:6px">💼</div>
-                <div style="font-size:15px;font-weight:700;color:#e2e8f0">
-                  {{ 'Analiză Investitor' if lingua=='ro' else 'Analisi Investitore' }}
-                </div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:4px">
-                  {{ '30-45 min · Teren + date verificate · Precizie ±15%' if lingua=='ro' else '30-45 min · Campo + dati verificati · Precisione ±15%' }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <input type="hidden" name="modalita_analisi" id="f_modalita" value="rapida">
-          <div id="modalita-badge" style="margin-top:10px;font-size:12px;color:#3b82f6;font-weight:600">
-            ✅ {{ 'Mod' if lingua=='ro' else 'Modalità' }}: <span id="modalita-label">
-              {{ 'Analiză Rapidă' if lingua=='ro' else 'Analisi Rapida' }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div class="d-flex justify-content-end">
-        <button type="button" class="btn btn-primary" onclick="goStep(2)">
-          {{ 'Înainte' if lingua=='ro' else 'Avanti' }} <i class="bi bi-arrow-right ms-1"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- ══ STEP 2: LOCATIE / SEDE ══ -->
-    <div class="wizard-panel" id="panel-2">
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-geo-alt me-2" style="color:#10b981"></i>
-          {{ 'Locația spălătoriei' if lingua=='ro' else 'Sede lavanderia' }}
-        </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-12">
-              <label class="form-label">{{ 'Stradă și număr *' if lingua=='ro' else 'Via e numero civico *' }}</label>
-              <input type="text" name="indirizzo" id="f_indirizzo" class="form-control" required
-                placeholder="{{ 'Strada Victoriei 45' if lingua=='ro' else 'Str. Victoriei 45' }}"
-                value="{{ pratica.indirizzo if pratica else '' }}">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">{{ 'Oraș *' if lingua=='ro' else 'Città *' }}</label>
-              <input type="text" name="citta" id="f_citta" class="form-control" required
-                placeholder="București, Cluj-Napoca..."
-                value="{{ pratica.citta if pratica else '' }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Județ *' if lingua=='ro' else 'Județ *' }}</label>
-              <select name="provincia" id="f_provincia" class="form-select">
-                <option value="">—</option>
-                <option value="B">București</option>
-                <option value="CJ">Cluj</option>
-                <option value="TM">Timiș</option>
-                <option value="IS">Iași</option>
-                <option value="CT">Constanța</option>
-                <option value="BV">Brașov</option>
-                <option value="PH">Prahova</option>
-                <option value="IF">Ilfov</option>
-                <option value="AG">Argeș</option>
-                <option value="BC">Bacău</option>
-                <option value="BH">Bihor</option>
-                <option value="SB">Sibiu</option>
-                <option value="DJ">Dolj</option>
-                <option value="GL">Galați</option>
-                <option value="MM">Maramureș</option>
-                <option value="NT">Neamț</option>
-                <option value="SV">Suceava</option>
-                <option value="VS">Vaslui</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label">{{ 'Cod poștal' if lingua=='ro' else 'CAP' }}</label>
-              <input type="text" name="cap" class="form-control" maxlength="6"
-                placeholder="010101"
-                value="{{ pratica.cap if pratica else '' }}">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Suprafață (mp)' if lingua=='ro' else 'Superficie (mq)' }}</label>
-              <input type="number" name="mq" id="f_mq" class="form-control"
-                value="{{ pratica.mq if pratica else 60 }}">
-            </div>
-
-            <!-- Affitto in RON -->
-            <div class="col-md-4">
-              <label class="form-label">
-                {{ 'Chirie lunară (RON)' if lingua=='ro' else 'Affitto mensile (RON)' }}
-              </label>
-              <input type="number" name="affitto_ron" id="f_affitto_ron" class="form-control"
-                placeholder="3000" min="0" step="100"
-                value="{{ pratica.affitto_mese if pratica else '' }}"
-                oninput="aggiornaCambioAffitto()">
-            </div>
-            <div class="col-md-2">
-              <label class="form-label" style="color:#f59e0b">= EUR</label>
-              <div id="affitto-eur-display"
-                style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:13px;color:#f59e0b;font-weight:600">
-                —
-              </div>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Tipul zonei' if lingua=='ro' else 'Tipo di zona' }}</label>
-              <select name="tipo_zona" id="f_tipo_zona" class="form-select">
-                <option value="residenziale">🏠 {{ 'Rezidențial' if lingua=='ro' else 'Residenziale' }}</option>
-                <option value="universitaria">🎓 {{ 'Universitar' if lingua=='ro' else 'Universitaria' }}</option>
-                <option value="turistica">🏖️ {{ 'Turistic' if lingua=='ro' else 'Turistica' }}</option>
-                <option value="mista">🏙️ {{ 'Mixt' if lingua=='ro' else 'Mista' }}</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Pulsante geocodifica -->
-          <div class="mt-3">
-            <button type="button" class="btn btn-outline-success btn-sm" onclick="geocodificaRO()">
-              <i class="bi bi-geo me-1"></i>
-              {{ 'Analizează zona automat' if lingua=='ro' else 'Analizza zona automaticamente' }}
-            </button>
-            <span id="geo-status-ro" style="font-size:12px;color:#64748b;margin-left:10px"></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">
-          <i class="bi bi-arrow-left me-1"></i>{{ 'Înapoi' if lingua=='ro' else 'Indietro' }}
-        </button>
-        <button type="button" class="btn btn-primary" onclick="goStep(3)">
-          {{ 'Înainte' if lingua=='ro' else 'Avanti' }} <i class="bi bi-arrow-right ms-1"></i>
-        </button>
-      </div>
-    </div>
-
-<!-- ═══ STEP 3: ZONA ROMANIA ═══ -->
-<div class="wizard-panel" id="panel-3">
-  <!-- Loading overlay -->
-  <div id="loading-zona" style="display:none;text-align:center;padding:40px;background:rgba(10,14,26,.9);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;border-radius:16px;border:1px solid #1e2d45;min-width:280px">
-    <div class="spinner-border mb-3" style="color:#3b82f6;width:48px;height:48px"></div>
-    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#e2e8f0">Analisi zona in corso...</div>
-    <div style="font-size:13px;color:#64748b;margin-top:6px">Rilevamento POI, concorrenti e dati demografici</div>
-  </div>
-
-  <!-- Legenda categorie mappa -->
-  <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding:0 0 6px;scrollbar-width:none;margin-bottom:4px">
-    <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🔴 Concorrenti</span>
-    <span style="white-space:nowrap;color:#10b981;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(16,185,129,.15);flex-shrink:0">🟢 Supermercati</span>
-    <span style="white-space:nowrap;color:#f59e0b;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(245,158,11,.15);flex-shrink:0">🟠 Bar/Ristoranti</span>
-    <span style="white-space:nowrap;color:#60a5fa;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(59,130,246,.15);flex-shrink:0">🔵 Trasporti</span>
-    <span style="white-space:nowrap;color:#a78bfa;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(167,139,250,.15);flex-shrink:0">🎓 Università</span>
-    <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🏥 Ospedali</span>
-    <span style="white-space:nowrap;color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,.15);flex-shrink:0">🪖 Caserme</span>
-    <span style="white-space:nowrap;color:#7c3aed;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(124,58,237,.15);flex-shrink:0">🏠 Case cura</span>
-    <span style="white-space:nowrap;color:#0891b2;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(8,145,178,.15);flex-shrink:0">🛏️ Turismo</span>
-  </div>
-
-  <!-- Mappa -->
-  <div class="row g-2">
-    <div class="col-12">
-      <div id="map" style="height:480px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
-    </div>
-
-    <!-- KPI zona -->
-    <div class="col-12">
-      <div class="row g-3">
-        <!-- Popolazione -->
-        <div class="col-md-4">
-          <div class="card h-100" style="border-color:#2563eb;background:rgba(37,99,235,.05)">
-            <div class="card-body">
-              <div style="font-size:11px;color:#60a5fa;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-people me-1"></i>Popolazione raggiungibile</div>
-              <div class="row g-2 text-center">
-                <div class="col-4">
-                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#60a5fa" id="d_pop3">—</div>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 3 min</div>
-                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Abitanti nel raggio di ~240m — clienti molto vicini, alta frequenza">~240m · nucleo</div>
-                </div>
-                <div class="col-4">
-                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#818cf8" id="d_pop5">—</div>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 5 min</div>
-                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Raggio ~400m — bacino PRIMARIO, peso 60% nel modello">~400m · primario</div>
-                </div>
-                <div class="col-4">
-                  <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#c084fc" id="d_pop10">—</div>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px">🚶 10 min</div>
-                  <div style="font-size:9px;color:#475569;margin-top:1px" title="Raggio ~800m — bacino secondario, peso 25% nel modello">~800m · secondario</div>
-                </div>
-              </div>
-              <div class="mt-2 p-2 rounded" style="background:#0a0e1a;font-size:10px;color:#64748b">
-                <span style="color:#818cf8">Bacino effettivo:</span>
-                <span id="d_bacino_pesato" style="color:#e2e8f0;font-weight:600">—</span> ab.
-                <span style="color:#475569"> (pop5×60% + pop10-5×25%)</span>
-              </div>
-              <div class="mt-2 pt-2" style="border-top:1px solid #1e2d45">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span style="font-size:11px;color:#64748b">📍 Raggio 1 km</span>
-                    <div style="font-size:9px;color:#475569">zona di influenza allargata</div>
-                  </div>
-                  <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f472b6" id="d_pop1km">—</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Score + traffico -->
-        <div class="col-md-4">
-          <div class="card h-100" id="score-card" style="border-color:#1e2d45">
-            <div class="card-body">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-star me-1"></i>Valutazione zona</div>
-              <div class="d-flex align-items-center gap-3 mb-3">
-                <div>
-                  <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:800;line-height:1" id="d_score">—</div>
-                  <div style="font-size:9px;color:#475569;margin-top:2px">su 100 punti</div>
-                </div>
-                <div>
-                  <div id="d_label" style="font-size:16px;font-weight:700;color:#e2e8f0">—</div>
-                  <div style="height:8px;background:#0a0e1a;border-radius:4px;overflow:hidden;width:130px;margin-top:6px">
-                    <div id="score-fill" style="height:100%;width:0%;border-radius:4px;transition:width .8s ease"></div>
-                  </div>
-                  <div style="font-size:9px;color:#475569;margin-top:3px">densità+età+reddito+traffico+GDO+concorrenza</div>
-                </div>
-              </div>
-              <div class="p-2 rounded" style="background:#0a0e1a">
-                <div style="font-size:11px;color:#64748b;margin-bottom:3px">Traffico pedonale reale</div>
-                <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700" id="d_traffico">—</div>
-                <div style="font-size:9px;color:#475569;margin-top:2px" id="d_traffico_nota">rec. Google locali entro 400m → proxy passaggio reale (metodo Lidl/Eurospin)</div>
-              </div>
-              <div class="mt-2 p-2 rounded" style="background:#0a0e1a">
-                <div style="font-size:11px;color:#64748b;margin-bottom:2px">GDO vicine</div>
-                <div style="font-size:13px;font-weight:600" id="d_gdo">—</div>
-                <div style="font-size:9px;color:#475569;margin-top:1px">se Lidl/Eurospin sono lì, la zona è già validata da esperti</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Concorrenza + servizi -->
-        <div class="col-md-4">
-          <div class="card h-100" style="border-color:#1e2d45">
-            <div class="card-body">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px"><i class="bi bi-shop me-1"></i>Analisi concorrenza</div>
-              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span style="font-size:12px;color:#ef4444">🪙 Self-service 500m</span>
-                    <div style="font-size:9px;color:#475569">competitor diretto — stessi clienti</div>
-                  </div>
-                  <span id="d_conc500" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#ef4444">—</span>
-                </div>
-              </div>
-              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span style="font-size:12px;color:#f59e0b">🏪 Tutte le lavanderie 1km</span>
-                    <div style="font-size:9px;color:#475569">incl. tintorie e lavasecco</div>
-                  </div>
-                  <span id="d_conc1km" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#f59e0b">—</span>
-                </div>
-              </div>
-              <div class="p-2 rounded mb-2" style="background:#0a0e1a">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span style="font-size:12px;color:#10b981">🟢 Attività commerciali 400m</span>
-                    <div style="font-size:9px;color:#475569">bar, ristoranti, negozi, farmacie</div>
-                  </div>
-                  <span id="d_serv" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:#10b981">—</span>
-                </div>
-              </div>
-              <div id="d_conc_tipo" style="font-size:11px;padding:6px 8px;background:#0a0e1a;border-radius:6px;line-height:1.8"></div>
-              <div id="d_quota_mercato" class="mt-2 p-2 rounded" style="background:#0a0e1a;font-size:11px;display:none">
-                <span style="color:#64748b">Quota mercato stimata: </span>
-                <span id="d_quota_val" style="color:#e2e8f0;font-weight:700"></span>
-                <div id="d_quota_nota" style="font-size:9px;color:#475569;margin-top:2px"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Contatori categorie -->
-    <div class="col-12">
-      <div class="card">
-        <div class="card-header"><i class="bi bi-grid me-2 text-muted"></i>Distribuzione attività nella zona</div>
-        <div class="card-body">
-          <div class="row g-3 text-center" id="contatori-grid">
-            <div class="col text-center">
-              <div style="font-size:28px">🟢</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#10b981" id="cnt_super">—</div>
-              <div style="font-size:11px;color:#64748b">Supermercati</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">🟠</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#f59e0b" id="cnt_risto">—</div>
-              <div style="font-size:11px;color:#64748b">Ristoranti</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">☕</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#fb923c" id="cnt_bar">—</div>
-              <div style="font-size:11px;color:#64748b">Bar/Caffè</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">💊</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#34d399" id="cnt_farm">—</div>
-              <div style="font-size:11px;color:#64748b">Farmacie</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">🚌</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#60a5fa" id="cnt_trasp">—</div>
-              <div style="font-size:11px;color:#64748b">Trasporti</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">🎓</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#a78bfa" id="cnt_istr">—</div>
-              <div style="font-size:11px;color:#64748b">Istruzione</div>
-            </div>
-            <div class="col text-center">
-              <div style="font-size:28px">🔴</div>
-              <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:#ef4444" id="cnt_comp">—</div>
-              <div style="font-size:11px;color:#64748b">Concorrenti</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- DATI DEMOGRAFICI ISTAT + STRANIERI -->
-    <div class="col-12" id="demo-block" style="display:none">
-      <div class="card" style="border-color:#0891b2;background:rgba(8,145,178,.04)">
-        <div class="card-header" style="border-color:#0891b2">
-          <i class="bi bi-graph-up me-2" style="color:#22d3ee"></i>
-          <span style="color:#22d3ee">Dati demografici zona (ISTAT)</span>
-          <span id="demo-fonte" style="font-size:11px;color:#64748b;margin-left:8px"></span>
-        </div>
-        <div class="card-body">
-          <div class="row g-3 align-items-start">
-            <div class="col-6 col-md-2 text-center">
-              <div style="font-size:24px">👴</div>
-              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#22d3ee" id="demo_eta">—</div>
-              <div style="font-size:11px;color:#64748b">Età media anni</div>
-            </div>
-            <div class="col-6 col-md-2 text-center">
-              <div style="font-size:24px">💰</div>
-              <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#34d399" id="demo_reddito">—</div>
-              <div style="font-size:11px;color:#64748b">Reddito medio/anno</div>
-            </div>
-            <div class="col-6 col-md-2 text-center">
-              <div style="font-size:24px">🏘️</div>
-              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#a78bfa" id="demo_densita">—</div>
-              <div style="font-size:11px;color:#64748b">Ab/km²</div>
-            </div>
-
-            <div class="col-6 col-md-2 text-center">
-              <div style="font-size:24px">📊</div>
-              <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800" id="demo_market_score">—</div>
-              <div style="font-size:11px;color:#64748b" id="demo_market_label">Potenziale mercato</div>
-            </div>
-            <div class="col-12 col-md-4">
-              <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">Valutazione</div>
-              <div id="demo_notes" style="font-size:13px;line-height:2.2;font-weight:500"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SEGNALI REALI DI TRAFFICO -->
-    <div class="col-12" id="segnali-block" style="display:none">
-      <div class="card" style="border-color:#6366f1;background:rgba(99,102,241,.04)">
-        <div class="card-header" style="border-color:#6366f1">
-          <i class="bi bi-broadcast me-2" style="color:#818cf8"></i>
-          <span style="color:#818cf8">Segnali reali di traffico</span>
-          <span style="font-size:11px;color:#64748b;margin-left:8px">Da Google Maps — stessi dati usati da Lidl, Eurospin, Decathlon per le aperture</span>
-        </div>
-        <div class="card-body">
-          <div class="row g-3 align-items-center">
-            <div class="col-md-3 text-center">
-              <div style="font-size:24px">⭐</div>
-              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#818cf8;line-height:1" id="sr_recensioni">—</div>
-              <div style="font-size:11px;color:#64748b">Recensioni Google nella zona</div>
-              <div id="sr_rec_badge" style="font-size:11px;margin-top:3px"></div>
-            </div>
-            <div class="col-md-3 text-center">
-              <div style="font-size:24px">🛒</div>
-              <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#34d399;line-height:1" id="sr_gdo_num">—</div>
-              <div style="font-size:11px;color:#64748b">Catene GDO entro 500m</div>
-              <div id="sr_gdo_badge" style="font-size:11px;margin-top:3px"></div>
-            </div>
-            <div class="col-md-6">
-              <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">GDO rilevate</div>
-              <div id="sr_gdo_lista" style="font-size:12px;color:#94a3b8">—</div>
-              <div style="font-size:11px;color:#475569;margin-top:8px;line-height:1.5">
-                💡 Se una catena ha già aperto qui, il loro ufficio sviluppo ha già analizzato flussi, reddito e potenziale della zona.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- STIMA CLIENTI POTENZIALI -->
-    <div class="col-12" id="stima-block" style="display:none">
-      <div class="card" style="border-color:#f59e0b;background:rgba(245,158,11,.04)">
-        <div class="card-header" style="border-color:#f59e0b">
-          <i class="bi bi-people me-2" style="color:#fbbf24"></i>
-          <span style="color:#fbbf24">Stima clienti potenziali</span>
-          <span style="font-size:11px;color:#64748b;margin-left:8px">Modello pesato • Popolazione + Densità + Traffico reale (Google) + Validazione GDO + Concorrenza</span>
-        </div>
-        <div class="card-body">
-          <!-- Numero grande -->
-          <div class="row g-3 align-items-center mb-3">
-            <div class="col-md-3 text-center">
-              <div style="font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Stima realistica</div>
-              <div style="font-family:'Syne',sans-serif;font-size:52px;font-weight:900;color:#fbbf24;line-height:1" id="stima_clienti_num">—</div>
-              <div style="font-size:13px;color:#64748b">clienti / giorno</div>
-            </div>
-            <div class="col-md-3 text-center">
-              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Pessimistico</div>
-              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#ef4444" id="stima_pess">—</div>
-            </div>
-            <div class="col-md-3 text-center">
-              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Ottimistico</div>
-              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#10b981" id="stima_ott">—</div>
-            </div>
-            <div class="col-md-3 text-center">
-              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">Visite/mese</div>
-              <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:700;color:#a78bfa" id="stima_mese">—</div>
-            </div>
-          </div>
-          <!-- Formula calcolo -->
-          <div id="stima_formula" style="display:none;font-size:10px;color:#475569;font-family:monospace;background:#0a0e1a;padding:8px 10px;border-radius:6px;margin-bottom:10px;word-break:break-all;border-left:3px solid #fbbf24"></div>
-          <!-- Fattori del modello -->
-          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
-            Fattori del modello
-            <span style="font-size:9px;color:#475569;text-transform:none;letter-spacing:0;margin-left:6px">— passa il mouse su ogni fattore per leggere la spiegazione</span>
-          </div>
-          <div class="row g-2" id="stima_fattori"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- HEATMAP CONCORRENTI -->
-    <div class="col-12" id="competitors-block" style="display:none">
-      <div class="card" style="border-color:#dc2626;background:rgba(220,38,38,.03)">
-        <div class="card-header" style="border-color:#dc2626">
-          <i class="bi bi-geo-alt me-2" style="color:#f87171"></i>
-          <span style="color:#f87171">Mappa saturazione concorrenti</span>
-          <span style="font-size:11px;color:#64748b;margin-left:8px">
-            🟢 Zona libera &nbsp;|&nbsp; 🟠 Attenzione &nbsp;|&nbsp; 🔴 Zona satura
+      <div class="col-md-6">
+        <label class="form-label">Chirie lunara (RON)</label>
+        <div class="input-group">
+          <input type="number" name="affitto_ron" id="f_affitto" class="form-control"
+                 value="3000" oninput="aggiornaCambioAffitto()">
+          <span class="input-group-text" style="background:#1e2d45;color:#64748b">
+            = EUR <span id="affitto-eur-display">—</span>
           </span>
         </div>
-        <div class="card-body p-0">
-          <div id="competitors-list" style="font-size:13px;padding:12px;color:#94a3b8">
-            Nessun concorrente rilevato nel raggio di 1.5km.
-          </div>
-        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tip zona</label>
+        <select name="tipo_zona" class="form-select">
+          <option value="residenziale">Rezidential / Residenziale</option>
+          <option value="commerciale">Comercial / Commerciale</option>
+          <option value="misto">Mixt / Misto</option>
+          <option value="periferia">Periferie / Periferia</option>
+        </select>
       </div>
     </div>
-
-    <!-- POI List dettagliata -->
-    <div class="col-lg-8">
-      <div class="card">
-        <div class="card-header"><i class="bi bi-pin-map me-2 text-muted"></i>Punti di interesse vicini</div>
-        <div class="card-body p-0">
-          <div id="poi-list" class="p-3 text-muted" style="font-size:13px">L'analisi mostrerà qui i punti di interesse...</div>
-        </div>
-      </div>
+    <div style="margin-top:16px">
+      <button type="button" id="btn-analizza" class="btn btn-success"
+              onclick="geocodificaRO()" style="background:#059669">
+        🔍 Analizeaza zona / Analizza zona
+      </button>
+      <span id="geo-status" style="font-size:12px;color:#64748b;margin-left:12px"></span>
     </div>
-
+    <!-- Box dati INS -->
+    <div id="kpi-ins-ro" style="display:none;margin-top:16px;background:#0f172a;
+         border:1px solid #f59e0b22;border-radius:10px;padding:14px">
+      <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:8px">
+        📊 DATE INS ROMANIA 2021 — <span id="ins-judet-nome"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="ins-kpi-grid"></div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(3)">Inainte / Avanti →</button>
+    </div>
   </div>
+</div>
 
-  <!-- Navigazione sticky in fondo -->
-  <div style="position:sticky;bottom:0;z-index:50;background:var(--bg1);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:12px">
-    <div class="d-flex justify-content-between">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">
-        <i class="bi bi-arrow-left me-1"></i> Indietro
-      </button>
-      <button type="button" class="btn btn-primary" onclick="goStep3Next()">
-        Avanti <i class="bi bi-arrow-right ms-1"></i>
-      </button>
-    </div>
-  
-
-  <!-- Analisi AI Romania -->
-  <div style="background:rgba(124,58,237,0.08);border:1px solid #7c3aed44;border-radius:12px;padding:16px;margin:12px 0">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <span style="color:#a78bfa;font-size:13px;font-weight:600">
-        <i class="bi bi-stars me-2"></i>Analisi AI — Zona Romania
+<!-- ══ STEP 3: ZONA ══ -->
+<div class="wizard-step" id="panel-3" style="display:none">
+  <div style="padding:16px">
+    <!-- Legenda -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:0 8px">
+      {% for cat, col, lab in [
+        ('concorrenti','#ef4444','Concorrenti'),
+        ('supermercati','#22c55e','Supermercati'),
+        ('bar','#f59e0b','Bar/Ristoranti'),
+        ('trasporti','#6d28d9','Trasporti'),
+        ('istruzione','#0ea5e9','Universita'),
+        ('ospedali','#ec4899','Ospedali'),
+        ('farmacie','#ec4899','Farmacie'),
+      ] %}
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;
+                   background:{{ col }}22;color:{{ col }};border:1px solid {{ col }}44">
+        {{ lab }}
       </span>
-      <button type="button" onclick="generaAI_RO()"
-        style="background:#7c3aed;color:white;border:none;border-radius:8px;
-          padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">
-        <i class="bi bi-magic me-1"></i> Genera Analisi AI / Generează Analiză AI
-      </button>
+      {% endfor %}
     </div>
-    <div id="ai-ro-text" style="font-size:12.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap">
-      Clicca per generare l'analisi AI della zona Romania (IT+RO).
+    <!-- Mappa -->
+    <div id="map" style="height:420px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
+    <!-- KPI zona -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          👥 POPULATIE ACCESIBILA
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;text-align:center">
+          <div>
+            <div id="d_pop3" style="font-size:16px;font-weight:700;color:#3b82f6">—</div>
+            <div style="font-size:9px;color:#64748b">3 min</div>
+          </div>
+          <div>
+            <div id="d_pop5" style="font-size:16px;font-weight:700;color:#8b5cf6">—</div>
+            <div style="font-size:9px;color:#64748b">5 min</div>
+          </div>
+          <div>
+            <div id="d_pop10" style="font-size:16px;font-weight:700;color:#ec4899">—</div>
+            <div style="font-size:9px;color:#64748b">10 min</div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          ⭐ SCOR ZONA / SCORE ZONA
+        </div>
+        <div style="text-align:center">
+          <div id="d_score" style="font-size:28px;font-weight:700;color:#10b981">—</div>
+          <div id="d_label" style="font-size:11px;color:#64748b">su 100 punti</div>
+        </div>
+      </div>
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          🏁 CONCURENTA / CONCORRENZA
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:11px;color:#94a3b8">Self-service 500m</span>
+            <span id="d_conc500" style="font-weight:700;color:#ef4444">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">Tutte 1km</span>
+            <span id="d_conc1km" style="font-weight:700;color:#f97316">—</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div id="ai-ro-loading" style="display:none;text-align:center;padding:12px">
-      <div class="spinner-border spinner-border-sm" style="color:#7c3aed"></div>
-      <span style="color:#94a3b8;font-size:12px;margin-left:8px">Generez / Generazione...</span>
+    <!-- Analisi AI -->
+    <div style="margin-top:12px;background:rgba(124,58,237,0.08);border:1px solid #7c3aed44;
+                border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="color:#a78bfa;font-size:13px;font-weight:600">
+          ✨ Analiza AI — Zona Romania
+        </span>
+        <button type="button" onclick="generaAI_RO()"
+          style="background:#7c3aed;color:white;border:none;border-radius:8px;
+                 padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">
+          Genereaza / Genera Analisi AI
+        </button>
+      </div>
+      <div id="ai-ro-text" style="font-size:12.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap">
+        Clicca il pulsante per generare l'analisi AI della zona Romania (IT+RO).
+      </div>
+      <div id="ai-ro-loading" style="display:none;text-align:center;padding:12px">
+        <div class="spinner-border spinner-border-sm" style="color:#7c3aed"></div>
+        <span style="color:#94a3b8;font-size:12px;margin-left:8px">Generez / Generazione...</span>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-3">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(4)">Inainte →</button>
     </div>
   </div>
 </div>
+
+<!-- ══ STEP 4: UTILAJE / MACCHINE ══ -->
+<div class="wizard-step" id="panel-4" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">🧺 Utilaje / Macchine</h5>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 8kg</label>
+        <input type="number" name="n_std" id="f_n_std" class="form-control"
+               min="0" value="0" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 13kg</label>
+        <input type="number" name="n_med" id="f_n_med" class="form-control"
+               min="0" value="0" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 23kg</label>
+        <input type="number" name="n_grd" id="f_n_grd" class="form-control"
+               min="0" value="0" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Uscatoare / Asciugatrici</label>
+        <input type="number" name="n_asc" id="f_n_asc" class="form-control"
+               min="0" value="0" oninput="aggiornaBPRO()">
+      </div>
+    </div>
+    <h6 style="color:#64748b;margin:20px 0 12px">Tarife / Tariffe (RON)</h6>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">8kg (RON)</label>
+        <input type="number" name="t_std" id="f_t_std" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_std_ron }}" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">13kg (RON)</label>
+        <input type="number" name="t_med" id="f_t_med" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_med_ron }}" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">23kg (RON)</label>
+        <input type="number" name="t_grd" id="f_t_grd" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_grd_ron }}" oninput="aggiornaBPRO()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Uscare/ciclu (RON)</label>
+        <input type="number" name="t_asc" id="f_t_asc" class="form-control"
+               step="0.5" value="{{ tariffe.asciugatura_ron }}" oninput="aggiornaBPRO()">
+      </div>
+    </div>
+    <!-- CAPEX -->
+    <h6 style="color:#64748b;margin:20px 0 12px">Investitie / Investimento</h6>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">CAPEX (RON, fara TVA)</label>
+        <input type="number" name="capex_ron" id="f_capex_ron" class="form-control"
+               value="0" oninput="aggiornaCapex()">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">+ TVA 19%</label>
+        <div class="form-control" style="background:#1e2d45;color:#64748b" id="tva-display">—</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Totale cu TVA</label>
+        <div class="form-control" style="background:#1e2d45;color:#f59e0b;font-weight:700"
+             id="capex-tva-display">—</div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(5)">Inainte →</button>
+    </div>
+  </div>
 </div>
 
-
-
-    <!-- ══ STEP 4: UTILAJE / MACCHINE ══ -->
-    <div class="wizard-panel" id="panel-4">
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-gear me-2" style="color:#f59e0b"></i>
-          {{ 'Configurare utilaje' if lingua=='ro' else 'Configurazione macchine' }}
-        </div>
-        <div class="card-body">
-          <!-- Tariffe RON -->
-          <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px;margin-bottom:16px">
-            <div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:10px">
-              {{ 'Tarife (RON / ciclu)' if lingua=='ro' else 'Tariffe (RON / ciclo)' }}
-            </div>
-            <div class="row g-2">
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Spălare mică (8kg)' if lingua=='ro' else 'Lavaggio piccolo (8kg)' }}</label>
-                <input type="number" name="tariffa_lavaggio_std" class="form-control"
-                  step="0.5" value="{{ pratica.tariffa_lavaggio_std if pratica else tariffe.lavaggio_std_ron }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Spălare medie (13kg)' if lingua=='ro' else 'Lavaggio medio (13kg)' }}</label>
-                <input type="number" name="tariffa_lavaggio_med" class="form-control"
-                  step="0.5" value="{{ pratica.tariffa_lavaggio_med if pratica else tariffe.lavaggio_med_ron }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Spălare mare (23kg)' if lingua=='ro' else 'Lavaggio grande (23kg)' }}</label>
-                <input type="number" name="tariffa_lavaggio_grd" class="form-control"
-                  step="0.5" value="{{ pratica.tariffa_lavaggio_grd if pratica else tariffe.lavaggio_grd_ron }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Uscare / ciclu' if lingua=='ro' else 'Asciugatura / ciclo' }}</label>
-                <input type="number" name="tariffa_asciugatura" class="form-control"
-                  step="0.5" value="{{ pratica.tariffa_asciugatura if pratica else tariffe.asciugatura_ron }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-            </div>
-          </div>
-
-          <!-- Macchine -->
-          <div class="row g-2">
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Mașini spălat 8kg' if lingua=='ro' else 'Lavatrici 8kg' }}</label>
-              <input type="number" name="n_std" id="f_n_std" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Mașini spălat 13kg' if lingua=='ro' else 'Lavatrici 13kg' }}</label>
-              <input type="number" name="n_med" id="f_n_med" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Mașini spălat 23kg' if lingua=='ro' else 'Lavatrici 23kg' }}</label>
-              <input type="number" name="n_grd" id="f_n_grd" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">{{ 'Uscătoare' if lingua=='ro' else 'Asciugatrici' }}</label>
-              <input type="number" name="n_asc" id="f_n_asc" class="form-control" min="0" value="0" oninput="aggiornaBPRO()">
-            </div>
-          </div>
-
-          <!-- CAPEX in RON -->
-          <div class="row g-2 mt-2">
-            <div class="col-md-4">
-              <label class="form-label">{{ 'Investiție totală (RON, fără TVA)' if lingua=='ro' else 'Investimento totale (RON, senza IVA)' }}</label>
-              <input type="number" name="capex" id="f_capex_ron" class="form-control"
-                placeholder="180000" step="1000"
-                value="{{ pratica.capex if pratica else '' }}"
-                oninput="aggiornaCambioCapex()">
-            </div>
-            <div class="col-md-2">
-              <label class="form-label" style="color:#f59e0b">= EUR</label>
-              <div id="capex-eur-display"
-                style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:13px;color:#f59e0b;font-weight:600">
-                —
-              </div>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">TVA 19% (RON)</label>
-              <div id="tva-display"
-                style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:13px;color:#94a3b8">
-                —
-              </div>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" style="color:#ef4444">{{ 'Total cu TVA (RON)' if lingua=='ro' else 'Totale con IVA (RON)' }}</label>
-              <div id="capex-tva-display"
-                style="background:#0f172a;border:1px solid #ef4444;border-radius:8px;padding:8px 12px;font-size:14px;color:#ef4444;font-weight:700">
-                —
-              </div>
-            </div>
-          </div>
-        </div>
+<!-- ══ STEP 5: BUSINESS PLAN ══ -->
+<div class="wizard-step" id="panel-5" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">📊 Business Plan Romania</h5>
+    <!-- Scenario -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      {% for sc, lbl in [('pessimistico','Pesimist'),('realistico','Realist'),('ottimistico','Optimist')] %}
+      <button type="button" onclick="setScenarioRO('{{ sc }}')" id="btn-sc-{{ sc }}"
+        class="btn btn-sm {{ 'btn-warning' if sc=='realistico' else 'btn-outline-secondary' }}">
+        {{ lbl }}
+      </button>
+      {% endfor %}
+    </div>
+    <input type="hidden" id="f_scenario" name="scenario" value="realistico">
+    <!-- KPI -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#0f172a;border:1px solid #10b98133;border-radius:10px;padding:16px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:4px">INCASARI LUNARE</div>
+        <div id="bp-incasso-ron" style="font-size:22px;font-weight:700;color:#10b981">— RON</div>
+        <div id="bp-incasso-eur" style="font-size:12px;color:#64748b">— EUR</div>
       </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">
-          <i class="bi bi-arrow-left me-1"></i>{{ 'Înapoi' if lingua=='ro' else 'Indietro' }}
-        </button>
-        <button type="button" class="btn btn-primary" onclick="goStep(5)">
-          {{ 'Înainte' if lingua=='ro' else 'Avanti' }} <i class="bi bi-arrow-right ms-1"></i>
-        </button>
+      <div style="background:#0f172a;border:1px solid #3b82f633;border-radius:10px;padding:16px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:4px">PROFIT LUNAR</div>
+        <div id="bp-utile-ron" style="font-size:22px;font-weight:700;color:#3b82f6">— RON</div>
+        <div id="bp-utile-eur" style="font-size:12px;color:#64748b">— EUR</div>
       </div>
     </div>
-
-    <!-- ══ STEP 5: PLAN DE AFACERI / BUSINESS PLAN ══ -->
-    <div class="wizard-panel" id="panel-5">
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-graph-up me-2" style="color:#10b981"></i>
-          {{ 'Plan de afaceri — Proiecție economică' if lingua=='ro' else 'Business Plan — Proiezione economica' }}
-        </div>
-        <div class="card-body">
-          <!-- KPI BP -->
-          <div id="bp-kpi-ro" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-            <div class="kpi-box">
-              <div class="kpi-ron" id="bp-incasso-ron">— RON</div>
-              <div class="kpi-val" id="bp-incasso-eur" style="font-size:14px">—</div>
-              <div class="kpi-label">{{ 'Încasări lunare' if lingua=='ro' else 'Incasso mensile' }}</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-ron" id="bp-costi-ron">— RON</div>
-              <div class="kpi-val" id="bp-costi-eur" style="font-size:14px;color:#ef4444">—</div>
-              <div class="kpi-label">{{ 'Costuri lunare' if lingua=='ro' else 'Costi mensili' }}</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-ron" id="bp-utile-ron">— RON</div>
-              <div class="kpi-val" id="bp-utile-eur" style="font-size:14px;color:#10b981">—</div>
-              <div class="kpi-label">{{ 'Profit net' if lingua=='ro' else 'Utile netto' }}</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-val" id="bp-payback" style="color:#f59e0b">—</div>
-              <div class="kpi-label">{{ 'Recuperare (ani)' if lingua=='ro' else 'Payback (anni)' }}</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-val" id="bp-occ" style="color:#7c3aed">—%</div>
-              <div class="kpi-label">{{ 'Ocupare estimată' if lingua=='ro' else 'Occupazione stimata' }}</div>
-            </div>
-          </div>
-
-          <!-- Costi fissi RON -->
-          <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px;margin-bottom:14px">
-            <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px">
-              {{ 'Costuri fixe lunare (RON)' if lingua=='ro' else 'Costi fissi mensili (RON)' }}
-            </div>
-            <div class="row g-2">
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Chirie' if lingua=='ro' else 'Affitto' }}</label>
-                <input type="number" name="affitto_mese" id="f_affitto_mese" class="form-control"
-                  placeholder="3000" value="{{ pratica.affitto_mese if pratica else '' }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Energie electrică (est.)' if lingua=='ro' else 'Energia elettrica (stima)' }}</label>
-                <div id="costi-energia-ro"
-                  style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:13px;color:#94a3b8">
-                  {{ 'Calculat automat' if lingua=='ro' else 'Calcolato auto' }}
-                </div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Apă (est.)' if lingua=='ro' else 'Acqua (stima)' }}</label>
-                <div id="costi-acqua-ro"
-                  style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:13px;color:#94a3b8">
-                  {{ 'Calculat automat' if lingua=='ro' else 'Calcolato auto' }}
-                </div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">{{ 'Altele (asig. + întreținere)' if lingua=='ro' else 'Altro (assic. + manut.)' }}</label>
-                <input type="number" name="altri_costi" id="f_altri_ro" class="form-control"
-                  placeholder="1300" value="{{ pratica.altri_costi if pratica else 1300 }}"
-                  oninput="aggiornaBPRO()">
-              </div>
-            </div>
-          </div>
-
-          <!-- 3 scenari -->
-          <div id="scenari-ro" style="display:none">
-            <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:8px">
-              {{ '3 scenarii de afaceri' if lingua=='ro' else '3 scenari di business' }}
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-              <div style="background:#0f172a;border:1px solid #ef444422;border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:10px;color:#ef4444;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">PESIMIST / PESSIMISTICO</div>
-                <div id="sc-pessimistico-ron" style="font-size:14px;font-weight:700;color:#ef4444">— RON</div>
-                <div id="sc-pessimistico-eur" style="font-size:11px;color:#64748b">—</div>
-              </div>
-              <div style="background:#0f172a;border:1px solid #10b98122;border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:10px;color:#10b981;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">REALIST / REALISTICO</div>
-                <div id="sc-realistico-ron" style="font-size:14px;font-weight:700;color:#10b981">— RON</div>
-                <div id="sc-realistico-eur" style="font-size:11px;color:#64748b">—</div>
-              </div>
-              <div style="background:#0f172a;border:1px solid #3b82f622;border-radius:10px;padding:12px;text-align:center">
-                <div style="font-size:10px;color:#3b82f6;font-weight:700;letter-spacing:0.8px;margin-bottom:6px">OPTIMIST / OTTIMISTICO</div>
-                <div id="sc-ottimistico-ron" style="font-size:14px;font-weight:700;color:#3b82f6">— RON</div>
-                <div id="sc-ottimistico-eur" style="font-size:11px;color:#64748b">—</div>
-              </div>
-            </div>
-          </div>
-
-          <input type="hidden" name="incasso_mese" id="f_incasso_ro">
-          <input type="hidden" name="costi_mese" id="f_costi_ro">
-          <input type="hidden" name="utile_mese" id="f_utile_ro">
-          <input type="hidden" name="payback_mesi" id="f_payback_ro">
-          <input type="hidden" name="scenario" value="realistico">
-        </div>
+    <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px;font-size:12px;color:#64748b">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span>Ocupare estimata</span>
+        <span id="bp-occ" style="color:#f59e0b;font-weight:700">—%</span>
       </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)">
-          <i class="bi bi-arrow-left me-1"></i>{{ 'Înapoi' if lingua=='ro' else 'Indietro' }}
-        </button>
-        <button type="button" class="btn btn-primary" onclick="goStep(6)">
-          {{ 'Înainte' if lingua=='ro' else 'Avanti' }} <i class="bi bi-arrow-right ms-1"></i>
-        </button>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span>Costuri lunare</span>
+        <span id="bp-costi-ron" style="color:#ef4444">— RON</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span>Recuperare investitie</span>
+        <span id="bp-payback" style="color:#a78bfa;font-weight:700">— ani</span>
       </div>
     </div>
-
-    <!-- ══ STEP 6: REZUMAT / RIEPILOGO ══ -->
-    <div class="wizard-panel" id="panel-6">
-      <div class="card">
-        <div class="card-header">
-          <i class="bi bi-check-circle me-2" style="color:#10b981"></i>
-          {{ 'Rezumat proiect' if lingua=='ro' else 'Riepilogo progetto' }}
-        </div>
-        <div class="card-body">
-          <div id="riepilogo-ro-content" style="color:#94a3b8;font-size:13px;text-align:center;padding:20px">
-            {{ 'Completați toți pașii pentru a vedea rezumatul.' if lingua=='ro'
-               else 'Completa tutti gli step per vedere il riepilogo.' }}
-          </div>
-        </div>
-      </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">
-          <i class="bi bi-arrow-left me-1"></i>{{ 'Înapoi' if lingua=='ro' else 'Indietro' }}
-        </button>
-        <button type="submit" class="btn btn-success" style="font-weight:700;padding:10px 28px">
-          <i class="bi bi-save me-1"></i>
-          {{ 'Salvează dosarul' if lingua=='ro' else 'Salva la pratica' }}
-        </button>
-      </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(6)">Inainte →</button>
     </div>
-
-  </form>
+  </div>
 </div>
+
+<!-- ══ STEP 6: REZUMAT / RIEPILOGO ══ -->
+<div class="wizard-step" id="panel-6" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">✅ Rezumat / Riepilogo</h5>
+    <div id="riepilogo-ro" style="background:#0f172a;border-radius:10px;padding:16px;
+                                   font-size:13px;color:#94a3b8">
+      Carica dati...
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">← Inapoi</button>
+      <button type="submit" class="btn btn-warning btn-lg">
+        💾 Salveaza / Salva pratica
+      </button>
+    </div>
+  </div>
+</div>
+
+</form>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+.wizard-step { display:none }
+.step-tab-active { color:#f59e0b!important; border-bottom-color:#f59e0b!important; }
+</style>
 
 <script>
-const LINGUA = '{{ lingua }}';
-const CAMBIO = {{ cambio_ron }};
-let _cambioLive = CAMBIO;
+var CAMBIO = {{ cambio_ron }};
+var _cambioLive = CAMBIO;
+var _scenarioRO = 'realistico';
+var mapRO = null;
 
-// ── Romania: reindirizza zona-analisi alla route dedicata RO ─────────────────
-// Nessun monkey-patching di fetch — usiamo route separata /ro/api/zona-analisi-ro
-const _originalFetch = window.fetch;
-const _roFetchProxy = function(url, opts) {
-  if(typeof url === 'string' && url.includes('/api/zona-analisi') && !url.includes('/ro/')) {
-    url = url.replace('/api/zona-analisi', '/ro/api/zona-analisi-ro');
-  }
-  return _originalFetch.apply(this, [url, opts]);
-};
-window.fetch = _roFetchProxy;
-
-// Carica Leaflet se non già caricato
-if(typeof L === 'undefined') {
-  var _leafletCss = document.createElement('link');
-  _leafletCss.rel = 'stylesheet';
-  _leafletCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-  document.head.appendChild(_leafletCss);
-  var _leafletJs = document.createElement('script');
-  _leafletJs.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-  document.head.appendChild(_leafletJs);
-}
-
-
-// ── Wizard navigation ─────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────────────────────
 function goStep(n) {
-  document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.step').forEach((s,i) => {
-    s.classList.remove('active','done');
-    if(i+1 < n) s.classList.add('done');
+  document.querySelectorAll('.wizard-step').forEach(function(el){el.style.display='none'});
+  document.querySelectorAll('[id^="step-tab-"]').forEach(function(el){
+    el.style.color='#64748b'; el.style.borderBottomColor='transparent';
   });
-  const panel = document.getElementById('panel-'+n);
-  if(panel) panel.classList.add('active');
-  const stepEl = document.querySelectorAll('.step')[n-1];
-  if(stepEl) stepEl.classList.add('active');
+  document.getElementById('panel-'+n).style.display = 'block';
+  var tab = document.getElementById('step-tab-'+n);
+  if(tab){ tab.style.color='#f59e0b'; tab.style.borderBottomColor='#f59e0b'; }
   window.scrollTo(0,0);
-  if(n === 6) aggiornaRiepilogo();
+  if(n === 3) setTimeout(function(){ initMapRO(); }, 200);
+  if(n === 6) aggiornaRiepilogoRO();
 }
+goStep(1);
 
-// ── Cambio RON live ───────────────────────────────────────────────────────
-function aggiornaCambio() {
-  fetch('/ro/api/cambio')
-    .then(r => r.json())
-    .then(d => {
-      _cambioLive = d.eur_ron;
-      var _cd=document.getElementById('cambio-display'); if(_cd) _cd.textContent = d.eur_ron.toFixed(2);
-      document.getElementById('f_cambio_ron').value = d.eur_ron;
-      aggiornaCambioAffitto();
-      aggiornaCambioCapex();
-    }).catch(()=>{});
-}
+// ── Cambio RON live ───────────────────────────────────────────────────────────
+fetch('/ro/api/cambio').then(function(r){return r.json()}).then(function(d){
+  _cambioLive = d.eur_ron;
+  var cd = document.getElementById('cambio-display');
+  if(cd) cd.textContent = d.eur_ron.toFixed(2);
+  document.getElementById('f_cambio_ron').value = d.eur_ron;
+  aggiornaCambioAffitto();
+}).catch(function(){});
 
 function aggiornaCambioAffitto() {
-  const ron = parseFloat(document.getElementById('f_affitto_ron').value) || 0;
-  const eur = ron / _cambioLive;
-  var _aed=document.getElementById('affitto-eur-display'); if(_aed) _aed.textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
+  var ron = parseFloat(document.getElementById('f_affitto').value) || 0;
+  var el  = document.getElementById('affitto-eur-display');
+  if(el) el.textContent = ron > 0 ? Math.round(ron / _cambioLive) : '—';
 }
 
-function aggiornaCambioCapex() {
-  const ron = parseFloat(document.getElementById('f_capex_ron').value) || 0;
-  const eur = ron / _cambioLive;
-  const tva = ron * 0.19;
-  var _ced=document.getElementById('capex-eur-display'); if(_ced) _ced.textContent = eur > 0 ? '€ '+Math.round(eur) : '—';
-  var _tvd=document.getElementById('tva-display'); if(_tvd) _tvd.textContent = tva > 0 ? Math.round(tva).toLocaleString('ro-RO')+' RON' : '—';
-  var _ctd=document.getElementById('capex-tva-display'); if(_ctd) _ctd.textContent = ron > 0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON' : '—';
+function aggiornaCapex() {
+  var ron = parseFloat(document.getElementById('f_capex_ron').value) || 0;
+  var tva = ron * 0.19;
+  var td = document.getElementById('tva-display');     if(td) td.textContent = ron>0 ? Math.round(tva).toLocaleString('ro-RO')+' RON':'—';
+  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = ron>0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON':'—';
 }
 
-// ── Geocodifica Romania ───────────────────────────────────────────────────
+// ── Geocodifica Romania ───────────────────────────────────────────────────────
 function geocodificaRO() {
-  const indirizzo = document.getElementById('f_indirizzo').value;
-  const citta     = document.getElementById('f_citta').value;
-  const judet     = document.getElementById('f_provincia').value;
-  if(!citta) { alert(LINGUA==='ro' ? 'Introduceți orașul!' : 'Inserisci la citta!'); return; }
-
-  const status = document.getElementById('geo-status-ro');
-  status.textContent = LINGUA==='ro' ? 'Geocodific adresa...' : 'Geocodifica in corso...';
-
-  // STEP 1: Geocodifica + dati INS Romania
-  fetch('/api/geocode-ro'
-    +'?indirizzo='+encodeURIComponent(indirizzo)
-    +'&citta='+encodeURIComponent(citta)
-    +'&judet='+encodeURIComponent(judet))
-  .then(r => r.json())
-  .then(function(geo) {
-    if(geo.error || !geo.ok) {
-      status.textContent = 'Errore geocodifica: '+(geo.error||'risposta non valida');
-      return Promise.resolve(null);
+  var ind   = document.getElementById('f_indirizzo').value.trim();
+  var citta = document.getElementById('f_citta').value.trim();
+  var judet = document.getElementById('f_judet').value;
+  var stat  = document.getElementById('geo-status');
+  if(!citta){ stat.textContent = 'Inserisci almeno la città'; return; }
+  stat.textContent = 'Geocodifica in corso...';
+  fetch('/ro/api/geocode?indirizzo='+encodeURIComponent(ind)
+    +'&citta='+encodeURIComponent(citta)+'&judet='+encodeURIComponent(judet))
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(d.error){ stat.textContent='Errore: '+d.error; return; }
+    document.getElementById('f_lat').value = d.lat;
+    document.getElementById('f_lng').value = d.lng;
+    document.getElementById('f_reddito').value = d.reddito_medio || 0;
+    document.getElementById('f_densita').value = d.densita || 0;
+    stat.textContent = 'OK: '+d.indirizzo_fmt;
+    stat.style.color = '#10b981';
+    // Mostra KPI INS
+    var kpi = document.getElementById('kpi-ins-ro');
+    if(kpi) {
+      kpi.style.display = 'block';
+      var nome = document.getElementById('ins-judet-nome');
+      if(nome) nome.textContent = judet + ' — ' + citta;
+      var grid = document.getElementById('ins-kpi-grid');
+      if(grid) grid.innerHTML = [
+        ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('ro-RO')+' RON/an','#f59e0b'],
+        ['Equiv. EUR','EUR '+Math.round((d.reddito_eur||0)).toLocaleString(),'#10b981'],
+        ['Densita',Math.round(d.densita||0).toLocaleString('ro-RO')+' loc/km2','#3b82f6'],
+      ].map(function(r){
+        return '<div style="background:#111827;border-radius:8px;padding:10px;text-align:center">'
+          +'<div style="font-size:11px;color:#64748b;margin-bottom:4px">'+r[0]+'</div>'
+          +'<div style="font-size:13px;font-weight:700;color:'+r[2]+'">'+r[1]+'</div></div>';
+      }).join('');
     }
-    // Verifica lat/lng reali
-    if(!geo.lat || !geo.lng || geo.lat === 0) {
-      status.textContent = 'Indirizzo non trovato in Romania. Prova con citta e via piu precisi.';
-      return Promise.resolve(null);
-    }
-    console.log('Geocode RO ok:', geo.lat, geo.lng, geo.indirizzo_fmt);
-
-    document.getElementById('f_lat').value     = geo.lat;
-    document.getElementById('f_lng').value     = geo.lng;
-    document.getElementById('f_reddito').value = geo.reddito_medio;
-    document.getElementById('f_densita').value = geo.densita;
-    document.getElementById('f_judet').value   = judet;
-
-    var rows = [
-      [LINGUA==='ro'?'Salariu mediu net':'Salario medio netto',
-       Math.round(geo.reddito_medio).toLocaleString('ro-RO')+' RON/an', '#f59e0b'],
-      ['EUR', 'circa EUR '+Math.round(geo.reddito_eur)+'/anno', '#94a3b8'],
-      [LINGUA==='ro'?'Densitate':'Densita', geo.densita+' loc/km2', '#3b82f6'],
-      [LINGUA==='ro'?'Varsta medie':'Eta media', geo.eta_media+' ani', '#10b981'],
-      ['Potentiale', geo.potenziale||'—',
-       geo.potenziale==='alto'?'#10b981':geo.potenziale==='medio'?'#f59e0b':'#ef4444'],
-    ];
-    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">';
-    rows.forEach(function(r) {
-      html += '<div style="background:#0f172a;border:1px solid #1e2d45;border-radius:8px;padding:10px">'
-        +'<div style="font-size:10px;color:#64748b">'+r[0]+'</div>'
-        +'<div style="font-size:13px;font-weight:700;color:'+r[2]+';margin-top:2px">'+r[1]+'</div>'
-        +'</div>';
-    });
-    html += '</div>';
-    var _insBox = document.getElementById('ins-data-box') || document.getElementById('ins-data-box-ro');
-    if(_insBox) _insBox.innerHTML = html;
-
-    status.textContent = LINGUA==='ro' ? 'Analizez zona...' : 'Analisi zona in corso...';
-
-    // STEP 2: usa eseguiAnalisi italiana — gestisce mappa, cerchi, KPI, tutto
-    // Il fetch proxy sopra aggiunge automaticamente &market=RO
-    eseguiAnalisi(geo.lat, geo.lng);
-    status.textContent = LINGUA==='ro' ? 'Analiza completa!' : 'Analisi completata!';
+    aggiornaBPRO();
   })
-  .catch(function(e) { status.textContent = 'Errore geocodifica: '+e.message; });
+  .catch(function(e){ stat.textContent='Errore: '+e.message; stat.style.color='#ef4444'; });
 }
-// ── Business Plan Romania ─────────────────────────────────────────────────
+
+// ── Mappa Leaflet Romania ─────────────────────────────────────────────────────
+function initMapRO() {
+  var lat = parseFloat(document.getElementById('f_lat').value) || 45.9432;
+  var lng = parseFloat(document.getElementById('f_lng').value) || 24.9668;
+  var zoom = lat === 45.9432 ? 7 : 15;
+  if(mapRO) { mapRO.setView([lat,lng],zoom); mapRO.invalidateSize(); return; }
+  mapRO = L.map('map').setView([lat,lng], zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(mapRO);
+  if(lat !== 45.9432) caricaZonaRO(lat, lng);
+}
+
+function caricaZonaRO(lat, lng) {
+  var citta = document.getElementById('f_citta').value;
+  var judet = document.getElementById('f_judet').value;
+  fetch('/ro/api/zona-analisi?lat='+lat+'&lng='+lng
+    +'&citta='+encodeURIComponent(citta)+'&provincia='+encodeURIComponent(judet))
+  .then(function(r){return r.json()})
+  .then(function(d){
+    // KPI
+    function st(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+    st('d_pop3',  (d.pop_3min||0).toLocaleString('ro-RO'));
+    st('d_pop5',  (d.pop_5min||0).toLocaleString('ro-RO'));
+    st('d_pop10', (d.pop_10min||0).toLocaleString('ro-RO'));
+    st('d_score', Math.round(d.score||0)+'/100');
+    st('d_label', d.score_label||'');
+    st('d_conc500', d.concorrenti_500m||0);
+    st('d_conc1km',  d.concorrenti_1km||0);
+    // Campi hidden
+    function sv(id,v){ var e=document.getElementById(id); if(e) e.value=v; }
+    sv('f_pop3', d.pop_3min||0); sv('f_pop5', d.pop_5min||0); sv('f_pop10', d.pop_10min||0);
+    sv('f_score', d.score||0); sv('f_c500', d.concorrenti_500m||0); sv('f_c1k', d.concorrenti_1km||0);
+    sv('f_mult', d.mult_attractor||1.0); sv('f_rec', (d.segnali_reali||{}).recensioni_zona||0);
+    sv('f_gdo', (d.segnali_reali||{}).gdo_500m||0);
+    sv('f_densita', (d.demografici||{}).densita||0);
+    sv('f_reddito', (d.demografici||{}).reddito_medio||0);
+    var scEl = document.getElementById('d_score');
+    if(scEl) scEl.style.color = d.score_colore||'#10b981';
+    // Cerchi isocrone
+    if(mapRO) {
+      [[240,'#3b82f622','#3b82f6'],[400,'#8b5cf622','#8b5cf6'],[800,'#ec489922','#ec4899']].forEach(function(c){
+        L.circle([d.lat||lat, d.lng||lng], {radius:c[0], color:c[2], weight:1.5,
+          fillColor:c[1], fillOpacity:0.12}).addTo(mapRO);
+      });
+      // POI
+      (d.pois||[]).forEach(function(p){
+        if(!p.lat||!p.lng) return;
+        var ic = L.divIcon({className:'',
+          html:'<div style="background:'+p.colore+';width:8px;height:8px;border-radius:50%;border:1.5px solid white"></div>',
+          iconSize:[8,8],iconAnchor:[4,4]});
+        L.marker([p.lat,p.lng],{icon:ic}).addTo(mapRO)
+          .bindPopup('<b>'+(p.nome||p.tipo||'')+'</b>');
+      });
+      // Concorrenti con cerchi
+      (d.competitors_detail||[]).forEach(function(c){
+        if(!c.lat||!c.lng) return;
+        L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
+          color:c.cerchio_colore||'#ef4444',weight:2,fillOpacity:0.15}).addTo(mapRO)
+          .bindPopup('<b>'+c.nome+'</b><br>'+c.distanza_m+'m');
+      });
+      // Marker sede
+      L.marker([d.lat||lat, d.lng||lng], {icon:L.divIcon({className:'',
+        html:'<div style="background:#1d4ed8;width:18px;height:18px;border-radius:50%;border:3px solid white"></div>',
+        iconSize:[18,18],iconAnchor:[9,9]})}).addTo(mapRO)
+        .bindPopup('<b>Sediu propus</b>');
+      mapRO.invalidateSize();
+    }
+    aggiornaBPRO();
+  })
+  .catch(function(e){ console.warn('[zona_ro]', e); });
+}
+
+// ── Business Plan Romania ─────────────────────────────────────────────────────
 function aggiornaBPRO() {
-  const payload = {
-    n_std: parseInt(document.getElementById('f_n_std')?.value||0),
-    n_med: parseInt(document.getElementById('f_n_med')?.value||0),
-    n_grd: parseInt(document.getElementById('f_n_grd')?.value||0),
-    n_asc: parseInt(document.getElementById('f_n_asc')?.value||0),
-    t_std: parseFloat(document.querySelector('[name=tariffa_lavaggio_std]')?.value||20),
-    t_med: parseFloat(document.querySelector('[name=tariffa_lavaggio_med]')?.value||25),
-    t_grd: parseFloat(document.querySelector('[name=tariffa_lavaggio_grd]')?.value||35),
-    t_asc: parseFloat(document.querySelector('[name=tariffa_asciugatura]')?.value||5),
-    concorrenti_500m: parseInt(document.getElementById('f_c500')?.value||0),
-    concorrenti_1km:  parseInt(document.getElementById('f_c1k')?.value||0),
-    densita:          parseFloat(document.getElementById('f_densita')?.value||500),
-    recensioni_zona:  parseFloat(document.getElementById('f_rec')?.value||0),
-    reddito_medio:    parseFloat(document.getElementById('f_reddito')?.value||30000),
-    gdo_500m:         parseInt(document.getElementById('f_gdo')?.value||0),
-    mult_attractor:   parseFloat(document.getElementById('f_mult')?.value||1),
-    capex_ron:        parseFloat(document.getElementById('f_capex_ron')?.value||0),
-    affitto_ron:      parseFloat(document.getElementById('f_affitto_mese')?.value||3000),
-    altri_costi_ron:  parseFloat(document.getElementById('f_altri_ro')?.value||1300),
-    pop_comune:       parseFloat(document.getElementById('f_pop_comune')?.value||0),
-    scenario:         'realistico',
+  var payload = {
+    n_std: parseInt(document.getElementById('f_n_std').value)||0,
+    n_med: parseInt(document.getElementById('f_n_med').value)||0,
+    n_grd: parseInt(document.getElementById('f_n_grd').value)||0,
+    n_asc: parseInt(document.getElementById('f_n_asc').value)||0,
+    t_std: parseFloat(document.getElementById('f_t_std').value)||20,
+    t_med: parseFloat(document.getElementById('f_t_med').value)||25,
+    t_grd: parseFloat(document.getElementById('f_t_grd').value)||35,
+    t_asc: parseFloat(document.getElementById('f_t_asc').value)||5,
+    capex_ron:     parseFloat(document.getElementById('f_capex_ron').value)||0,
+    affitto_ron:   parseFloat(document.getElementById('f_affitto').value)||3000,
+    concorrenti_500m: parseInt(document.getElementById('f_c500').value)||0,
+    concorrenti_1km:  parseInt(document.getElementById('f_c1k').value)||0,
+    densita:       parseFloat(document.getElementById('f_densita').value)||500,
+    reddito_medio: parseFloat(document.getElementById('f_reddito').value)||30000,
+    mult_attractor:parseFloat(document.getElementById('f_mult').value)||1.0,
+    recensioni_zona:parseFloat(document.getElementById('f_rec').value)||0,
+    gdo_500m:      parseInt(document.getElementById('f_gdo').value)||0,
+    scenario:      _scenarioRO,
   };
-
-  fetch('/ro/api/calcola-bp-ro', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
+  fetch('/ro/api/calcola-bp', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    function fmt(n){ return n.toLocaleString('ro-RO'); }
+    function fmtE(n){ return 'EUR '+n.toLocaleString(); }
+    var bir=document.getElementById('bp-incasso-ron'); if(bir) bir.textContent=fmt(d.incasso_ron)+' RON';
+    var bie=document.getElementById('bp-incasso-eur'); if(bie) bie.textContent=fmtE(d.incasso_eur);
+    var bur=document.getElementById('bp-utile-ron');   if(bur) bur.textContent=fmt(d.utile_ron)+' RON';
+    var bue=document.getElementById('bp-utile-eur');   if(bue) bue.textContent=fmtE(d.utile_eur);
+    var boc=document.getElementById('bp-occ');         if(boc) boc.textContent=d.occupazione_pct+'%';
+    var bco=document.getElementById('bp-costi-ron');   if(bco) bco.textContent=fmt(d.costi_ron)+' RON';
+    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '—';
+    document.getElementById('f_incasso_eur').value = d.incasso_eur;
+    document.getElementById('f_costi_eur').value   = d.costi_ron / (_cambioLive||4.97);
+    document.getElementById('f_utile_eur').value   = d.utile_eur;
   })
-  .then(r=>r.json())
-  .then(d => {
-    const fmt = n => Math.abs(n).toLocaleString('ro-RO');
-    const fmtE = n => '€ '+Math.abs(Math.round(n)).toLocaleString('it-IT');
-
-    var _bir=document.getElementById('bp-incasso-ron'); if(_bir) _bir.textContent = fmt(d.incasso_ron)+' RON';
-    var _bie=document.getElementById('bp-incasso-eur'); if(_bie) _bie.textContent = fmtE(d.incasso_eur);
-    document.getElementById('bp-costi-ron').textContent   = fmt(d.costi_ron)+' RON';
-    document.getElementById('bp-costi-eur').textContent   = fmtE(d.costi_ron/_cambioLive);
-    document.getElementById('bp-utile-ron').textContent   = fmt(d.utile_ron)+' RON';
-    document.getElementById('bp-utile-eur').textContent   = fmtE(d.utile_eur);
-    document.getElementById('bp-payback').textContent     = d.payback_anni ? d.payback_anni+' ani' : 'N/D';
-    document.getElementById('bp-occ').textContent         = d.occupazione_pct+'%';
-
-    // Aggiorna costi energia / acqua
-    const cEnEl = document.getElementById('costi-energia-ro');
-    const cAcEl = document.getElementById('costi-acqua-ro');
-    if(cEnEl) cEnEl.textContent = fmt(Math.round(d.incasso_ron*0.18))+' RON';
-    if(cAcEl) cAcEl.textContent = fmt(Math.round(d.incasso_ron*0.06))+' RON';
-
-    // 3 scenari
-    const multp = {pessimistico:0.70, realistico:1.00, ottimistico:1.30};
-    ['pessimistico','realistico','ottimistico'].forEach(sc => {
-      const inc = Math.round(d.incasso_ron * multp[sc]);
-      const ut  = Math.round(d.utile_ron   * multp[sc]);
-      const ronEl = document.getElementById('sc-'+sc+'-ron');
-      const eurEl = document.getElementById('sc-'+sc+'-eur');
-      if(ronEl) ronEl.textContent = fmt(inc)+' RON';
-      if(eurEl) eurEl.textContent = '€ '+fmt(Math.round(inc/_cambioLive));
-    });
-    document.getElementById('scenari-ro').style.display = 'block';
-
-    // Salva nei campi hidden
-    document.getElementById('f_incasso_ro').value  = Math.round(d.incasso_eur);
-    document.getElementById('f_costi_ro').value    = Math.round(d.costi_ron/_cambioLive);
-    document.getElementById('f_utile_ro').value    = Math.round(d.utile_eur);
-    document.getElementById('f_payback_ro').value  = d.payback_anni ? d.payback_anni*12 : 0;
-  })
-  .catch(()=>{});
+  .catch(function(){});
 }
 
-// ── Riepilogo ─────────────────────────────────────────────────────────────
-function aggiornaRiepilogo() {
-  const nome    = document.querySelector('[name=cliente_nome]')?.value || '—';
-  const citta   = document.getElementById('f_citta')?.value || '—';
-  const inc_ron = document.getElementById('bp-incasso-ron')?.textContent || '—';
-  const inc_eur = document.getElementById('bp-incasso-eur')?.textContent || '—';
-  const score   = document.getElementById('f_score')?.value || '—';
-
-  document.getElementById('riepilogo-ro-content').innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;text-align:left">
-      ${[
-        [LINGUA==='ro'?'Client':'Cliente', nome],
-        [LINGUA==='ro'?'Oraș':'Città', citta],
-        [LINGUA==='ro'?'Încasări lunare':'Incasso mensile', inc_ron+'<br><small style="color:#64748b">'+inc_eur+'</small>'],
-        ['Score '+( LINGUA==='ro'?'zonă':'zona'), score+'/100'],
-      ].map(([l,v]) => `
-        <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:8px;padding:12px">
-          <div style="font-size:10px;color:#64748b;margin-bottom:4px">${l}</div>
-          <div style="font-size:14px;font-weight:700;color:#e2e8f0">${v}</div>
-        </div>`).join('')}
-    </div>`;
-}
-
-// ── Modalita ──────────────────────────────────────────────────────────────
-function setModalita(m) {
-  document.getElementById('f_modalita').value = m;
-  var _mlEl=document.getElementById('modalita-label'); if(_mlEl) _mlEl.textContent =
-    m==='investitore'
-      ? (LINGUA==='ro' ? 'Analiză Investitor' : 'Analisi Investitore')
-      : (LINGUA==='ro' ? 'Analiză Rapidă'     : 'Analisi Rapida');
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  aggiornaCambio();
-
-  // Mappa id macchine
-  document.querySelectorAll('[name=n_std],[name=n_med],[name=n_grd],[name=n_asc]').forEach(el => {
-    el.id = 'f_' + el.name;
-    el.addEventListener('input', aggiornaBPRO);
+function setScenarioRO(sc) {
+  _scenarioRO = sc;
+  document.getElementById('f_scenario').value = sc;
+  ['pessimistico','realistico','ottimistico'].forEach(function(s){
+    var btn = document.getElementById('btn-sc-'+s);
+    if(btn){ btn.className = s===sc ? 'btn btn-sm btn-warning' : 'btn btn-sm btn-outline-secondary'; }
   });
-});
+  aggiornaBPRO();
+}
+
 // ── Analisi AI Romania ────────────────────────────────────────────────────────
 function generaAI_RO() {
-  var btn    = document.getElementById('btn-genera-ai-ro') ||
-               document.querySelector('[onclick="generaAI_RO()"]');
   var txtEl  = document.getElementById('ai-ro-text');
   var loadEl = document.getElementById('ai-ro-loading');
   if(loadEl) loadEl.style.display = 'block';
   if(txtEl)  txtEl.style.display  = 'none';
-  if(btn)    btn.disabled = true;
-
-  // Raccoglie dati dalla pagina
   var payload = {
-    lingua:           LINGUA,
-    cambio_ron:       _cambioLive || CAMBIO,
-    indirizzo:        (document.getElementById('f_indirizzo')||{value:''}).value,
-    citta:            (document.getElementById('f_citta')||{value:''}).value,
-    mq:               (document.getElementById('f_mq')||{value:60}).value,
-    pop_3min:         (document.getElementById('f_pop3')||{value:0}).value,
-    pop_5min:         (document.getElementById('f_pop5')||{value:0}).value,
-    pop_10min:        (document.getElementById('f_pop10')||{value:0}).value,
-    densita:          (document.getElementById('f_densita')||{value:500}).value,
-    reddito_medio:    (document.getElementById('f_reddito')||{value:30000}).value,
-    score_zona:       (document.getElementById('f_score')||{value:0}).value,
+    indirizzo: (document.getElementById('f_indirizzo')||{value:''}).value,
+    citta:     (document.getElementById('f_citta')||{value:''}).value,
+    pop_5min:  (document.getElementById('f_pop5')||{value:0}).value,
+    densita:   (document.getElementById('f_densita')||{value:0}).value,
+    reddito_medio: (document.getElementById('f_reddito')||{value:30000}).value,
     concorrenti_500m: (document.getElementById('f_c500')||{value:0}).value,
-    concorrenti_1km:  (document.getElementById('f_c1k')||{value:0}).value,
-    recensioni_zona:  (document.getElementById('f_rec')||{value:0}).value,
-    gdo_500m:         (document.getElementById('f_gdo')||{value:0}).value,
-    incasso_mese_ron: parseInt((document.getElementById('bp-incasso-ron')||
-                       {textContent:'0'}).textContent.replace(/[^0-9]/g,''))||0,
-    costi_mese_ron:   parseInt((document.getElementById('bp-costi-ron')||
-                       {textContent:'0'}).textContent.replace(/[^0-9]/g,''))||0,
-    capex_ron:        (document.getElementById('f_capex_ron')||{value:0}).value,
-    attractor_points: [],
-    competitors_detail: [],
+    incasso_ron: parseInt((document.getElementById('bp-incasso-ron')||{textContent:'0'}).textContent)||0,
+    costi_ron:   parseInt((document.getElementById('bp-costi-ron')||{textContent:'0'}).textContent)||0,
+    capex_ron:   (document.getElementById('f_capex_ron')||{value:0}).value,
   };
-
-  fetch('/ro/api/analisi-ai-ro', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload)
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if(loadEl) loadEl.style.display = 'none';
+  fetch('/ro/api/analisi-ai', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(loadEl) loadEl.style.display='none';
     if(txtEl) {
-      txtEl.style.display = 'block';
-      if(d.errore) {
-        txtEl.textContent = 'Errore: ' + d.errore;
-        txtEl.style.color = '#ef4444';
-      } else {
-        txtEl.textContent = d.analisi || '';
-        txtEl.style.color = '#e2e8f0';
-      }
+      txtEl.style.display='block';
+      txtEl.textContent = d.analisi || ('Errore: '+(d.errore||''));
+      txtEl.style.color = d.errore ? '#ef4444' : '#e2e8f0';
     }
-    if(btn) btn.disabled = false;
   })
-  .catch(function(e) {
-    if(loadEl) loadEl.style.display = 'none';
-    if(txtEl) { txtEl.style.display='block'; txtEl.textContent='Errore: '+e.message; txtEl.style.color='#ef4444'; }
-    if(btn) btn.disabled = false;
+  .catch(function(e){
+    if(loadEl) loadEl.style.display='none';
+    if(txtEl){ txtEl.style.display='block'; txtEl.textContent='Errore: '+e.message; txtEl.style.color='#ef4444'; }
   });
 }
 
-
-// ── Funzioni mappa Leaflet ──────────────────────────────
-let map = null;
-let mapEsplora
-
-function initMap() {
-  const lat = parseFloat(document.getElementById('f_lat').value) || 41.9;
-  const lng = parseFloat(document.getElementById('f_lng').value) || 12.5;
-  map = L.map('map').setView([lat, lng], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+// ── Riepilogo ─────────────────────────────────────────────────────────────────
+function aggiornaRiepilogoRO() {
+  var citta = (document.getElementById('f_citta')||{value:'—'}).value || '—';
+  var inc   = document.getElementById('bp-incasso-ron');
+  var uti   = document.getElementById('bp-utile-ron');
+  var occ   = document.getElementById('bp-occ');
+  var el    = document.getElementById('riepilogo-ro');
+  if(!el) return;
+  el.innerHTML = [
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
+    kv('Città / Oras', citta),
+    kv('Incasari', inc ? inc.textContent : '—'),
+    kv('Profit net', uti ? uti.textContent : '—'),
+    kv('Ocupare', occ ? occ.textContent : '—'),
+    '</div>',
+  ].join('');
 }
-
-// Disegna cerchi 3/5/10 min — chiamato subito al geocoding, indipendente dall'API
-function disegnaCerchi(lat, lng) {
-  if (!map || !lat || !lng) return;
-  if (window._cerchiLayer) {
-    window._cerchiLayer.forEach(function(c){ try{ map.removeLayer(c); }catch(e){} });
-  }
-  window._cerchiLayer = [
-    L.circle([lat,lng],{radius:240, color:'#3b82f6',weight:2,dashArray:'6,4',fillColor:'#3b82f6',fillOpacity:.10}).addTo(map).bindPopup('<b>3 min a piedi</b><br>~240m · bacino primario'),
-    L.circle([lat,lng],{radius:400, color:'#8b5cf6',weight:2,dashArray:'6,4',fillColor:'#8b5cf6',fillOpacity:.07}).addTo(map).bindPopup('<b>5 min a piedi</b><br>~400m · bacino secondario'),
-    L.circle([lat,lng],{radius:800, color:'#ec4899',weight:1.5,dashArray:'4,6',fillColor:'#ec4899',fillOpacity:.04}).addTo(map).bindPopup('<b>10 min a piedi</b><br>~800m · bacino terziario'),
-    L.circle([lat,lng],{radius:1200,color:'#f59e0b',weight:1,dashArray:'8,4',fillColor:'transparent',fillOpacity:0}).addTo(map).bindPopup('<b>15 min</b><br>~1.2km · bacino esteso'),
-  ];
-  if (window._markerSede) { try{ map.removeLayer(window._markerSede); }catch(e){} }
-  window._markerSede = L.marker([lat,lng], {
-    icon: L.divIcon({className:'',
-      html:'<div style="background:#2563eb;color:white;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:16px">📍</div>',
-      iconSize:[32,32], iconAnchor:[16,16]})
-  }).addTo(map).bindPopup('<b>📍 Sede proposta</b>');
+function kv(k,v){
+  return '<div style="background:#111827;border-radius:8px;padding:10px">'
+    +'<div style="font-size:10px;color:#64748b;margin-bottom:4px">'+k+'</div>'
+    +'<div style="font-size:13px;font-weight:600;color:#f59e0b">'+v+'</div></div>';
 }
 </script>
 {% endblock %}
