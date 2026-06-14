@@ -43,33 +43,24 @@ with app.app_context():
     from models.settings import Settings
     from models.macchina import Macchina
 
-    # Owner — Fabrizio Rotondi (proprietario assoluto)
-    OWNER_EMAIL = 'fabrizio.rotondigroup@gmail.com'
-    OWNER_PWD   = 'BioLavaTU#2026!FR'   # cambia dopo primo accesso
+    # Admin default
     try:
-        existing = User.query.filter_by(email=OWNER_EMAIL).first()
-        if not existing:
+        if not User.query.filter_by(email='fabrizio@rotondigroup.it').first():
             u = User(
-                nome='Fabrizio Rotondi',
-                email=OWNER_EMAIL,
-                role='owner',
-                market='IT',
-                lingua='it',
+                nome='Fabrizio De Antoniis',
+                email='fabrizio@rotondigroup.it',
+                role='admin',
                 attivo=True
             )
-            u.set_password(OWNER_PWD)
+            u.set_password('BioLava2024!')
             db.session.add(u)
             db.session.commit()
-            print("[INIT] Owner creato.", flush=True)
-        elif existing.role != 'owner':
-            existing.role = 'owner'
-            db.session.commit()
-            print("[INIT] Owner role aggiornato.", flush=True)
+            print("[INIT] Admin creato.", flush=True)
         else:
-            print("[INIT] Owner già esiste.", flush=True)
+            print("[INIT] Admin già esiste.", flush=True)
     except Exception as e:
         db.session.rollback()
-        print(f"[INIT] Owner error: {e}", flush=True)
+        print(f"[INIT] Admin error: {e}", flush=True)
 
     # Settings default
     try:
@@ -81,7 +72,7 @@ with app.app_context():
                 company_piva='P.IVA 09975740151',
                 company_email='info@rotondigroup.it',
                 company_web='www.biolavatu.it',
-                company_tel='+39 06 41400514',
+                company_tel='+39 02 33910031',
                 condizioni_vendita="""CONDIZIONI GENERALI DI VENDITA
 
 1. OGGETTO DEL CONTRATTO
