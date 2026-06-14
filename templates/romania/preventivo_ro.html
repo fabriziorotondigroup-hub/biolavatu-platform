@@ -869,7 +869,7 @@ function aggiornaTabellaPOI(pois, concorrenti) {
     var dAvg = g.distanze.length ? Math.round(g.distanze.reduce(function(a,b){return a+b},0)/g.distanze.length) : 0;
     html += '<div style="display:flex;align-items:center;padding:8px 14px;'
       +'border-bottom:1px solid #1e2d4522;cursor:pointer;transition:background 0.1s"'
-      +' onclick="toggleCategoria(''+cat+'')" id="row-'+cat+'">'
+      +' onclick="toggleCategoria(\''+cat+'\')" id="row-'+cat+'">'
       +'<span style="width:10px;height:10px;border-radius:50%;background:'+g.col
         +';display:inline-block;margin-right:10px;flex-shrink:0"></span>'
       +'<span style="flex:1;font-size:12px;color:#e2e8f0">'+(LABELS[cat]||cat)+'</span>'
