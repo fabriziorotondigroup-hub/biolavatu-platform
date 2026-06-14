@@ -10,6 +10,7 @@ from flask_login import login_required, current_user
 from app import db
 from models.pratica import Pratica
 from models.cliente import Cliente
+from models.user import User
 from models.settings import Settings
 from services.normativa_croazia import NORMATIVA_HR
 from services.ins_croazia import (
@@ -409,6 +410,73 @@ def normativa(pratica_id=None):
         norm=norm, lingua=lingua, cliente_nome=cliente_nome, citta=citta,
         pratica_id=pratica_id, cambio_hr=_cambio(),
         data_oggi=datetime.date.today().strftime('%d/%m/%Y'))
+
+
+
+# ── Venditori HR ─────────────────────────────────────────────────────────
+
+@hr_bp.route('/venditori')
+@login_required
+def venditori():
+    if not _hr_check(): return redirect(url_for('dashboard.index'))
+    if not current_user.can_manage_venditori:
+        flash('Accesso negato.', 'error')
+        return redirect(url_for('croazia.dashboard'))
+    agenti = User.query.filter(
+        User.market == 'HR',
+        User.role.in_(('sales', 'sales_hr', 'admin', 'segreteria'))
+    ).order_by(User.created.desc()).all()
+    ling = _get_lingua()
+    return render_template('croazia/venditori_hr.html',
+        agenti=agenti, lingua=ling, tr=TR.get(ling, TR['it']))
+
+
+@hr_bp.route('/venditori/nuovo', methods=['POST'])
+@login_required
+def nuovo_venditore_hr():
+    if not current_user.can_manage_venditori:
+        return redirect(url_for('croazia.dashboard'))
+    email = request.form.get('email', '').strip()
+    if not email or User.query.filter_by(email=email).first():
+        flash('Email non valida o già registrata.', 'error')
+        return redirect(url_for('croazia.venditori'))
+    u = User(
+        nome   = request.form.get('nome', '').strip(),
+        email  = email,
+        role   = request.form.get('role', 'sales_hr'),
+        market = 'HR',
+        attivo = True,
+    )
+    u.set_password(request.form.get('password', 'Croazia2026!'))
+    db.session.add(u)
+    db.session.commit()
+    flash(f'Agente {u.nome} creato.', 'success')
+    return redirect(url_for('croazia.venditori'))
+
+
+@hr_bp.route('/venditori/<int:id>/toggle', methods=['POST'])
+@login_required
+def toggle_venditore_hr(id):
+    if not current_user.can_manage_venditori:
+        return jsonify({'error': 'Accesso negato'}), 403
+    u = User.query.get_or_404(id)
+    u.attivo = not u.attivo
+    db.session.commit()
+    return jsonify({'attivo': u.attivo, 'nome': u.nome})
+
+
+@hr_bp.route('/venditori/<int:id>/elimina', methods=['POST'])
+@login_required
+def elimina_venditore_hr(id):
+    if not current_user.is_owner:
+        return jsonify({'error': 'Solo il proprietario puo eliminare agenti'}), 403
+    u = User.query.get_or_404(id)
+    if u.is_owner:
+        return jsonify({'error': 'Non puoi eliminare il proprietario'}), 403
+    db.session.delete(u)
+    db.session.commit()
+    flash('Agente eliminato.', 'success')
+    return redirect(url_for('croazia.venditori'))
 
 # ── Lingua ────────────────────────────────────────────────────────────────────
 @hr_bp.route('/lingua/<lang>')
