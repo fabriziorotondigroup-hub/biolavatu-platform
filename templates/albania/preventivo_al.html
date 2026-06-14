@@ -1,0 +1,918 @@
+<!-- templates/albania/preventivo_al.html — BIOLavaTU LaundryPro — Mercato Albania
+     ISOLATO da Italia e Romania -->
+{% extends "base.html" %}
+{% block title %}{{ 'Dosar i ri' if not pratica else 'Modifica dosar' }} — Shqiperia{% endblock %}
+
+{% block content %}
+<!-- Intestazione -->
+<div style="padding:12px 24px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:12px">
+  <a href="{{ url_for('albania.dashboard') }}" style="color:#64748b;font-size:13px;text-decoration:none">
+    {{ tr.indietro if tr else '← Indietro' }}
+  </a>
+  <span style="color:#1e2d45">|</span>
+  <span style="font-size:15px;font-weight:600;color:#f59e0b">
+    🇷🇴 {{ 'Dosar i ri' if not pratica else pratica.numero }}
+  </span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <span style="font-size:12px;color:#64748b">
+      1 EUR = <span id="cambio-display">{{ "%.2f"|format(cambio_all) }}</span> ALL
+    </span>
+    <!-- Switch lingua -->
+    <div style="display:flex;gap:4px;background:#0a0f1a;border:1px solid #1e2d45;
+                border-radius:8px;padding:3px">
+      <a href="{{ url_for('albania.set_lingua', lang='it') }}"
+         style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;
+                text-decoration:none;
+                {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='it' else 'color:#64748b' }}">
+        🇮🇹 IT
+      </a>
+      <a href="{{ url_for('albania.set_lingua', lang='ro') }}"
+         style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;
+                text-decoration:none;
+                {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='ro' else 'color:#64748b' }}">
+        🇷🇴 AL
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Progress steps -->
+<div style="display:flex;padding:0 24px;border-bottom:1px solid #1e2d45;background:#0a0f1a">
+  {% for num, label in [(1,'Cliente'),(2,'Selia'),(3,'Zona'),(4,'Utilaje'),(5,'Business Plan'),(6,'Rezumat')] %}
+  <div onclick="goStep({{ num }})" id="step-tab-{{ num }}"
+       style="padding:14px 20px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;
+              color:#64748b;white-space:nowrap;transition:all 0.2s">
+    <span style="background:#1e2d45;border-radius:50%;width:20px;height:20px;display:inline-flex;
+                 align-items:center;justify-content:center;margin-right:6px;font-size:10px">{{ num }}</span>
+    {{ label }}
+  </div>
+  {% endfor %}
+</div>
+
+<form method="POST" action="{{ url_for('albania.salva_nuovo') }}" id="form-ro">
+<input type="hidden" name="market" value="AL">
+<input type="hidden" name="valuta" value="ALL">
+<input type="hidden" id="f_cambio_all" name="cambio_all" value="{{ cambio_all }}">
+<input type="hidden" id="f_lat" name="lat" value="{{ pratica.lat if pratica else '' }}">
+<input type="hidden" id="f_lng" name="lng" value="{{ pratica.lng if pratica else '' }}">
+<input type="hidden" id="f_pop3" name="pop_3min" value="{{ pratica.pop_3min if pratica else 0 }}">
+<input type="hidden" id="f_pop5" name="pop_5min" value="{{ pratica.pop_5min if pratica else 0 }}">
+<input type="hidden" id="f_pop10" name="pop_10min" value="{{ pratica.pop_10min if pratica else 0 }}">
+<input type="hidden" id="f_score" name="score_zona" value="{{ pratica.score_zona if pratica else 0 }}">
+<input type="hidden" id="f_c500" name="concorrenti_500m" value="{{ pratica.concorrenti_500m if pratica else 0 }}">
+<input type="hidden" id="f_c1k" name="concorrenti_1km" value="{{ pratica.concorrenti_1km if pratica else 0 }}">
+<input type="hidden" id="f_mult" name="mult_attractor" value="1.0">
+<input type="hidden" id="f_rec" name="recensioni_zona" value="0">
+<input type="hidden" id="f_gdo" name="gdo_500m" value="0">
+<input type="hidden" id="f_densita" name="densita" value="0">
+<input type="hidden" id="f_reddito" name="reddito_medio" value="0">
+<input type="hidden" id="f_pois" name="pois_json" value="[]">
+<input type="hidden" id="f_incasso_eur" name="incasso_eur" value="0">
+<input type="hidden" id="f_costi_eur" name="costi_eur" value="0">
+<input type="hidden" id="f_utile_eur" name="utile_eur" value="0">
+
+<!-- ══ STEP 1: CLIENTE ══ -->
+<div class="wizard-step" id="panel-1" style="display:block">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">👤 Date client / Dati cliente</h5>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Nume client / Nome cliente *</label>
+        <input type="text" name="cliente_nome" class="form-control"
+               value="{{ pratica.cliente.nome if pratica and pratica.cliente else '' }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Firma / Azienda</label>
+        <input type="text" name="cliente_azienda" class="form-control"
+               value="{{ pratica.cliente.azienda if pratica and pratica.cliente else '' }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email</label>
+        <input type="email" name="cliente_email" class="form-control"
+               value="{{ pratica.cliente.email if pratica and pratica.cliente else '' }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Telefon / Telefono</label>
+        <input type="text" name="cliente_tel" class="form-control"
+               value="{{ pratica.cliente.telefono if pratica and pratica.cliente else '' }}">
+      </div>
+    </div>
+    <div class="d-flex justify-content-end mt-4">
+      <button type="button" class="btn btn-warning" onclick="goStep(2)">
+        {{ tr.avanti if tr else 'Avanti →' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STEP 2: SEDIU / SEDE ══ -->
+<div class="wizard-step" id="panel-2" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">📍 Selia spalatorie / Sede lavanderia</h5>
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Rruga dhe numri / Via e numero civico *</label>
+        <input type="text" name="indirizzo" id="f_indirizzo" class="form-control"
+               value="{{ pratica.indirizzo if pratica else '' }}"
+               placeholder="ex: Strada Mihai Eminescu 12">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">Qyteti / Città *</label>
+        <input type="text" name="citta" id="f_citta" class="form-control"
+               value="{{ pratica.citta if pratica else '' }}" placeholder="ex: Bucuresti">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Judet *</label>
+        <select name="qark_cod" id="f_qark" class="form-select">
+          <option value="">— Selecteaza —</option>
+          <option value="B">București</option>
+          <option value="CJ">Cluj</option>
+          <option value="TM">Timiș</option>
+          <option value="IS">Iași</option>
+          <option value="CT">Constanța</option>
+          <option value="BV">Brașov</option>
+          <option value="PH">Prahova</option>
+          <option value="IF">Ilfov</option>
+          <option value="AG">Argeș</option>
+          <option value="BC">Bacău</option>
+          <option value="BH">Bihor</option>
+          <option value="SB">Sibiu</option>
+          <option value="DJ">Dolj</option>
+          <option value="GL">Galați</option>
+          <option value="MM">Maramureș</option>
+          <option value="NT">Neamț</option>
+          <option value="SV">Suceava</option>
+          <option value="VS">Vaslui</option>
+          <option value="AR">Arad</option>
+          <option value="MS">Mureș</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Suprafata (mp)</label>
+        <input type="number" name="mq" id="f_mq" class="form-control" value="60" min="20">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Chirie lunara (ALL)</label>
+        <div class="input-group">
+          <input type="number" name="affitto_all" id="f_affitto" class="form-control"
+                 value="3000" oninput="aggiornaCambioAffitto()">
+          <span class="input-group-text" style="background:#1e2d45;color:#64748b">
+            = EUR <span id="affitto-eur-display">—</span>
+          </span>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tip zona</label>
+        <select name="tipo_zona" class="form-select">
+          <option value="residenziale">Rezidential / Residenziale</option>
+          <option value="commerciale">Comercial / Commerciale</option>
+          <option value="misto">Mixt / Misto</option>
+          <option value="periferia">Periferie / Periferia</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <button type="button" id="btn-analizza" class="btn btn-success"
+              onclick="geocodificaAL()" style="background:#059669">
+        🔍 {{ tr.analizza_zona if tr else 'Analizza zona' }}
+      </button>
+      <span id="geo-status" style="font-size:12px;color:#64748b;margin-left:12px"></span>
+    </div>
+    <!-- Box dati INS -->
+    <div id="kpi-ins-ro" style="display:none;margin-top:16px;background:#0f172a;
+         border:1px solid #f59e0b22;border-radius:10px;padding:14px">
+      <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:8px">
+        📊 DATE INS ALMANIA 2021 — <span id="ins-qark-nome"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="ins-kpi-grid"></div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">← {{ 'Mbrapa' if lingua=='ro' else 'Indietro' }}</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(3)">Perpara / Avanti →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STEP 3: ZONA ══ -->
+<div class="wizard-step" id="panel-3" style="display:none">
+  <div style="padding:16px">
+    <!-- Legenda -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:0 8px">
+      {% for cat, col, lab in [
+        ('konkurente','#ef4444','Concorrenti'),
+        ('supermarkete','#22c55e','Supermercati'),
+        ('bar','#f59e0b','Bar/Restorante'),
+        ('transport','#6d28d9','Transport'),
+        ('arsim','#0ea5e9','Universita'),
+        ('spitale','#ec4899','Spitale'),
+        ('farmaci','#ec4899','Farmaci'),
+      ] %}
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;
+                   background:{{ col }}22;color:{{ col }};border:1px solid {{ col }}44">
+        {{ lab }}
+      </span>
+      {% endfor %}
+    </div>
+    <!-- Mappa -->
+    <div id="map" style="height:420px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
+    <!-- KPI zona -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          👥 POPULATIE ACCESIBILA
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;text-align:center">
+          <div>
+            <div id="d_pop3" style="font-size:16px;font-weight:700;color:#3b82f6">—</div>
+            <div style="font-size:9px;color:#64748b">3 min</div>
+          </div>
+          <div>
+            <div id="d_pop5" style="font-size:16px;font-weight:700;color:#8b5cf6">—</div>
+            <div style="font-size:9px;color:#64748b">5 min</div>
+          </div>
+          <div>
+            <div id="d_pop10" style="font-size:16px;font-weight:700;color:#ec4899">—</div>
+            <div style="font-size:9px;color:#64748b">10 min</div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          ⭐ SCOR ZONA / SCORE ZONA
+        </div>
+        <div style="text-align:center">
+          <div id="d_score" style="font-size:28px;font-weight:700;color:#10b981">—</div>
+          <div id="d_label" style="font-size:11px;color:#64748b">su 100 punti</div>
+        </div>
+      </div>
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px">
+          🏁 CONCURENTA / CONCORRENZA
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:11px;color:#94a3b8">Self-service 500m</span>
+            <span id="d_conc500" style="font-weight:700;color:#ef4444">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:11px;color:#94a3b8">Tutte 1km</span>
+            <span id="d_conc1km" style="font-weight:700;color:#f97316">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Tabella POI per categoria -->
+    <div id="tabella-poi" style="display:none;margin-top:12px;background:#0f172a;
+         border:1px solid #1e2d45;border-radius:10px;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid #1e2d45;
+                  font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;
+                  display:flex;justify-content:space-between;align-items:center">
+        <span>📊 POI rilevati nella zona</span>
+        <span id="poi-total-count" style="color:#f59e0b"></span>
+      </div>
+      <div id="poi-table-body" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Dati demografici dettaglio -->
+    <div id="box-demografici" style="display:none;margin-top:12px;
+         background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+      <div style="font-size:11px;font-weight:600;color:#64748b;
+                  text-transform:uppercase;margin-bottom:10px">
+        🏘️ Parametri demografici zona (INS 2021)
+      </div>
+      <div id="demo-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
+      <div style="margin-top:10px;font-size:10px;color:#475569">
+        * Dati INSTAT Albania 2021 — modificabili manualmente nello step Business Plan
+      </div>
+    </div>
+
+    <!-- Analisi AI -->
+    <div style="margin-top:12px;background:rgba(124,58,237,0.08);border:1px solid #7c3aed44;
+                border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="color:#a78bfa;font-size:13px;font-weight:600">
+          ✨ Analiza AI — Zona Shqiperia
+        </span>
+        <button type="button" onclick="generaAI_AL()"
+          style="background:#7c3aed;color:white;border:none;border-radius:8px;
+                 padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer">
+          {{ tr.genera_ai if tr else 'Genera Analisi AI' }}
+        </button>
+      </div>
+      <div id="ai-ro-text" style="font-size:12.5px;line-height:1.75;color:#94a3b8;white-space:pre-wrap">
+        Clicca il pulsante per generare l'analisi AI della zona Shqiperia (IT+AL).
+      </div>
+      <div id="ai-ro-loading" style="display:none;text-align:center;padding:12px">
+        <div class="spinner-border spinner-border-sm" style="color:#7c3aed"></div>
+        <span style="color:#94a3b8;font-size:12px;margin-left:8px">Generez / Generazione...</span>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-3">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">← Mbrapa</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(4)">{{ 'Perpara' if lingua=='ro' else 'Avanti' }} →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STEP 4: UTILAJE / MACCHINE ══ -->
+<div class="wizard-step" id="panel-4" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">🧺 Utilaje / Macchine</h5>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 8kg</label>
+        <input type="number" name="n_std" id="f_n_std" class="form-control"
+               min="0" value="0" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 13kg</label>
+        <input type="number" name="n_med" id="f_n_med" class="form-control"
+               min="0" value="0" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Masini spalat 23kg</label>
+        <input type="number" name="n_grd" id="f_n_grd" class="form-control"
+               min="0" value="0" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Uscatoare / Asciugatrici</label>
+        <input type="number" name="n_asc" id="f_n_asc" class="form-control"
+               min="0" value="0" oninput="aggiornaBPAL()">
+      </div>
+    </div>
+    <h6 style="color:#64748b;margin:20px 0 12px">Tarife / Tariffe (ALL)</h6>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">8kg (ALL)</label>
+        <input type="number" name="t_std" id="f_t_std" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_std_all }}" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">13kg (ALL)</label>
+        <input type="number" name="t_med" id="f_t_med" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_med_all }}" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">23kg (ALL)</label>
+        <input type="number" name="t_grd" id="f_t_grd" class="form-control"
+               step="0.5" value="{{ tariffe.lavaggio_grd_all }}" oninput="aggiornaBPAL()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Uscare/ciclu (ALL)</label>
+        <input type="number" name="t_asc" id="f_t_asc" class="form-control"
+               step="0.5" value="{{ tariffe.asciugatura_all }}" oninput="aggiornaBPAL()">
+      </div>
+    </div>
+    <!-- CAPEX -->
+    <h6 style="color:#64748b;margin:20px 0 12px">Investitie / Investimento</h6>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">CAPEX (ALL, fara TVA)</label>
+        <input type="number" name="capex_all" id="f_capex_all" class="form-control"
+               value="0" oninput="aggiornaCapex()">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">+ IVA 20%</label>
+        <div class="form-control" style="background:#1e2d45;color:#64748b" id="tva-display">—</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Totale cu TVA</label>
+        <div class="form-control" style="background:#1e2d45;color:#f59e0b;font-weight:700"
+             id="capex-tva-display">—</div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">← Mbrapa</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(5)">Perpara →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STEP 5: BUSINESS PLAN ══ -->
+<div class="wizard-step" id="panel-5" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">📊 Business Plan Shqiperia</h5>
+    <!-- Scenario -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      {% for sc, lbl in [('pessimistico','Pesimist'),('realistico','Realist'),('ottimistico','Optimist')] %}
+      <button type="button" onclick="setScenarioAL('{{ sc }}')" id="btn-sc-{{ sc }}"
+        class="btn btn-sm {{ 'btn-warning' if sc=='realistico' else 'btn-outline-secondary' }}">
+        {{ lbl }}
+      </button>
+      {% endfor %}
+    </div>
+    <input type="hidden" id="f_scenario" name="scenario" value="realistico">
+    <!-- KPI -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:#0f172a;border:1px solid #10b98133;border-radius:10px;padding:16px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:4px">INCASARI LUNARE</div>
+        <div id="bp-incasso-all" style="font-size:22px;font-weight:700;color:#10b981">— ALL</div>
+        <div id="bp-incasso-eur" style="font-size:12px;color:#64748b">— EUR</div>
+      </div>
+      <div style="background:#0f172a;border:1px solid #3b82f633;border-radius:10px;padding:16px">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:4px">PALFIT LUNAR</div>
+        <div id="bp-utile-all" style="font-size:22px;font-weight:700;color:#3b82f6">— ALL</div>
+        <div id="bp-utile-eur" style="font-size:12px;color:#64748b">— EUR</div>
+      </div>
+    </div>
+    <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px;font-size:12px;color:#64748b">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span>Ocupare estimata</span>
+        <span id="bp-occ" style="color:#f59e0b;font-weight:700">—%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span>Costuri lunare</span>
+        <span id="bp-costi-all" style="color:#ef4444">— ALL</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span>Recuperare investitie</span>
+        <span id="bp-payback" style="color:#a78bfa;font-weight:700">— ani</span>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)">← Mbrapa</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(6)">Perpara →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STEP 6: REZUMAT / RIEPILOGO ══ -->
+<div class="wizard-step" id="panel-6" style="display:none">
+  <div style="padding:24px;max-width:700px;margin:0 auto">
+    <h5 style="color:#f59e0b;margin-bottom:20px">✅ Rezumat / Riepilogo</h5>
+    <div id="riepilogo-ro" style="background:#0f172a;border-radius:10px;padding:16px;
+                                   font-size:13px;color:#94a3b8">
+      Carica dati...
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">← Mbrapa</button>
+      <button type="submit" class="btn btn-warning btn-lg">
+        💾 {{ tr.salva if tr else 'Salva pratica' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+</form>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+.wizard-step { display:none }
+.step-tab-active { color:#f59e0b!important; border-bottom-color:#f59e0b!important; }
+
+/* POI animazioni */
+@keyframes poiPulse {
+  0%,100%{opacity:0.2;transform:scale(1)}
+  50%{opacity:0.5;transform:scale(1.15)}
+}
+.poi-ring { animation: poiPulse 2.5s ease-in-out infinite; }
+@keyframes poiGlow {
+  0%,100%{box-shadow:0 0 4px currentColor}
+  50%{box-shadow:0 0 12px currentColor}
+}
+.poi-dot { animation: poiGlow 2s ease-in-out infinite; }
+</style>
+
+<script>
+var CAMBIO = {{ cambio_all }};
+var _cambioLive = CAMBIO;
+var _scenarioAL = 'realistico';
+var mapAL = null;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('.wizard-step').forEach(function(el){el.style.display='none'});
+  document.querySelectorAll('[id^="step-tab-"]').forEach(function(el){
+    el.style.color='#64748b'; el.style.borderBottomColor='transparent';
+  });
+  document.getElementById('panel-'+n).style.display = 'block';
+  var tab = document.getElementById('step-tab-'+n);
+  if(tab){ tab.style.color='#f59e0b'; tab.style.borderBottomColor='#f59e0b'; }
+  window.scrollTo(0,0);
+  if(n === 3) setTimeout(function(){ initMapAL(); }, 200);
+  if(n === 6) aggiornaRiepilogoAL();
+}
+goStep(1);
+
+// ── Cambio ALL live ───────────────────────────────────────────────────────────
+fetch('/al/api/cambio').then(function(r){return r.json()}).then(function(d){
+  _cambioLive = d.eur_all;
+  var cd = document.getElementById('cambio-display');
+  if(cd) cd.textContent = d.eur_all.toFixed(2);
+  document.getElementById('f_cambio_all').value = d.eur_all;
+  aggiornaCambioAffitto();
+}).catch(function(){});
+
+function aggiornaCambioAffitto() {
+  var all = parseFloat(document.getElementById('f_affitto').value) || 0;
+  var el  = document.getElementById('affitto-eur-display');
+  if(el) el.textContent = all > 0 ? Math.round(all / _cambioLive) : '—';
+}
+
+function aggiornaCapex() {
+  var all = parseFloat(document.getElementById('f_capex_all').value) || 0;
+  var tva = all * 0.20;
+  var td = document.getElementById('tva-display');     if(td) td.textContent = all>0 ? Math.round(tva).toLocaleString('ro-AL')+' ALL':'—';
+  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = all>0 ? Math.round(all+tva).toLocaleString('ro-AL')+' ALL':'—';
+}
+
+// ── Geocodifica Shqiperia ───────────────────────────────────────────────────────
+function geocodificaAL() {
+  var ind   = document.getElementById('f_indirizzo').value.trim();
+  var citta = document.getElementById('f_citta').value.trim();
+  var qark = document.getElementById('f_qark').value;
+  var stat  = document.getElementById('geo-status');
+  if(!citta){ stat.textContent = 'Inserisci almeno la città'; return; }
+  stat.textContent = 'Geocodifica in corso...';
+  fetch('/al/api/geocode?indirizzo='+encodeURIComponent(ind)
+    +'&citta='+encodeURIComponent(citta)+'&qark='+encodeURIComponent(qark))
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(d.error){ stat.textContent='Errore: '+d.error; return; }
+    document.getElementById('f_lat').value = d.lat;
+    document.getElementById('f_lng').value = d.lng;
+    document.getElementById('f_reddito').value = d.reddito_medio || 0;
+    document.getElementById('f_densita').value = d.densita || 0;
+    stat.textContent = 'OK: '+d.indirizzo_fmt;
+    stat.style.color = '#10b981';
+    // Mostra KPI INS
+    var kpi = document.getElementById('kpi-ins-ro');
+    if(kpi) {
+      kpi.style.display = 'block';
+      var nome = document.getElementById('ins-qark-nome');
+      if(nome) nome.textContent = qark + ' — ' + citta;
+      var grid = document.getElementById('ins-kpi-grid');
+      if(grid) grid.innerHTML = [
+        ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('ro-AL')+' ALL/an','#f59e0b'],
+        ['Equiv. EUR','EUR '+Math.round((d.reddito_eur||0)).toLocaleString(),'#10b981'],
+        ['Densita',Math.round(d.densita||0).toLocaleString('ro-AL')+' loc/km2','#3b82f6'],
+      ].map(function(r){
+        return '<div style="background:#111827;border-radius:8px;padding:10px;text-align:center">'
+          +'<div style="font-size:11px;color:#64748b;margin-bottom:4px">'+r[0]+'</div>'
+          +'<div style="font-size:13px;font-weight:700;color:'+r[2]+'">'+r[1]+'</div></div>';
+      }).join('');
+    }
+    aggiornaBPAL();
+  })
+  .catch(function(e){ stat.textContent='Errore: '+e.message; stat.style.color='#ef4444'; });
+}
+
+// ── Mappa Leaflet Shqiperia ─────────────────────────────────────────────────────
+function initMapAL() {
+  var lat = parseFloat(document.getElementById('f_lat').value) || 45.9432;
+  var lng = parseFloat(document.getElementById('f_lng').value) || 24.9668;
+  var zoom = lat === 45.9432 ? 7 : 15;
+  if(mapAL) { mapAL.setView([lat,lng],zoom); mapAL.invalidateSize(); return; }
+  mapAL = L.map('map').setView([lat,lng], zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(mapAL);
+  if(lat !== 45.9432) caricaZonaAL(lat, lng);
+}
+
+function caricaZonaAL(lat, lng) {
+  var citta = document.getElementById('f_citta').value;
+  var qark = document.getElementById('f_qark').value;
+  fetch('/al/api/zona-analisi?lat='+lat+'&lng='+lng
+    +'&citta='+encodeURIComponent(citta)+'&provincia='+encodeURIComponent(qark))
+  .then(function(r){return r.json()})
+  .then(function(d){
+    // KPI
+    function st(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
+    st('d_pop3',  (d.pop_3min||0).toLocaleString('ro-AL'));
+    st('d_pop5',  (d.pop_5min||0).toLocaleString('ro-AL'));
+    st('d_pop10', (d.pop_10min||0).toLocaleString('ro-AL'));
+    st('d_score', Math.round(d.score||0)+'/100');
+    st('d_label', d.score_label||'');
+    st('d_conc500', d.concorrenti_500m||0);
+    st('d_conc1km',  d.concorrenti_1km||0);
+    // Campi hidden
+    function sv(id,v){ var e=document.getElementById(id); if(e) e.value=v; }
+    sv('f_pop3', d.pop_3min||0); sv('f_pop5', d.pop_5min||0); sv('f_pop10', d.pop_10min||0);
+    sv('f_score', d.score||0); sv('f_c500', d.concorrenti_500m||0); sv('f_c1k', d.concorrenti_1km||0);
+    sv('f_mult', d.mult_attractor||1.0); sv('f_rec', (d.segnali_reali||{}).recensioni_zona||0);
+    sv('f_gdo', (d.segnali_reali||{}).gdo_500m||0);
+    sv('f_densita', (d.demografici||{}).densita||0);
+    sv('f_reddito', (d.demografici||{}).reddito_medio||0);
+    var scEl = document.getElementById('d_score');
+    if(scEl) scEl.style.color = d.score_colore||'#10b981';
+    // ── Mappa Shqiperia con POI pulsanti ──────────────────────────────────────
+    if(mapAL) {
+      var clat = parseFloat(d.lat||lat), clng = parseFloat(d.lng||lng);
+      mapAL.setView([clat, clng], 15);
+
+      // Cerchio 1km tratteggiato
+      L.circle([clat,clng],{radius:1000,color:'#f59e0b',weight:1.5,
+        dashArray:'8 5',fillOpacity:0,opacity:0.6}).addTo(mapAL);
+
+      // Cerchi pedonali 3/5/10 min
+      [[240,'#3b82f6',0.18],[400,'#8b5cf6',0.12],[800,'#ec4899',0.07]].forEach(function(c){
+        L.circle([clat,clng],{radius:c[0],color:c[1],weight:1.5,
+          fillColor:c[1],fillOpacity:c[2]}).addTo(mapAL);
+      });
+
+      // Sede
+      L.marker([clat,clng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
+        html:'<div style="background:#1d4ed8;width:22px;height:22px;border-radius:50%;'
+          +'border:3px solid white;box-shadow:0 2px 10px rgba(29,78,216,0.7)"></div>'})})
+        .addTo(mapAL).bindPopup('<b>Selia propus</b>');
+
+      // POI con layer per categoria + tabella
+      disegnaPoiConLayer(d.pois||[], d.competitors_detail||[]);
+
+      // Dati demografici
+      aggiornaDemografici(d.demografici||{}, d.ins_data||{});
+
+      mapAL.invalidateSize();
+    }
+    aggiornaBPAL();
+  })
+  .catch(function(e){ console.error('[zona_ro] ERALRE:', e); });
+}
+
+// ── Business Plan Shqiperia ─────────────────────────────────────────────────────
+function aggiornaBPAL() {
+  var payload = {
+    n_std: parseInt(document.getElementById('f_n_std').value)||0,
+    n_med: parseInt(document.getElementById('f_n_med').value)||0,
+    n_grd: parseInt(document.getElementById('f_n_grd').value)||0,
+    n_asc: parseInt(document.getElementById('f_n_asc').value)||0,
+    t_std: parseFloat(document.getElementById('f_t_std').value)||20,
+    t_med: parseFloat(document.getElementById('f_t_med').value)||25,
+    t_grd: parseFloat(document.getElementById('f_t_grd').value)||35,
+    t_asc: parseFloat(document.getElementById('f_t_asc').value)||5,
+    capex_all:     parseFloat(document.getElementById('f_capex_all').value)||0,
+    affitto_all:   parseFloat(document.getElementById('f_affitto').value)||3000,
+    concorrenti_500m: parseInt(document.getElementById('f_c500').value)||0,
+    concorrenti_1km:  parseInt(document.getElementById('f_c1k').value)||0,
+    densita:       parseFloat(document.getElementById('f_densita').value)||500,
+    reddito_medio: parseFloat(document.getElementById('f_reddito').value)||30000,
+    mult_attractor:parseFloat(document.getElementById('f_mult').value)||1.0,
+    recensioni_zona:parseFloat(document.getElementById('f_rec').value)||0,
+    gdo_500m:      parseInt(document.getElementById('f_gdo').value)||0,
+    scenario:      _scenarioAL,
+  };
+  fetch('/al/api/calcola-bp', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    function fmt(n){ return n.toLocaleString('ro-AL'); }
+    function fmtE(n){ return 'EUR '+n.toLocaleString(); }
+    var bir=document.getElementById('bp-incasso-all'); if(bir) bir.textContent=fmt(d.incasso_all)+' ALL';
+    var bie=document.getElementById('bp-incasso-eur'); if(bie) bie.textContent=fmtE(d.incasso_eur);
+    var bur=document.getElementById('bp-utile-all');   if(bur) bur.textContent=fmt(d.utile_all)+' ALL';
+    var bue=document.getElementById('bp-utile-eur');   if(bue) bue.textContent=fmtE(d.utile_eur);
+    var boc=document.getElementById('bp-occ');         if(boc) boc.textContent=d.occupazione_pct+'%';
+    var bco=document.getElementById('bp-costi-all');   if(bco) bco.textContent=fmt(d.costi_all)+' ALL';
+    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '—';
+    document.getElementById('f_incasso_eur').value = d.incasso_eur;
+    document.getElementById('f_costi_eur').value   = d.costi_all / (_cambioLive||98.5);
+    document.getElementById('f_utile_eur').value   = d.utile_eur;
+  })
+  .catch(function(){});
+}
+
+function setScenarioAL(sc) {
+  _scenarioAL = sc;
+  document.getElementById('f_scenario').value = sc;
+  ['pessimistico','realistico','ottimistico'].forEach(function(s){
+    var btn = document.getElementById('btn-sc-'+s);
+    if(btn){ btn.className = s===sc ? 'btn btn-sm btn-warning' : 'btn btn-sm btn-outline-secondary'; }
+  });
+  aggiornaBPAL();
+}
+
+// ── Analisi AI Shqiperia ────────────────────────────────────────────────────────
+function generaAI_AL() {
+  var txtEl  = document.getElementById('ai-ro-text');
+  var loadEl = document.getElementById('ai-ro-loading');
+  if(loadEl) loadEl.style.display = 'block';
+  if(txtEl)  txtEl.style.display  = 'none';
+  var payload = {
+    indirizzo: (document.getElementById('f_indirizzo')||{value:''}).value,
+    citta:     (document.getElementById('f_citta')||{value:''}).value,
+    pop_5min:  (document.getElementById('f_pop5')||{value:0}).value,
+    densita:   (document.getElementById('f_densita')||{value:0}).value,
+    reddito_medio: (document.getElementById('f_reddito')||{value:30000}).value,
+    concorrenti_500m: (document.getElementById('f_c500')||{value:0}).value,
+    incasso_all: parseInt((document.getElementById('bp-incasso-all')||{textContent:'0'}).textContent)||0,
+    costi_all:   parseInt((document.getElementById('bp-costi-all')||{textContent:'0'}).textContent)||0,
+    capex_all:   (document.getElementById('f_capex_all')||{value:0}).value,
+  };
+  fetch('/al/api/analisi-ai', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(loadEl) loadEl.style.display='none';
+    if(txtEl) {
+      txtEl.style.display='block';
+      txtEl.textContent = d.analisi || ('Errore: '+(d.errore||''));
+      txtEl.style.color = d.errore ? '#ef4444' : '#e2e8f0';
+    }
+  })
+  .catch(function(e){
+    if(loadEl) loadEl.style.display='none';
+    if(txtEl){ txtEl.style.display='block'; txtEl.textContent='Errore: '+e.message; txtEl.style.color='#ef4444'; }
+  });
+}
+
+// ── Riepilogo ─────────────────────────────────────────────────────────────────
+function aggiornaRiepilogoAL() {
+  var citta = (document.getElementById('f_citta')||{value:'—'}).value || '—';
+  var inc   = document.getElementById('bp-incasso-all');
+  var uti   = document.getElementById('bp-utile-all');
+  var occ   = document.getElementById('bp-occ');
+  var el    = document.getElementById('riepilogo-ro');
+  if(!el) return;
+  el.innerHTML = [
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
+    kv('Città / Qyteti', citta),
+    kv('Incasari', inc ? inc.textContent : '—'),
+    kv('Profit net', uti ? uti.textContent : '—'),
+    kv('Ocupare', occ ? occ.textContent : '—'),
+    '</div>',
+  ].join('');
+}
+function kv(k,v){
+  return '<div style="background:#111827;border-radius:8px;padding:10px">'
+    +'<div style="font-size:10px;color:#64748b;margin-bottom:4px">'+k+'</div>'
+    +'<div style="font-size:13px;font-weight:600;color:#f59e0b">'+v+'</div></div>';
+}
+
+// ── Gestione layer POI per categoria ─────────────────────────────────────────
+var _poiLayers    = {};   // {categoria: [L.marker, ...]}
+var _catActive    = {};   // {categoria: true/false}
+var _poiData      = [];   // tutti i POI ricevuti dal backend
+
+function toggleCategoria(cat) {
+  _catActive[cat] = !_catActive[cat];
+  var btn = document.getElementById('leg-'+cat);
+  if(btn) {
+    btn.style.opacity = _catActive[cat] ? '1' : '0.35';
+    btn.style.fontWeight = _catActive[cat] ? '700' : '400';
+  }
+  var layers = _poiLayers[cat] || [];
+  layers.forEach(function(lyr) {
+    if(_catActive[cat]) {
+      if(mapAL && !mapAL.hasLayer(lyr)) lyr.addTo(mapAL);
+    } else {
+      if(mapAL && mapAL.hasLayer(lyr)) mapAL.removeLayer(lyr);
+    }
+  });
+}
+
+function disegnaPoiConLayer(pois, concorrenti) {
+  // Pulisci layer precedenti
+  Object.values(_poiLayers).forEach(function(arr){
+    arr.forEach(function(l){ if(mapAL&&mapAL.hasLayer(l)) mapAL.removeLayer(l); });
+  });
+  _poiLayers = {};
+  _poiData   = pois || [];
+
+  // Attiva tutte le categorie all'inizio
+  var categorie = [...new Set((pois||[]).map(function(p){return p.categoria}))];
+  categorie.forEach(function(cat){ _catActive[cat] = true; });
+  _catActive['konkurente'] = true;
+
+  // Disegna POI
+  (pois||[]).forEach(function(p){
+    if(!p||!p.lat||!p.lng) return;
+    var col = p.colore||'#3b82f6';
+    var cat = p.categoria||'altro';
+
+    // Cerchio pulsante
+    var circle = L.circle([parseFloat(p.lat),parseFloat(p.lng)],{
+      radius:35,color:col,weight:1,fillColor:col,fillOpacity:0.2,
+      className:'poi-ring'});
+    circle.addTo(mapAL);
+
+    // Punto
+    var ic = L.divIcon({className:'',iconSize:[10,10],iconAnchor:[5,5],
+      html:'<div class="poi-dot" style="background:'+col+';width:10px;height:10px;'
+        +'border-radius:50%;border:2px solid white;box-shadow:0 0 6px '+col+'"></div>'});
+    var marker = L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic});
+    marker.bindPopup(
+      '<div style="min-width:160px">'
+      +'<b style="color:'+col+'">'+(p.nome||'POI')+'</b>'
+      +'<br><span style="color:#64748b;font-size:11px">'+(p.categoria||'')+'</span>'
+      +(p.distanza_m?'<br><span style="font-size:11px">📍 '+p.distanza_m+' m dalla sede</span>':'')
+      +(p.rating?'<br><span style="font-size:11px">⭐ '+p.rating+'</span>':'')
+      +(p.vicinity?'<br><span style="font-size:10px;color:#64748b">'+p.vicinity+'</span>':'')
+      +'</div>'
+    );
+    marker.addTo(mapAL);
+
+    if(!_poiLayers[cat]) _poiLayers[cat] = [];
+    _poiLayers[cat].push(circle);
+    _poiLayers[cat].push(marker);
+  });
+
+  // Disegna concorrenti come layer separato
+  _poiLayers['konkurente'] = [];
+  (concorrenti||[]).forEach(function(c){
+    if(!c.lat||!c.lng) return;
+    var ccol = c.cerchio_colore||'#ef4444';
+    var ring = L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
+      color:ccol,weight:2,fillColor:ccol,fillOpacity:0.12});
+    ring.bindPopup('<b>'+c.nome+'</b>'+(c.distanza_m?'<br>'+c.distanza_m+'m':''));
+    ring.addTo(mapAL);
+    var sq = L.marker([c.lat,c.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
+      html:'<div style="background:'+ccol+';width:14px;height:14px;border-radius:3px;border:2px solid white"></div>'})});
+    sq.bindPopup('<b>'+c.nome+'</b>');
+    sq.addTo(mapAL);
+    _poiLayers['konkurente'].push(ring);
+    _poiLayers['konkurente'].push(sq);
+  });
+
+  aggiornaTabellaPOI(pois, concorrenti);
+}
+
+function aggiornaTabellaPOI(pois, concorrenti) {
+  var tbl = document.getElementById('tabella-poi');
+  var body = document.getElementById('poi-table-body');
+  var totEl = document.getElementById('poi-total-count');
+  if(!body) return;
+
+  // Raggruppa per categoria
+  var gruppi = {};
+  (pois||[]).forEach(function(p){
+    var cat = p.categoria||'altro';
+    if(!gruppi[cat]) gruppi[cat] = {count:0,distanze:[],col:p.colore||'#64748b'};
+    gruppi[cat].count++;
+    if(p.distanza_m) gruppi[cat].distanze.push(parseInt(p.distanza_m));
+  });
+  if(concorrenti&&concorrenti.length>0) {
+    gruppi['konkurente'] = {
+      count:concorrenti.length,
+      distanze:concorrenti.map(function(c){return c.distanza_m||0}),
+      col:'#ef4444'
+    };
+  }
+
+  var tot = (pois||[]).length + (concorrenti||[]).length;
+  if(totEl) totEl.textContent = tot + ' POI totali';
+
+  var LABELS = {
+    'supermarkete':'🛒 Supermarkete / GDO','bar':'☕ Bar / Caffè',
+    'restorante':'🍽️ Restorante','farmaci':'💊 Farmaci',
+    'banka':'🏦 Banka / ATM','transport':'🚌 Transport',
+    'arsim':'🎓 Università / Scuole','spitale':'🏥 Spitale',
+    'kazarma':'🚔 Kazarma / Policia','hotele':'🛏️ Hotele / B&B',
+    'parking':'🅿️ Parking','altro':'📌 Altro',
+    'konkurente':'⚔️ Konkurente self-service'
+  };
+
+  var html = '';
+  Object.keys(gruppi).sort().forEach(function(cat){
+    var g   = gruppi[cat];
+    var dMin = g.distanze.length ? Math.min.apply(null,g.distanze) : 0;
+    var dMax = g.distanze.length ? Math.max.apply(null,g.distanze) : 0;
+    var dAvg = g.distanze.length ? Math.round(g.distanze.reduce(function(a,b){return a+b},0)/g.distanze.length) : 0;
+    html += '<div style="display:flex;align-items:center;padding:8px 14px;'
+      +'border-bottom:1px solid #1e2d4522;cursor:pointer;transition:background 0.1s"'
+      +' onclick="toggleCategoria(\''+cat+'\')" id="row-'+cat+'">'
+      +'<span style="width:10px;height:10px;border-radius:50%;background:'+g.col
+        +';display:inline-block;margin-right:10px;flex-shrink:0"></span>'
+      +'<span style="flex:1;font-size:12px;color:#e2e8f0">'+(LABELS[cat]||cat)+'</span>'
+      +'<span style="font-size:13px;font-weight:700;color:'+g.col+';margin-right:12px;min-width:24px;text-align:right">'
+        +g.count+'</span>'
+      +(dAvg>0?'<span style="font-size:10px;color:#64748b;min-width:80px;text-align:right">'
+        +'min '+dMin+'m / avg '+dAvg+'m</span>':'')
+      +'</div>';
+  });
+  body.innerHTML = html || '<div style="padding:16px;color:#64748b;text-align:center">Nessun POI</div>';
+  if(tbl) tbl.style.display = tot > 0 ? 'block' : 'none';
+}
+
+function aggiornaDemografici(demografici, demo_ins) {
+  var box  = document.getElementById('box-demografici');
+  var grid = document.getElementById('demo-grid');
+  if(!grid) return;
+
+  var d   = demografici || {};
+  var ins = demo_ins   || {};
+  var items = [
+    ['% Affittuari',          (ins.perc_affittuari||'—')+'%',            '#f59e0b'],
+    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'—')+'%',       '#ef4444'],
+    ['% Appartamenti',        (ins.perc_appartamenti||'—')+'%',          '#3b82f6'],
+    ['Mq medi appartamento',  (ins.mq_medi||'—')+' mq',                  '#8b5cf6'],
+    ['Studenti /1000 ab',     (ins.studenti_uni_1000||'—'),               '#0ea5e9'],
+    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'—')+'%','#10b981'],
+    ['Disoccupazione',        (ins.tasso_disoccupazione||'—')+'%',        '#f97316'],
+    ['Età media',             (d.eta_media||ins.eta_media||'—')+' anni',  '#94a3b8'],
+    ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-AL'))+' ALL/an','#10b981'],
+  ];
+
+  grid.innerHTML = items.map(function(it){
+    return '<div style="background:#111827;border-radius:8px;padding:10px">'
+      +'<div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-bottom:4px">'+it[0]+'</div>'
+      +'<div style="font-size:14px;font-weight:700;color:'+it[2]+'">'+it[1]+'</div>'
+      +'</div>';
+  }).join('');
+
+  if(box) box.style.display = 'block';
+}
+
+</script>
+{% endblock %}
