@@ -242,7 +242,7 @@ def geocode_ro():
         return jsonify({'error':'Parametri mancanti'}), 400
     addr = ', '.join(p for p in [indirizzo, citta, judet, 'Romania'] if p)
     try:
-        r = _req.get('https://maps.googleapis.com/maps/api/geocode/json',
+        r = requests.get('https://maps.googleapis.com/maps/api/geocode/json',
             params={'address':addr,'key':GMAPS_KEY,'region':'ro','language':'ro'},
             timeout=8).json()
         if r.get('status') != 'OK' or not r.get('results'):
@@ -273,7 +273,7 @@ def zona_analisi_ro():
         judet    = request.args.get('provincia','')
 
         if (not lat or not lng) and citta and GMAPS_KEY:
-            r = _req.get('https://maps.googleapis.com/maps/api/geocode/json',
+            r = requests.get('https://maps.googleapis.com/maps/api/geocode/json',
                 params={'address': citta+', Romania','key':GMAPS_KEY,'region':'ro'},
                 timeout=5).json()
             if r.get('status') == 'OK' and r.get('results'):
@@ -539,7 +539,7 @@ def test_places():
         'language=ro',
     ])
     try:
-        r = _rq.get(url, timeout=8)
+        r = requests.get(url, timeout=8)
         data = r.json()
         return jsonify({
             'status': data.get('status'),
