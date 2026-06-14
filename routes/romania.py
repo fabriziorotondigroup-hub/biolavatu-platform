@@ -120,7 +120,8 @@ def _get_lingua():
     return session.get('lingua', 'it')
 
 ro_bp = Blueprint('romania', __name__, url_prefix='/ro')
-GMAPS_KEY = os.environ.get('GMAPS_KEY', '')
+GMAPS_KEY   = os.environ.get('GMAPS_KEY', '')
+PLACES_URL  = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
 
 
 def walking_radius(minutes: int) -> int:
