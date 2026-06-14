@@ -800,29 +800,6 @@ body { background: var(--bg); color: var(--text); }
       <div id="modalita-badge" style="margin-top:12px;font-size:12px;color:#3b82f6;font-weight:600">
         ✅ Modalità: <span id="modalita-label">Analisi Rapida</span>
       </div>
-
-      <!-- Pulsante stampa scheda sopralluogo — visibile solo in modalità Investitore -->
-      <div id="btn-stampa-campo-wrap" style="display:none;margin-top:14px">
-        <div style="background:linear-gradient(135deg,rgba(14,116,144,0.15),rgba(5,150,105,0.10));
-          border:1px solid #0e7490;border-radius:12px;padding:14px 16px;
-          display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#e2e8f0">
-              <i class="bi bi-clipboard-check me-2" style="color:#10b981"></i>Scheda Sopralluogo Investitore
-            </div>
-            <div style="font-size:11px;color:#64748b;margin-top:3px">
-              Stampa le domande da portare sul campo per raccogliere i dati reali
-            </div>
-          </div>
-          <button type="button"
-            onclick="window.open('/api/investitore/pdf-campo','_blank')"
-            style="background:#0e7490;color:white;border:none;border-radius:8px;
-              padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;
-              white-space:nowrap;display:flex;align-items:center;gap:6px">
-            <i class="bi bi-printer"></i> Stampa Scheda Domande
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -874,19 +851,6 @@ body { background: var(--bg); color: var(--text); }
           <div class="col-md-3">
             <label class="form-label">Superficie (mq)</label>
             <input type="number" name="mq" id="f_mq" class="form-control" value="{{ pratica.mq if pratica else 60 }}">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Tipo di zona
-              <span style="font-size:10px;color:#64748b;margin-left:4px" title="Influenza la stagionalità del fatturato">ℹ️</span>
-            </label>
-            <select name="tipo_zona" id="f_tipo_zona" class="form-select"
-              onchange="aggiornaTipoZona()"
-              style="background:#111827;border-color:#334155;color:#e2e8f0">
-              <option value="residenziale" {% if pratica and pratica.tipo_zona == 'residenziale' %}selected{% endif %}>🏠 Residenziale</option>
-              <option value="universitaria" {% if pratica and pratica.tipo_zona == 'universitaria' %}selected{% endif %}>🎓 Universitaria</option>
-              <option value="turistica" {% if pratica and pratica.tipo_zona == 'turistica' %}selected{% endif %}>🏖️ Turistica estiva</option>
-              <option value="mista" {% if pratica and pratica.tipo_zona == 'mista' %}selected{% endif %}>🏙️ Mista / Commerciale</option>
-            </select>
           </div>
         </div>
         <div id="geo-status" class="mt-3 text-muted" style="font-size:12px"></div>
@@ -1381,399 +1345,167 @@ body { background: var(--bg); color: var(--text); }
   </div>
 </div>
 
-<!-- ═══ STEP 3B: SOPRALLUOGO INVESTITORE ═══ -->
-<div class="wizard-panel" id="panel-3b">
-
-  <!-- Header -->
-  <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border:1px solid #2563eb;border-radius:14px;padding:18px 20px;margin-bottom:20px">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div>
-        <div style="font-size:18px;font-weight:700;color:#fff"><i class="bi bi-clipboard-check me-2" style="color:#3b82f6"></i>Sopralluogo Investitore</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:4px">Dati rilevati sul campo — riducono il margine di errore dal ±30% a ±8%</div>
-      </div>
-      <div id="inv-stato-badge" style="background:#1e293b;border:1px solid #334155;border-radius:20px;padding:8px 16px;font-size:12px;color:#64748b">
-        <span id="inv-stato-txt">⏳ In corso</span>
-      </div>
-    </div>
-    <!-- Progress bar completamento -->
-    <div style="margin-top:12px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px">
-        <span>Completamento sopralluogo</span>
-        <span id="inv-pct-txt">0%</span>
-      </div>
-      <div style="background:#1e293b;border-radius:8px;height:8px;overflow:hidden">
-        <div id="inv-progress-bar" style="height:100%;background:linear-gradient(90deg,#2563eb,#10b981);border-radius:8px;width:0%;transition:.4s"></div>
-      </div>
-    </div>
+<!-- ═══ STEP 3B: SOPRALLUOGO (solo Modalità Investitore) ═══ -->
+<div class="wizard-panel" id="panel-3b" style="color:#e2e8f0">
+  <div class="alert mb-3" style="background:rgba(37,99,235,0.1);border:1px solid #2563eb;border-radius:10px">
+    <i class="bi bi-clipboard-check me-2" style="color:#3b82f6"></i>
+    <strong style="color:#3b82f6">Sopralluogo fisico</strong>
+    <span style="color:#94a3b8;font-size:12px;margin-left:8px">Compila sul posto — questi dati migliorano la precisione del business plan dal ±35% al ±15%</span>
   </div>
 
-  <!-- Sub-tab navigation -->
-  <div style="display:flex;gap:0;margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid #1e2d45">
-    <button type="button" id="inv-tab-a" onclick="invTab('a')"
-      style="flex:1;padding:12px;background:#1e3a5f;color:#3b82f6;border:none;font-weight:600;font-size:13px;cursor:pointer">
-      <i class="bi bi-people me-1"></i> A — Traffico Pedonale
-      <span id="inv-badge-a" style="background:#2563eb;color:white;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0/4</span>
-    </button>
-    <button type="button" id="inv-tab-b" onclick="invTab('b')"
-      style="flex:1;padding:12px;background:#111827;color:#64748b;border:none;font-size:13px;cursor:pointer;border-left:1px solid #1e2d45">
-      <i class="bi bi-search me-1"></i> B — Analisi Concorrenti
-      <span id="inv-badge-b" style="background:#374151;color:#9ca3af;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px">0</span>
-    </button>
-    <button type="button" id="inv-tab-c" onclick="invTab('c')"
-      style="flex:1;padding:12px;background:#111827;color:#64748b;border:none;font-size:13px;cursor:pointer;border-left:1px solid #1e2d45">
-      <i class="bi bi-building me-1"></i> C — Qualità Locale
-    </button>
-    <button type="button" id="inv-tab-d" onclick="invTab('d')"
-      style="flex:1;padding:12px;background:#111827;color:#64748b;border:none;font-size:13px;cursor:pointer;border-left:1px solid #1e2d45">
-      <i class="bi bi-graph-up me-1"></i> D — Analisi AI
-    </button>
-  </div>
-
-  <!-- ── TAB A: TRAFFICO PEDONALE ───────────────────────────────────────── -->
-  <div id="inv-panel-a">
-    <div style="background:#0f172a;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-size:13px;color:#94a3b8;margin-bottom:12px">
-        <i class="bi bi-info-circle me-1" style="color:#3b82f6"></i>
-        Conta le persone che passano davanti al locale per <strong style="color:#e2e8f0">15 minuti</strong> poi inserisci il dato. 
-        Fallo in <strong style="color:#e2e8f0">almeno 4 fasce orarie diverse</strong> in giorni diversi.
-        Il sistema calcola automaticamente la media pesata.
-      </div>
-      <!-- Griglia fasce -->
-      <div id="inv-fasce-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px"></div>
-    </div>
-
-    <!-- Input inserimento rapido -->
-    <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:600;color:#e2e8f0;margin-bottom:12px"><i class="bi bi-plus-circle me-1" style="color:#10b981"></i>Inserisci osservazione</div>
-      <div class="row g-2">
-        <div class="col-md-3">
-          <label style="font-size:11px;color:#64748b">Fascia oraria</label>
-          <select id="inv-fascia-sel" class="form-select" style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-            <option value="">Seleziona...</option>
-            <option value="lun_mattina">Lunedì mattina 9:00</option>
-            <option value="lun_pranzo">Lunedì pranzo 12:30</option>
-            <option value="lun_sera">Lunedì sera 18:00</option>
-            <option value="sab_mattina">Sabato mattina 10:00</option>
-            <option value="sab_pomeriggio">Sabato pomeriggio 15:00</option>
-            <option value="fer_random">Feriale casuale</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Persone in 15 min</label>
-          <input type="number" id="inv-pedoni-input" class="form-control" placeholder="es. 45" min="0"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Data</label>
-          <input type="date" id="inv-data-input" class="form-control"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Ora</label>
-          <input type="time" id="inv-ora-input" class="form-control"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button type="button" class="btn w-100" onclick="invSalvaOsservazione()"
-            style="background:#2563eb;color:white;font-size:13px;font-weight:600">
-            <i class="bi bi-save me-1"></i> Salva
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Risultato traffico -->
-    <div id="inv-traffico-risultato" style="display:none;background:#0f172a;border:1px solid #10b981;border-radius:12px;padding:16px">
-      <div style="font-weight:600;color:#10b981;margin-bottom:10px"><i class="bi bi-check-circle me-1"></i>Traffico rilevato</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <div style="text-align:center">
-          <div id="inv-pedoni-ora" style="font-size:22px;font-weight:700;color:#3b82f6">—</div>
-          <div style="font-size:11px;color:#64748b">Pedoni/ora media</div>
-        </div>
-        <div style="text-align:center">
-          <div id="inv-clienti-g" style="font-size:22px;font-weight:700;color:#10b981">—</div>
-          <div style="font-size:11px;color:#64748b">Clienti/giorno stimati</div>
-        </div>
-        <div style="text-align:center">
-          <div id="inv-incasso-traffico" style="font-size:22px;font-weight:700;color:#f59e0b">—</div>
-          <div style="font-size:11px;color:#64748b">Incasso stimato (M3)</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── TAB B: CONCORRENTI ─────────────────────────────────────────────── -->
-  <div id="inv-panel-b" style="display:none">
-    <!-- Aggiungi concorrente -->
-    <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:600;color:#e2e8f0;margin-bottom:12px"><i class="bi bi-plus-circle me-1" style="color:#f59e0b"></i>Aggiungi concorrente rilevato</div>
-      <div class="row g-2">
-        <div class="col-md-3">
-          <input type="text" id="conc-nome" class="form-control" placeholder="Nome lavanderia"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2">
-          <input type="text" id="conc-indirizzo" class="form-control" placeholder="Indirizzo"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-1">
-          <input type="number" id="conc-dist" class="form-control" placeholder="Dist. m"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-1">
-          <input type="number" id="conc-lav" class="form-control" placeholder="N.Lav"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-1">
-          <input type="number" id="conc-asc" class="form-control" placeholder="N.Asc"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-1">
-          <input type="number" id="conc-prezzo" class="form-control" step="0.5" placeholder="€ lav"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-3 d-flex gap-1">
-          <button type="button" class="btn flex-fill" onclick="concAggiungi()"
-            style="background:#d97706;color:white;font-size:12px;font-weight:600">
-            <i class="bi bi-plus me-1"></i>Aggiungi
-          </button>
-        </div>
-      </div>
-      <!-- Qualità -->
-      <div class="row g-2 mt-1">
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Pulizia (1-5)</label>
-          <input type="number" id="conc-pulizia" class="form-control" min="1" max="5" value="3"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Funzionamento (1-5)</label>
-          <input type="number" id="conc-funz" class="form-control" min="1" max="5" value="3"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2">
-          <label style="font-size:11px;color:#64748b">Assistenza (1-5)</label>
-          <input type="number" id="conc-assist" class="form-control" min="1" max="5" value="3"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-        <div class="col-md-2 d-flex align-items-end gap-2">
-          <div><label style="font-size:10px;color:#64748b">H24</label>
-          <div class="form-check"><input class="form-check-input" type="checkbox" id="conc-h24"><label class="form-check-label" style="font-size:11px;color:#94a3b8">H24</label></div></div>
-          <div><label style="font-size:10px;color:#64748b">App</label>
-          <div class="form-check"><input class="form-check-input" type="checkbox" id="conc-app"><label class="form-check-label" style="font-size:11px;color:#94a3b8">App</label></div></div>
-          <div><label style="font-size:10px;color:#64748b">Eco</label>
-          <div class="form-check"><input class="form-check-input" type="checkbox" id="conc-eco"><label class="form-check-label" style="font-size:11px;color:#94a3b8">Eco</label></div></div>
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:11px;color:#64748b">Punti deboli osservati</label>
-          <input type="text" id="conc-deboli" class="form-control" placeholder="es. macchine spesso guaste, sporco..."
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px">
-        </div>
-      </div>
-    </div>
-
-    <!-- Lista concorrenti -->
-    <div id="inv-conc-list"></div>
-
-    <!-- Analisi mercato -->
-    <div id="inv-mercato-box" style="display:none;background:#0f172a;border:1px solid #7c3aed;border-radius:12px;padding:16px;margin-top:12px">
-      <div style="font-weight:600;color:#a78bfa;margin-bottom:10px"><i class="bi bi-pie-chart me-1"></i>Analisi mercato zona</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-        <div style="text-align:center">
-          <div id="inv-mercato-tot" style="font-size:20px;font-weight:700;color:#a78bfa">—</div>
-          <div style="font-size:11px;color:#64748b">Mercato totale zona</div>
-        </div>
-        <div style="text-align:center">
-          <div id="inv-quota-ns" style="font-size:20px;font-weight:700;color:#10b981">—</div>
-          <div style="font-size:11px;color:#64748b">Nostra quota stimata</div>
-        </div>
-        <div style="text-align:center">
-          <div id="inv-incasso-m2" style="font-size:20px;font-weight:700;color:#f59e0b">—</div>
-          <div style="font-size:11px;color:#64748b">Incasso stimato (M2)</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── TAB C: QUALITÀ LOCALE ──────────────────────────────────────────── -->
-  <div id="inv-panel-c" style="display:none">
-    <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Visibilità vetrina dalla strada (1-10)</label>
-          <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-            <input type="range" id="inv-vis-range" min="1" max="10" value="5" oninput="invAggiornaNota('vis')"
-              style="flex:1;accent-color:#3b82f6">
-            <div id="inv-vis-val" style="background:#1e293b;border-radius:8px;padding:4px 12px;font-weight:700;color:#3b82f6;min-width:36px;text-align:center">5</div>
+  <div class="row g-3">
+    <!-- Traffico pedonale contato -->
+    <div class="col-md-6">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;height:100%">
+        <div style="padding:12px 16px;border-bottom:1px solid #1e2d45;font-weight:600;color:#e2e8f0"><i class="bi bi-people me-2" style="color:#64748b"></i>Traffico pedonale reale</div>
+        <div style="padding:16px">
+          <div class="mb-3">
+            <label class="form-label">Persone/ora davanti al locale (ore di punta)</label>
+            <input type="number" name="traffico_ore_punta" class="form-control" placeholder="es. 120" min="0">
+            <div style="font-size:11px;color:#64748b;margin-top:4px">Conta per 5 minuti e moltiplica × 12</div>
           </div>
-          <div id="inv-vis-nota" style="font-size:11px;color:#64748b;margin-top:4px">Buona visibilità</div>
-        </div>
-        <div class="col-md-6">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Distanza dall'arteria principale (metri)</label>
-          <input type="number" id="inv-arteria" class="form-control mt-2" placeholder="es. 50"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0">
-          <div style="font-size:11px;color:#64748b;margin-top:4px">Quanto dista il locale dalla via più trafficata</div>
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Parcheggio diretto davanti</label>
-          <div class="d-flex gap-2 mt-2">
-            <button type="button" id="park-si" onclick="invSetBool('park',true)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #10b981;background:transparent;color:#10b981;font-size:13px">✅ Sì</button>
-            <button type="button" id="park-no" onclick="invSetBool('park',false)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #374151;background:#374151;color:#9ca3af;font-size:13px">❌ No</button>
+          <div class="mb-3">
+            <label class="form-label">Fascia oraria del conteggio</label>
+            <select name="traffico_fascia" class="form-select">
+              <option value="mattina">Mattina 8-12</option>
+              <option value="pranzo" selected>Ora di punta 12-14</option>
+              <option value="pomeriggio">Pomeriggio 14-18</option>
+              <option value="sera">Sera 18-21</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tipo di passanti prevalente</label>
+            <select name="tipo_passanti" class="form-select">
+              <option value="residenti">Residenti del quartiere</option>
+              <option value="lavoratori">Lavoratori/pendolari</option>
+              <option value="studenti">Studenti</option>
+              <option value="turisti">Turisti</option>
+              <option value="misto">Misto</option>
+            </select>
           </div>
         </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">N° posti parcheggio stimati</label>
-          <input type="number" id="inv-posti-park" class="form-control mt-2" placeholder="es. 8" min="0"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0">
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Lato soleggiato (vetrina luminosa)</label>
-          <div class="d-flex gap-2 mt-2">
-            <button type="button" id="sole-si" onclick="invSetBool('sole',true)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #f59e0b;background:transparent;color:#f59e0b;font-size:13px">☀️ Sì</button>
-            <button type="button" id="sole-no" onclick="invSetBool('sole',false)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #374151;background:#374151;color:#9ca3af;font-size:13px">🌑 No</button>
+      </div>
+    </div>
+
+    <!-- Caratteristiche locale -->
+    <div class="col-md-6">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;height:100%">
+        <div style="padding:12px 16px;border-bottom:1px solid #1e2d45;font-weight:600;color:#e2e8f0"><i class="bi bi-building me-2" style="color:#64748b"></i>Caratteristiche locale</div>
+        <div style="padding:16px">
+          <div class="mb-3">
+            <label class="form-label">Visibilità dalla strada</label>
+            <select name="sopral_visibilita" class="form-select bp-input" id="sopral_vis"
+              onchange="document.querySelector('[name=accessib_visibilita]').value=this.value">
+              <option value="0.2">Nascosto / sottoportico</option>
+              <option value="0.5" selected>Buona visibilità</option>
+              <option value="0.8">Vetrina su via principale</option>
+              <option value="1.0">Angolo stradale — massima visibilità</option>
+            </select>
           </div>
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Cantieri / lavori previsti</label>
-          <div class="d-flex gap-2 mt-2">
-            <button type="button" id="cant-si" onclick="invSetBool('cant',true)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:13px">⚠️ Sì</button>
-            <button type="button" id="cant-no" onclick="invSetBool('cant',false)"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid #10b981;background:transparent;color:#10b981;font-size:13px">✅ No</button>
+          <div class="mb-3">
+            <label class="form-label">Parcheggio disponibile</label>
+            <select name="sopral_parcheggio" class="form-select bp-input"
+              onchange="document.querySelector('[name=accessib_parcheggio]').value=this.value">
+              <option value="0.0">Nessuno / ZTL</option>
+              <option value="0.3">Strada con divieto frequente</option>
+              <option value="0.6" selected>Parcheggio su strada</option>
+              <option value="1.0">Parcheggio privato / ampio</option>
+            </select>
           </div>
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Gas metano disponibile</label>
-          <select id="gas_disponibile" name="gas_disponibile" class="form-select mt-2"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0">
-            <option value="no">No — solo elettrico</option>
-            <option value="si">Sì — attacco gas</option>
-            <option value="predisposizione">Predisposizione</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Piano del locale</label>
-          <select id="inv-piano" name="sopral_piano" class="form-select mt-2"
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0">
-            <option value="1.0">Piano strada ✅</option>
-            <option value="0.3">Seminterrato / piano superiore ⚠️</option>
-          </select>
-        </div>
-        <div class="col-12">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600">Note sopralluogo</label>
-          <textarea id="inv-note" name="note_sopralluogo" class="form-control mt-2" rows="3"
-            placeholder="Osservazioni libere dal sopralluogo: orari affluenza, tipo passanti, qualità zona..."
-            style="background:#0f172a;border-color:#334155;color:#e2e8f0;font-size:13px"></textarea>
+          <div class="mb-3">
+            <label class="form-label">Piano del locale</label>
+            <select name="sopral_piano" class="form-select bp-input"
+              onchange="document.querySelector('[name=accessib_piano]').value=this.value">
+              <option value="1.0" selected>Piano strada ✅</option>
+              <option value="0.3">Seminterrato o piano superiore ⚠️</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Disponibilità gas metano nel locale</label>
+            <select name="gas_disponibile" class="form-select" id="gas_disponibile">
+              <option value="no" selected>No — solo elettrico</option>
+              <option value="si">Sì — attacco gas disponibile</option>
+              <option value="predisposizione">Predisposizione (richiede lavori)</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="mt-3">
-        <button type="button" class="btn" onclick="invSalvaLocale()"
-          style="background:#10b981;color:white;font-weight:600">
-          <i class="bi bi-save me-1"></i>Salva dati locale
-        </button>
+    </div>
+
+    <!-- Concorrenza verificata sul posto -->
+    <div class="col-md-6">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px">
+        <div style="padding:12px 16px;border-bottom:1px solid #1e2d45;font-weight:600;color:#e2e8f0"><i class="bi bi-search me-2" style="color:#64748b"></i>Concorrenza verificata (sopralluogo)</div>
+        <div style="padding:16px">
+          <div class="mb-3">
+            <label class="form-label">Lavanderie self-service visitate entro 1km</label>
+            <input type="number" name="conc_selfservice_verificate" class="form-control" min="0" value="0">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Prezzo medio lavaggio standard dei concorrenti (€)</label>
+            <input type="number" step="0.5" name="prezzo_concorrenti" class="form-control" placeholder="es. 4.50">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Stato generale dei concorrenti</label>
+            <select name="stato_concorrenti" class="form-select">
+              <option value="ottimo">Ottimo — ben tenuti, sempre pieni</option>
+              <option value="buono" selected>Buono — attivi e funzionanti</option>
+              <option value="mediocre">Mediocre — macchine vecchie, sporco</option>
+              <option value="pessimo">Pessimo — quasi abbandonati</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note sopralluogo -->
+    <div class="col-md-6">
+      <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px">
+        <div style="padding:12px 16px;border-bottom:1px solid #1e2d45;font-weight:600;color:#e2e8f0"><i class="bi bi-pencil me-2" style="color:#64748b"></i>Note sopralluogo</div>
+        <div style="padding:16px">
+          <div class="mb-3">
+            <label class="form-label">Osservazioni libere (da compilare sul posto)</label>
+            <textarea name="note_sopralluogo" class="form-control" rows="5"
+              placeholder="Es: zona molto trafficata il sabato mattina..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Valutazione complessiva sopralluogo</label>
+            <select name="valutazione_sopralluogo" class="form-select">
+              <option value="ottima">⭐⭐⭐ Ottima — aprire subito</option>
+              <option value="buona" selected>⭐⭐ Buona — vale la pena approfondire</option>
+              <option value="incerta">⭐ Incerta — serve altro studio</option>
+              <option value="negativa">❌ Negativa — sconsiglio</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ── TAB D: ANALISI AI CONVERGENTE ────────────────────────────────── -->
-  <div id="inv-panel-d" style="display:none">
-    <div style="background:#0f172a;border:1px solid #7c3aed;border-radius:12px;padding:20px;margin-bottom:16px">
-      <div style="font-weight:700;color:#a78bfa;font-size:15px;margin-bottom:6px">
-        <i class="bi bi-cpu me-2"></i>Validazione AI — 3 Metodi Convergenti
+  <!-- Confronto elettrico vs gas -->
+  <div id="blocco-gas-confronto" style="display:none" class="mt-3">
+    <div style="background:#111827;border:1px solid #f59e0b33;border-radius:12px">
+      <div style="padding:12px 16px;border-bottom:1px solid #f59e0b33;font-weight:600;color:#f59e0b">
+        <i class="bi bi-lightning-charge me-2"></i>Confronto Elettrico vs Gas
+        <span style="font-size:11px;color:#94a3b8;margin-left:8px">Calcolato automaticamente per le asciugatrici</span>
       </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px">
-        Il sistema calcola l'incasso con 3 metodi indipendenti e verifica la convergenza. 
-        Se convergono entro ±15% → confidenza Alta. Se divergono → richiede più dati di campo.
-      </div>
-      <div class="d-flex gap-2 mt-2">
-        <button type="button" class="btn flex-fill" onclick="invEseguiAnalisi()"
-          style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;font-weight:700;padding:14px;font-size:14px;border-radius:10px">
-          <i class="bi bi-play-circle me-2"></i>Esegui Analisi Completa
-        </button>
-        <button type="button" class="btn" onclick="invStampaSopralluogo()"
-          style="background:#0e7490;color:white;font-weight:600;padding:14px 18px;font-size:13px;border-radius:10px;white-space:nowrap"
-          title="Stampa scheda da portare sul campo">
-          <i class="bi bi-printer me-1"></i>Stampa Scheda Campo
-        </button>
-      </div>
-    </div>
-
-    <!-- Risultati analisi -->
-    <div id="inv-analisi-risultato" style="display:none">
-      <!-- Score + Raccomandazione -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-        <div style="background:#111827;border:1px solid #334155;border-radius:12px;padding:16px;text-align:center">
-          <div id="inv-res-rac-icon" style="font-size:32px;margin-bottom:4px">⏳</div>
-          <div id="inv-res-rac" style="font-size:20px;font-weight:700;color:#e2e8f0">—</div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px">Raccomandazione</div>
-        </div>
-        <div style="background:#111827;border:1px solid #334155;border-radius:12px;padding:16px;text-align:center">
-          <div id="inv-res-score" style="font-size:36px;font-weight:700;color:#3b82f6">—</div>
-          <div style="font-size:11px;color:#64748b">Score investitore /100</div>
-          <div id="inv-res-conf" style="font-size:12px;margin-top:4px;font-weight:600">Confidenza: —</div>
+      <div style="padding:16px">
+        <div id="confronto-gas-output" style="font-size:13px;color:#94a3b8">
+          Seleziona le macchine nello step successivo per vedere il confronto.
         </div>
       </div>
-
-      <!-- 3 Metodi -->
-      <div style="background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:600;color:#e2e8f0;margin-bottom:12px"><i class="bi bi-diagram-3 me-1"></i>3 Metodi di stima</div>
-        <div id="inv-metodi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e2d45;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:#64748b">Convergenza stime</span>
-          <div>
-            <span id="inv-delta-val" style="font-weight:700;font-size:14px">—</span>
-            <span id="inv-delta-label" style="font-size:11px;color:#64748b;margin-left:4px">delta</span>
-          </div>
-        </div>
-        <div style="background:#0f172a;border-radius:8px;padding:12px;margin-top:10px;text-align:center">
-          <div style="font-size:11px;color:#64748b;margin-bottom:4px">STIMA FINALE PONDERATA</div>
-          <div id="inv-stima-finale" style="font-size:28px;font-weight:700;color:#10b981">—</div>
-          <div style="font-size:11px;color:#64748b">/mese</div>
-        </div>
-      </div>
-
-      <!-- Red flags -->
-      <div id="inv-red-flags-box" style="display:none;background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:600;color:#ef4444;margin-bottom:8px"><i class="bi bi-exclamation-triangle me-1"></i>Segnali di attenzione</div>
-        <div id="inv-red-flags-list"></div>
-      </div>
-
-      <!-- Sensitivity -->
-      <div id="inv-sensitivity-box" style="background:#111827;border:1px solid #1e2d45;border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="font-weight:600;color:#e2e8f0;margin-bottom:10px"><i class="bi bi-sliders me-1"></i>Sensitivity Analysis</div>
-        <div id="inv-sensitivity-grid"></div>
-        <div style="font-size:11px;color:#64748b;margin-top:8px" id="inv-be-note"></div>
-      </div>
-    </div>
-
-    <!-- Loading -->
-    <div id="inv-analisi-loading" style="display:none;text-align:center;padding:40px">
-      <div class="spinner-border" style="color:#7c3aed"></div>
-      <div style="color:#94a3b8;margin-top:12px">Analisi in corso — calcolo 3 metodi convergenti...</div>
     </div>
   </div>
 
-  <!-- Navigazione -->
-  <div style="position:sticky;bottom:0;z-index:50;background:var(--bg1);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:16px">
-    <div class="d-flex justify-content-between align-items-center">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">
-        <i class="bi bi-arrow-left me-1"></i>Indietro
-      </button>
-      <div id="inv-blocco-avviso" style="display:none;font-size:12px;color:#ef4444">
-        <i class="bi bi-exclamation-triangle me-1"></i><span id="inv-blocco-txt"></span>
-      </div>
-      <button type="button" class="btn btn-primary" onclick="invProssimo()">
-        Avanti — Macchine <i class="bi bi-arrow-right ms-1"></i>
-      </button>
+  <div style="position:sticky;bottom:0;z-index:50;background:var(--bg1);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:12px">
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)"><i class="bi bi-arrow-left me-1"></i> Indietro</button>
+      <button type="button" class="btn btn-primary" onclick="goStep(4)">Avanti — Scegli Macchine <i class="bi bi-arrow-right ms-1"></i></button>
     </div>
   </div>
 </div>
 
-<!-- ═══ STEP 4: MACCHINE ═══ --><!-- ═══ STEP 4: MACCHINE ═══ -->
+<!-- ═══ STEP 4: MACCHINE ═══ -->
 <div class="wizard-panel" id="panel-4">
   <div class="mb-3 d-flex gap-2 flex-wrap" id="cat-filters">
     <button type="button" class="btn btn-sm btn-primary cat-btn" data-cat="">Tutte</button>
@@ -2649,10 +2381,9 @@ function setModalita(m) {
   document.getElementById('f_modalita').value = m;
 
   const btnR = document.getElementById('btn-rapida');
-  const btnI  = document.getElementById('btn-investitore');
+  const btnI = document.getElementById('btn-investitore');
   const badge = document.getElementById('modalita-nav-badge');
   const label = document.getElementById('modalita-label');
-  const wrapStampa = document.getElementById('btn-stampa-campo-wrap');
   const step3b = document.getElementById('step-3b');
 
   if(m === 'rapida') {
@@ -2664,7 +2395,6 @@ function setModalita(m) {
     badge.style.background = 'rgba(37,99,235,0.2)';
     badge.style.color = '#3b82f6';
     label.textContent = 'Analisi Rapida';
-    if(wrapStampa) wrapStampa.style.display = 'none';
     step3b.style.display = 'none';
   } else {
     btnI.style.borderColor = '#f59e0b';
@@ -2675,7 +2405,6 @@ function setModalita(m) {
     badge.style.background = 'rgba(245,158,11,0.2)';
     badge.style.color = '#f59e0b';
     label.textContent = 'Analisi Investitore';
-    if(wrapStampa) wrapStampa.style.display = 'block';
     step3b.style.display = '';
   }
 }
@@ -2696,9 +2425,6 @@ function goStep(n) {
   if(n === '3b') {
     document.getElementById('panel-3b').classList.add('active');
     window.scrollTo(0, 0);
-    invCaricaStato();
-    invRenderFasce();
-    concRenderLista();
     return;
   }
   const panel = document.getElementById('panel-' + n);
@@ -4141,646 +3867,10 @@ function calcolaConfrontoGas(dEL) {
     racc.textContent = `⚠️ Gas conveniente ma con pazienza: breakeven in ${breakeven} mesi. Valuta disponibilità gas nel locale.`;
     racc.style.color = '#f59e0b';
   } else {
-    racc.textContent = `❌ Gas non conveniente: risparmio (€${Math.round(risparmioMese)}/mese) troppo basso rispetto all investimento extra.`;
+    racc.textContent = `❌ Gas non conveniente in questo scenario: risparmio mensile troppo basso (€${Math.round(risparmioMese)}) rispetto all'investimento extra.`;
     racc.style.color = '#ef4444';
   }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// SISTEMA INVESTITORE — JavaScript completo
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ── Stato globale ─────────────────────────────────────────────────────────
-window._invState = {
-  osservazioni: {},   // fascia_id → {pedoni_15min, data, ora}
-  concorrenti:  [],   // lista concorrenti con visite
-  locale:       { visibilita: 5, parcheggio: false, sole: true, cantieri: false },
-  analisi:      null, // risultato ultima analisi
-  praticaId:    null,
-};
-
-// ── Sub-tab navigation ────────────────────────────────────────────────────
-function invTab(t) {
-  ['a','b','c','d'].forEach(x => {
-    const p = document.getElementById('inv-panel-'+x);
-    const b = document.getElementById('inv-tab-'+x);
-    if(p) p.style.display = x===t ? 'block' : 'none';
-    if(b) {
-      b.style.background = x===t ? '#1e3a5f' : '#111827';
-      b.style.color      = x===t ? '#3b82f6' : '#64748b';
-    }
-  });
-}
-
-// ── Carica stato da DB quando si apre lo step ─────────────────────────────
-function invCaricaStato() {
-  const pid = document.getElementById('f_pratica_id') ?
-    document.getElementById('f_pratica_id').value : null;
-  if(!pid) return;
-  window._invState.praticaId = pid;
-
-  fetch('/api/investitore/'+pid+'/stato')
-    .then(r => r.json())
-    .then(d => {
-      invAggiornaProgress(d);
-    }).catch(()=>{});
-
-  fetch('/api/investitore/'+pid+'/sopralluogo')
-    .then(r => r.json())
-    .then(d => {
-      if(d.sopralluogo && d.sopralluogo.osservazioni) {
-        d.sopralluogo.osservazioni.forEach(o => {
-          window._invState.osservazioni[o.fascia_id] = o;
-        });
-        invRenderFasce();
-        invCalcolaTraffrico();
-      }
-    }).catch(()=>{});
-}
-
-// ── Progress bar ──────────────────────────────────────────────────────────
-function invAggiornaProgress(stato) {
-  const steps = ['step_a','step_b','step_c'];
-  const ok = steps.filter(s => stato[s] && stato[s].ok).length;
-  const pct = Math.round(ok / steps.length * 100);
-
-  const bar = document.getElementById('inv-progress-bar');
-  const txt = document.getElementById('inv-pct-txt');
-  const badge = document.getElementById('inv-stato-badge');
-  const statotxt = document.getElementById('inv-stato-txt');
-
-  if(bar) bar.style.width = pct+'%';
-  if(txt) txt.textContent = pct+'%';
-
-  if(stato.completato) {
-    if(statotxt) statotxt.textContent = '✅ Sopralluogo completo';
-    if(badge) badge.style.borderColor = '#10b981';
-  } else {
-    if(statotxt) statotxt.textContent = '⏳ In corso ('+pct+'%)';
-  }
-
-  // Badge tab A
-  const n_a = Object.keys(window._invState.osservazioni).length;
-  const badgeA = document.getElementById('inv-badge-a');
-  if(badgeA) {
-    badgeA.textContent = n_a+'/4';
-    badgeA.style.background = n_a >= 4 ? '#10b981' : '#2563eb';
-  }
-
-  // Badge tab B
-  const badgeB = document.getElementById('inv-badge-b');
-  if(badgeB) {
-    badgeB.textContent = window._invState.concorrenti.length;
-    badgeB.style.background = window._invState.concorrenti.length > 0 ? '#d97706' : '#374151';
-    badgeB.style.color = window._invState.concorrenti.length > 0 ? 'white' : '#9ca3af';
-  }
-}
-
-// ─── TAB A — FASCE ORARIE ─────────────────────────────────────────────────
-
-const FASCE = [
-  {id:'lun_mattina',   label:'Lunedì mattina',    orario:'9:00-10:00',  peso:1.0},
-  {id:'lun_pranzo',    label:'Lunedì pranzo',     orario:'12:30-13:30', peso:0.8},
-  {id:'lun_sera',      label:'Lunedì sera',       orario:'18:00-19:00', peso:1.2},
-  {id:'sab_mattina',   label:'Sabato mattina',    orario:'10:00-11:00', peso:1.5},
-  {id:'sab_pomeriggio',label:'Sabato pomeriggio', orario:'15:00-16:00', peso:1.3},
-  {id:'fer_random',    label:'Feriale casuale',   orario:'libero',      peso:1.0},
-];
-
-function invRenderFasce() {
-  const grid = document.getElementById('inv-fasce-grid');
-  if(!grid) return;
-  grid.innerHTML = FASCE.map(f => {
-    const obs = window._invState.osservazioni[f.id];
-    const done = !!obs;
-    return `<div style="background:${done?'rgba(16,185,129,.08)':'#0f172a'};
-      border:1px solid ${done?'#10b981':'#1e2d45'};border-radius:10px;padding:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:600;color:${done?'#10b981':'#e2e8f0'}">${f.label}</span>
-        <span style="font-size:10px;color:#64748b">${f.orario}</span>
-      </div>
-      ${done ? `
-        <div style="font-size:20px;font-weight:700;color:#3b82f6">${obs.pedoni_15min} <span style="font-size:11px;color:#64748b">persone/15min</span></div>
-        <div style="font-size:10px;color:#10b981;margin-top:2px">✅ Rilevato ${obs.data||''} ${obs.ora||''}</div>
-        <button type="button" onclick="invRimuoviFascia('${f.id}')" style="font-size:10px;color:#ef4444;background:none;border:none;cursor:pointer;margin-top:4px">✕ Rimuovi</button>
-      ` : `
-        <div style="font-size:12px;color:#64748b;margin-top:4px">⏳ Da rilevare</div>
-      `}
-    </div>`;
-  }).join('');
-}
-
-function invSalvaOsservazione() {
-  const fascia = document.getElementById('inv-fascia-sel').value;
-  const pedoni = parseInt(document.getElementById('inv-pedoni-input').value) || 0;
-  const data   = document.getElementById('inv-data-input').value;
-  const ora    = document.getElementById('inv-ora-input').value;
-
-  if(!fascia) { alert('Seleziona una fascia oraria'); return; }
-  if(!pedoni) { alert('Inserisci il numero di persone'); return; }
-
-  window._invState.osservazioni[fascia] = { fascia_id: fascia, pedoni_15min: pedoni, data, ora };
-  invRenderFasce();
-  invCalcolaTraffrico();
-  invAggiornaProgress({});
-
-  // Reset input
-  document.getElementById('inv-fascia-sel').value = '';
-  document.getElementById('inv-pedoni-input').value = '';
-
-  // Salva su DB se praticaId disponibile
-  const pid = window._invState.praticaId;
-  if(pid) {
-    fetch('/api/investitore/'+pid+'/sopralluogo', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ fascia_id:fascia, pedoni_15min:pedoni, data, ora })
-    }).then(r=>r.json()).then(d => {
-      if(d.completato) invAggiornaProgress({step_a:{ok:true},step_b:{ok:false},step_c:{ok:false},completato:false});
-    }).catch(()=>{});
-  }
-}
-
-function invRimuoviFascia(fascia_id) {
-  delete window._invState.osservazioni[fascia_id];
-  invRenderFasce();
-  invCalcolaTraffrico();
-  invAggiornaProgress({});
-}
-
-function invCalcolaTraffrico() {
-  const obs = Object.values(window._invState.osservazioni);
-  if(obs.length === 0) {
-    document.getElementById('inv-traffico-risultato').style.display = 'none';
-    return;
-  }
-
-  // Media pedoni/ora pesata per fascia
-  let tot_peso = 0, tot_val = 0;
-  obs.forEach(o => {
-    const f = FASCE.find(f => f.id === o.fascia_id);
-    const peso = f ? f.peso : 1.0;
-    tot_val  += o.pedoni_15min * 4 * peso;  // ×4 = per ora
-    tot_peso += peso;
-  });
-  const pedoni_ora = Math.round(tot_val / tot_peso);
-
-  // Stima clienti/giorno (tasso conversione dal service)
-  const c500 = parseInt(document.getElementById('inv-c500m') ?
-    document.getElementById('inv-c500m').textContent : '0') || 0;
-  const tasso = c500 >= 5 ? 0.004 : c500 >= 3 ? 0.006 : c500 >= 1 ? 0.008 : 0.013;
-  const clienti_g = Math.round(pedoni_ora * 13 * tasso);
-
-  // Stima incasso M3
-  const t_lav = parseFloat(document.querySelector('[name=tariffa_lavaggio_med]') ?
-    document.querySelector('[name=tariffa_lavaggio_med]').value : '8') || 8;
-  const incasso_m3 = Math.round(clienti_g * t_lav * 30);
-
-  // Update UI
-  document.getElementById('inv-traffico-risultato').style.display = 'block';
-  document.getElementById('inv-pedoni-ora').textContent = pedoni_ora.toLocaleString('it-IT');
-  document.getElementById('inv-clienti-g').textContent = clienti_g;
-  document.getElementById('inv-incasso-traffico').textContent = '€ '+incasso_m3.toLocaleString('it-IT');
-}
-
-// ─── TAB B — CONCORRENTI ─────────────────────────────────────────────────
-
-function concAggiungi() {
-  const nome = document.getElementById('conc-nome').value.trim();
-  if(!nome) { alert('Inserisci il nome del concorrente'); return; }
-
-  const conc = {
-    nome,
-    indirizzo:   document.getElementById('conc-indirizzo').value,
-    distanza_m:  parseInt(document.getElementById('conc-dist').value) || 0,
-    n_lavatrici: parseInt(document.getElementById('conc-lav').value) || 0,
-    n_asciugatrici: parseInt(document.getElementById('conc-asc').value) || 0,
-    prezzo_lavaggio: parseFloat(document.getElementById('conc-prezzo').value) || 0,
-    pulizia_1_5:  parseInt(document.getElementById('conc-pulizia').value) || 3,
-    funzionamento_1_5: parseInt(document.getElementById('conc-funz').value) || 3,
-    assistenza_1_5: parseInt(document.getElementById('conc-assist').value) || 3,
-    h24:     document.getElementById('conc-h24').checked,
-    app_pagamento: document.getElementById('conc-app').checked,
-    eco_posizionato: document.getElementById('conc-eco').checked,
-    note_punti_deboli: document.getElementById('conc-deboli').value,
-    visite:  [],
-  };
-
-  const idx = window._invState.concorrenti.findIndex(c => c.nome.toLowerCase() === nome.toLowerCase());
-  if(idx >= 0) window._invState.concorrenti[idx] = conc;
-  else window._invState.concorrenti.push(conc);
-
-  concRenderLista();
-  invCalcolaMercato();
-  invAggiornaProgress({});
-
-  // Reset
-  ['conc-nome','conc-indirizzo','conc-dist','conc-lav','conc-asc','conc-prezzo','conc-deboli'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
-  document.getElementById('conc-h24').checked = false;
-  document.getElementById('conc-app').checked = false;
-  document.getElementById('conc-eco').checked = false;
-
-  // Salva su DB
-  const pid = window._invState.praticaId;
-  if(pid) {
-    fetch('/api/investitore/'+pid+'/concorrente', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(conc)
-    }).catch(()=>{});
-  }
-}
-
-function concAggiungiVisita(nome) {
-  const lav = parseInt(prompt(`Macchine occupate (lavatrici) per "${nome}":`)) || 0;
-  const asc = parseInt(prompt(`Asciugatrici occupate per "${nome}":`)) || 0;
-  const ora = new Date().toTimeString().slice(0,5);
-  const data = new Date().toISOString().slice(0,10);
-
-  const idx = window._invState.concorrenti.findIndex(c => c.nome === nome);
-  if(idx < 0) return;
-  window._invState.concorrenti[idx].visite.push({data, ora, lav_occupate: lav, asc_occupate: asc});
-
-  concRenderLista();
-  invCalcolaMercato();
-
-  // Salva su DB
-  const pid = window._invState.praticaId;
-  if(pid) {
-    fetch('/api/investitore/'+pid+'/concorrente/'+encodeURIComponent(nome)+'/visita', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({data, ora, lav_occupate: lav, asc_occupate: asc})
-    }).then(r=>r.json()).then(d => {
-      if(d.ok) alert('Visita salvata! Occupazione media: '+d.occ_media+'%');
-    }).catch(()=>{});
-  }
-}
-
-function concRimuovi(nome) {
-  window._invState.concorrenti = window._invState.concorrenti.filter(c => c.nome !== nome);
-  concRenderLista();
-  invCalcolaMercato();
-  invAggiornaProgress({});
-}
-
-function concRenderLista() {
-  const el = document.getElementById('inv-conc-list');
-  if(!el) return;
-
-  if(window._invState.concorrenti.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:13px">Nessun concorrente aggiunto</div>';
-    return;
-  }
-
-  el.innerHTML = window._invState.concorrenti.map(c => {
-    const n_visite = c.visite.length;
-    const sufficiente = n_visite >= 2;
-    let occ_media = 0;
-    if(n_visite > 0) {
-      occ_media = c.visite.reduce((sum, v) => {
-        return sum + (v.lav_occupate / Math.max(1, c.n_lavatrici) +
-                      v.asc_occupate / Math.max(1, c.n_asciugatrici)) / 2;
-      }, 0) / n_visite * 100;
-    }
-
-    const stars = n => '⭐'.repeat(n) + '☆'.repeat(5-n);
-
-    return `<div style="background:#111827;border:1px solid ${sufficiente?'#10b981':'#334155'};
-      border-radius:10px;padding:14px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div>
-          <span style="font-weight:600;color:#e2e8f0">${c.nome}</span>
-          <span style="font-size:11px;color:#64748b;margin-left:8px">${c.distanza_m}m</span>
-          ${c.h24 ? '<span style="font-size:10px;background:#1e3a5f;color:#3b82f6;padding:2px 6px;border-radius:4px;margin-left:4px">H24</span>' : ''}
-          ${c.eco_posizionato ? '<span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 6px;border-radius:4px;margin-left:4px">ECO</span>' : ''}
-          ${c.app_pagamento ? '<span style="font-size:10px;background:#1e293b;color:#7c3aed;padding:2px 6px;border-radius:4px;margin-left:4px">APP</span>' : ''}
-        </div>
-        <div style="display:flex;gap:6px">
-          <button type="button" onclick="concAggiungiVisita('${c.nome}')"
-            style="font-size:11px;padding:4px 10px;background:#d97706;color:white;border:none;border-radius:6px;cursor:pointer">
-            + Visita (${n_visite})
-          </button>
-          <button type="button" onclick="concRimuovi('${c.nome}')"
-            style="font-size:11px;padding:4px 8px;background:#374151;color:#9ca3af;border:none;border-radius:6px;cursor:pointer">✕</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
-        <span style="font-size:12px;color:#94a3b8">${c.n_lavatrici}L + ${c.n_asciugatrici}A</span>
-        <span style="font-size:12px;color:#94a3b8">€${c.prezzo_lavaggio}/ciclo</span>
-        <span style="font-size:11px;color:#64748b">Pulizia: ${stars(c.pulizia_1_5)}</span>
-        ${n_visite > 0 ? `<span style="font-size:12px;color:${sufficiente?'#10b981':'#f59e0b'};font-weight:600">Occ: ${occ_media.toFixed(0)}%</span>` : ''}
-      </div>
-      ${c.note_punti_deboli ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;font-style:italic">"${c.note_punti_deboli}"</div>` : ''}
-      ${sufficiente ? '<div style="font-size:10px;color:#10b981;margin-top:4px">✅ Analisi sufficiente</div>' :
-        '<div style="font-size:10px;color:#f59e0b;margin-top:4px">⚠️ Aggiungi almeno '+Math.max(0,2-n_visite)+' visita/e</div>'}
-    </div>`;
-  }).join('');
-}
-
-function invCalcolaMercato() {
-  const concs = window._invState.concorrenti;
-  if(concs.length === 0) {
-    document.getElementById('inv-mercato-box').style.display = 'none';
-    return;
-  }
-
-  const t_lav = 8.0;
-  const t_asc = 1.0;
-  let mercato = 0;
-
-  concs.forEach(c => {
-    let occ = 0.5;  // default
-    if(c.visite.length > 0) {
-      occ = c.visite.reduce((s,v) => s + (v.lav_occupate/Math.max(1,c.n_lavatrici) +
-        v.asc_occupate/Math.max(1,c.n_asciugatrici))/2, 0) / c.visite.length;
-    }
-    mercato += (c.n_lavatrici * 18 * t_lav + c.n_asciugatrici * 52 * t_asc) * occ * 30;
-  });
-
-  const n_tot = concs.length + 1;
-  const quota = 1 / n_tot;
-  const incasso_m2 = Math.round(mercato * quota);
-
-  document.getElementById('inv-mercato-box').style.display = 'block';
-  document.getElementById('inv-mercato-tot').textContent = '€ '+Math.round(mercato).toLocaleString('it-IT');
-  document.getElementById('inv-quota-ns').textContent = Math.round(quota*100)+'%';
-  document.getElementById('inv-incasso-m2').textContent = '€ '+incasso_m2.toLocaleString('it-IT');
-}
-
-// ─── TAB C — QUALITÀ LOCALE ───────────────────────────────────────────────
-
-function invAggiornaNota(tipo) {
-  if(tipo === 'vis') {
-    const val = document.getElementById('inv-vis-range').value;
-    document.getElementById('inv-vis-val').textContent = val;
-    const note = val >= 8 ? 'Eccellente visibilità — massima esposizione' :
-                 val >= 6 ? 'Buona visibilità' :
-                 val >= 4 ? 'Visibilità discreta' :
-                 'Visibilità scarsa — valutare segnaletica extra';
-    document.getElementById('inv-vis-nota').textContent = note;
-    window._invState.locale.visibilita = parseInt(val);
-  }
-}
-
-function invSetBool(tipo, val) {
-  if(tipo === 'park') {
-    window._invState.locale.parcheggio = val;
-    document.getElementById('park-si').style.background = val ? 'rgba(16,185,129,.15)' : 'transparent';
-    document.getElementById('park-no').style.background = !val ? '#374151' : 'transparent';
-  } else if(tipo === 'sole') {
-    window._invState.locale.sole = val;
-    document.getElementById('sole-si').style.background = val ? 'rgba(245,158,11,.15)' : 'transparent';
-    document.getElementById('sole-no').style.background = !val ? '#374151' : 'transparent';
-  } else if(tipo === 'cant') {
-    window._invState.locale.cantieri = val;
-    document.getElementById('cant-si').style.background = val ? 'rgba(239,68,68,.15)' : 'transparent';
-    document.getElementById('cant-no').style.background = !val ? 'rgba(16,185,129,.1)' : 'transparent';
-  }
-}
-
-function invSalvaLocale() {
-  const pid = window._invState.praticaId;
-  const vis = parseInt(document.getElementById('inv-vis-range').value) || 5;
-  const arteria = parseInt(document.getElementById('inv-arteria').value) || 0;
-  const posti = parseInt(document.getElementById('inv-posti-park').value) || 0;
-  const note = document.getElementById('inv-note').value;
-  const cantieri = window._invState.locale.cantieri;
-  const parcheggio = window._invState.locale.parcheggio;
-  const sole = window._invState.locale.sole;
-
-  if(!pid) {
-    alert('Salva prima la pratica per registrare i dati locale');
-    return;
-  }
-
-  fetch('/api/investitore/'+pid+'/locale', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      visibilita_vetrina: vis,
-      distanza_arteria_m: arteria,
-      n_posti_parcheggio: posti,
-      parcheggio_diretto: parcheggio,
-      lato_soleggiato: sole,
-      cantieri_previsti: cantieri,
-      note_sopralluogo: note,
-    })
-  }).then(r=>r.json()).then(d => {
-    if(d.ok) {
-      const btn = document.querySelector('[onclick="invSalvaLocale()"]');
-      if(btn) { btn.textContent = '✅ Salvato!'; btn.style.background='#10b981';
-        setTimeout(()=>{ btn.innerHTML='<i class="bi bi-save me-1"></i>Salva dati locale'; btn.style.background='#10b981'; }, 2000); }
-    }
-  }).catch(()=>{ alert('Errore salvataggio locale'); });
-}
-
-// ─── TAB D — ANALISI AI ───────────────────────────────────────────────────
-
-function invEseguiAnalisi() {
-  const pid = window._invState.praticaId;
-  if(!pid) { alert('Salva prima la pratica'); return; }
-
-  document.getElementById('inv-analisi-loading').style.display = 'block';
-  document.getElementById('inv-analisi-risultato').style.display = 'none';
-
-  fetch('/api/investitore/'+pid+'/analisi', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ scenario: 'realistico', perc_asciugatura: 65 })
-  })
-  .then(r=>r.json())
-  .then(d => {
-    window._invState.analisi = d;
-    invRenderAnalisi(d);
-    document.getElementById('inv-analisi-loading').style.display = 'none';
-    document.getElementById('inv-analisi-risultato').style.display = 'block';
-  })
-  .catch(e => {
-    document.getElementById('inv-analisi-loading').style.display = 'none';
-    alert('Errore analisi: '+e.message);
-  });
-}
-
-function invRenderAnalisi(d) {
-  // Raccomandazione
-  const rac = document.getElementById('inv-res-rac');
-  const racIcon = document.getElementById('inv-res-rac-icon');
-  if(rac) { rac.textContent = d.raccomandazione; rac.style.color = d.rac_colore; }
-  if(racIcon) racIcon.textContent = d.rac_icon;
-
-  // Score
-  const score = document.getElementById('inv-res-score');
-  if(score) { score.textContent = d.score_investitore; score.style.color = d.rac_colore; }
-
-  // Confidenza
-  const conf = document.getElementById('inv-res-conf');
-  if(conf) {
-    conf.textContent = 'Confidenza: '+d.confidenza+' ('+d.conf_pct+'%)';
-    conf.style.color = d.conf_colore;
-  }
-
-  // 3 Metodi
-  const grid = document.getElementById('inv-metodi-grid');
-  if(grid) {
-    const metodi = [d.metodo1, d.metodo2, d.metodo3];
-    const colori = ['#3b82f6','#7c3aed','#f59e0b'];
-    grid.innerHTML = metodi.map((m,i) => {
-      const ok = m && m.incasso > 0;
-      return `<div style="background:#0f172a;border:1px solid ${ok?colori[i]:'#1e2d45'};
-        border-radius:10px;padding:12px;text-align:center;opacity:${ok?1:0.4}">
-        <div style="font-size:10px;color:#64748b;margin-bottom:4px">METODO ${i+1}</div>
-        <div style="font-size:18px;font-weight:700;color:${colori[i]}">
-          ${ok ? '€ '+m.incasso.toLocaleString('it-IT') : 'N/D'}
-        </div>
-        <div style="font-size:10px;color:#64748b;margin-top:4px">
-          ${ok ? (m.occupazione ? m.occupazione+'% occ' : m.nota||'') : 'Dati insufficienti'}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  // Convergenza
-  const conv = d.convergenza;
-  if(conv) {
-    const deltaEl = document.getElementById('inv-delta-val');
-    const deltaLab = document.getElementById('inv-delta-label');
-    if(deltaEl) {
-      deltaEl.textContent = conv.delta_max+'%';
-      deltaEl.style.color = conv.delta_max < 15 ? '#10b981' : conv.delta_max < 25 ? '#f59e0b' : '#ef4444';
-    }
-    if(deltaLab) deltaLab.textContent = conv.converge ? '✅ Convergenza OK' : '⚠️ Stime divergenti';
-  }
-
-  // Stima finale
-  const finale = document.getElementById('inv-stima-finale');
-  if(finale) finale.textContent = '€ '+d.incasso_finale.toLocaleString('it-IT');
-
-  // Red flags
-  const flagsBox = document.getElementById('inv-red-flags-box');
-  const flagsList = document.getElementById('inv-red-flags-list');
-  if(d.red_flags && d.red_flags.length > 0 && flagsBox && flagsList) {
-    flagsBox.style.display = 'block';
-    const colori_lev = {CRITICO:'#ef4444', WARNING:'#f59e0b', INFO:'#3b82f6'};
-    flagsList.innerHTML = d.red_flags.map(f => `
-      <div style="background:#0f172a;border-left:3px solid ${colori_lev[f.livello]||'#64748b'};
-        padding:10px 14px;margin-bottom:8px;border-radius:0 8px 8px 0">
-        <div style="font-weight:600;color:${colori_lev[f.livello]};font-size:13px">
-          ${f.livello === 'CRITICO' ? '🔴' : f.livello === 'WARNING' ? '🟡' : '🔵'} ${f.titolo}
-        </div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:3px">${f.dettaglio}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:3px;font-style:italic">→ ${f.azione}</div>
-      </div>
-    `).join('');
-  } else if(flagsBox) {
-    flagsBox.style.display = 'none';
-  }
-
-  // Sensitivity
-  if(d.sensitivity) {
-    const sensGrid = document.getElementById('inv-sensitivity-grid');
-    const beNote   = document.getElementById('inv-be-note');
-    if(sensGrid) {
-      sensGrid.innerHTML = d.sensitivity.scenari.map(s => `
-        <div style="display:flex;justify-content:space-between;align-items:center;
-          padding:8px 10px;background:${s.delta===0?'rgba(59,130,246,.08)':'transparent'};
-          border-radius:6px;margin-bottom:3px">
-          <span style="font-size:12px;color:${s.delta===0?'#e2e8f0':'#94a3b8'}">${s.label}</span>
-          <div style="display:flex;gap:16px;font-size:12px">
-            <span style="color:#3b82f6">€ ${s.incasso.toLocaleString('it-IT')}</span>
-            <span style="color:${s.utile>=0?'#10b981':'#ef4444'};font-weight:600">
-              ${s.utile>=0?'+':''}€ ${s.utile.toLocaleString('it-IT')}
-            </span>
-            <span style="color:#64748b">${s.payback ? s.payback+' anni' : '—'}</span>
-          </div>
-        </div>
-      `).join('');
-    }
-    if(beNote) beNote.textContent = d.sensitivity.note;
-  }
-
-  // Aggiorna avviso blocco
-  const bloccoBox = document.getElementById('inv-blocco-avviso');
-  const bloccoTxt = document.getElementById('inv-blocco-txt');
-  if(d.blocca_documento && bloccoBox && bloccoTxt) {
-    bloccoBox.style.display = 'flex';
-    bloccoTxt.textContent = d.n_critici+' segnale/i critico/i — completare sopralluogo';
-  }
-}
-
-// ── Tipo zona e stagionalità ─────────────────────────────────────────────
-const STAGIONALITA = {
-  residenziale:  {1:.95,2:.95,3:1.0,4:1.0,5:1.05,6:1.0,7:.90,8:.85,9:1.0,10:1.05,11:1.05,12:.95},
-  universitaria: {1:1.15,2:1.20,3:1.20,4:1.15,5:1.10,6:.70,7:.55,8:.50,9:.80,10:1.15,11:1.20,12:1.0},
-  turistica:     {1:.45,2:.45,3:.65,4:.80,5:.90,6:1.20,7:1.80,8:1.80,9:1.10,10:.80,11:.55,12:.45},
-  mista:         {1:.95,2:.95,3:1.0,4:1.05,5:1.05,6:1.0,7:.90,8:.85,9:1.0,10:1.05,11:1.05,12:.95},
-};
-const MESI = ['','Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-
-function aggiornaTipoZona() {
-  const tipo = document.getElementById('f_tipo_zona').value;
-  const mese = new Date().getMonth() + 1;
-  const f = STAGIONALITA[tipo] ? STAGIONALITA[tipo][mese] : 1.0;
-  const pct = Math.round((f - 1) * 100);
-  const segno = pct >= 0 ? '+' : '';
-  const col = pct > 10 ? '#10b981' : pct < -10 ? '#ef4444' : '#f59e0b';
-
-  // Mostra badge stagionalità vicino al campo
-  let badge = document.getElementById('stagionalita-badge');
-  if(!badge) {
-    badge = document.createElement('div');
-    badge.id = 'stagionalita-badge';
-    badge.style.cssText = 'font-size:11px;margin-top:4px;font-weight:600';
-    const sel = document.getElementById('f_tipo_zona');
-    sel.parentNode.appendChild(badge);
-  }
-  badge.innerHTML = `<span style="color:${col}">Mese corrente (${MESI[mese]}): ${segno}${pct}% vs media annua</span>`;
-}
-
-// Inizializza al caricamento
-document.addEventListener('DOMContentLoaded', () => {
-  const sel = document.getElementById('f_tipo_zona');
-  if(sel) aggiornaTipoZona();
-});
-
-// ── Stampa scheda sopralluogo ─────────────────────────────────────────────
-function invStampaSopralluogo() {
-  const pid = window._invState.praticaId;
-  let url;
-  if(pid) {
-    url = '/api/investitore/' + pid + '/pdf-campo';
-  } else {
-    url = '/api/investitore/pdf-campo';
-  }
-  // Apre in nuova tab — il browser mostra il PDF e permette di stamparlo
-  window.open(url, '_blank');
-}
-
-// ── Prossimo step (verifica minima) ──────────────────────────────────────
-function invProssimo() {
-  const n_obs = Object.keys(window._invState.osservazioni).length;
-  if(modalita === 'investitore' && n_obs < 2) {
-    const ok = confirm('Hai inserito solo '+n_obs+' osservazioni traffico (min. 4 per analisi accurata). Procedere comunque?');
-    if(!ok) return;
-  }
-  goStep(4);
-}
-
-// Inizializza quando si arriva allo step 3B
-document.addEventListener('DOMContentLoaded', () => {
-  invRenderFasce();
-  // Set oggi come data default
-  const oggi = new Date().toISOString().slice(0,10);
-  const dataEl = document.getElementById('inv-data-input');
-  if(dataEl) dataEl.value = oggi;
-  // Set ora attuale
-  const ora = new Date().toTimeString().slice(0,5);
-  const oraEl = document.getElementById('inv-ora-input');
-  if(oraEl) oraEl.value = ora;
-});
-
 </script>
 {% endblock %}
 
