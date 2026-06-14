@@ -43,24 +43,33 @@ with app.app_context():
     from models.settings import Settings
     from models.macchina import Macchina
 
-    # Admin default
+    # Owner — Fabrizio Rotondi (proprietario assoluto)
+    OWNER_EMAIL = 'fabrizio.rotondigroup@gmail.com'
+    OWNER_PWD   = 'BioLavaTU#2026!FR'   # cambia dopo primo accesso
     try:
-        if not User.query.filter_by(email='fabrizio@rotondigroup.it').first():
+        existing = User.query.filter_by(email=OWNER_EMAIL).first()
+        if not existing:
             u = User(
-                nome='Fabrizio De Antoniis',
-                email='fabrizio@rotondigroup.it',
-                role='admin',
+                nome='Fabrizio Rotondi',
+                email=OWNER_EMAIL,
+                role='owner',
+                market='IT',
+                lingua='it',
                 attivo=True
             )
-            u.set_password('BioLava2024!')
+            u.set_password(OWNER_PWD)
             db.session.add(u)
             db.session.commit()
-            print("[INIT] Admin creato.", flush=True)
+            print("[INIT] Owner creato.", flush=True)
+        elif existing.role != 'owner':
+            existing.role = 'owner'
+            db.session.commit()
+            print("[INIT] Owner role aggiornato.", flush=True)
         else:
-            print("[INIT] Admin già esiste.", flush=True)
+            print("[INIT] Owner già esiste.", flush=True)
     except Exception as e:
         db.session.rollback()
-        print(f"[INIT] Admin error: {e}", flush=True)
+        print(f"[INIT] Owner error: {e}", flush=True)
 
     # Settings default
     try:
