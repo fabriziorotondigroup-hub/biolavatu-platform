@@ -412,7 +412,7 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
     </a>
 
 
-    {% if current_user.role in ('owner','admin','segreteria') or current_user.market in ('RO','AL','PL') %}
+    {% if current_user.role in ('owner','admin','segreteria') or current_user.market in ('RO','AL','PL','HR','SI') %}
     <!-- ── SEZIONE MERCATI INTERNAZIONALI ── -->
     <div style="margin:14px 0 4px 0;border-top:1px solid #1e2d45;padding-top:10px"></div>
 
@@ -577,6 +577,86 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
     </div>
     {% endif %}
 
+    {% if current_user.role in ('owner','admin','segreteria') or current_user.market == 'HR' %}
+    <!-- ── CROAZIA ── -->
+    {% set hr_open = request.endpoint and 'croazia' in request.endpoint %}
+    <div class="mkt-header" onclick="toggleMkt('hr')"
+         style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 10px 6px 8px;cursor:pointer;border-radius:8px;
+                margin:2px 4px;transition:background 0.15s;
+                background:{% if hr_open %}#1e2d4566{% else %}transparent{% endif %}">
+      <span style="font-size:11px;font-weight:700;color:#0ea5e9;letter-spacing:0.8px">
+        HR  Croazia
+      </span>
+      <span id="arrow-hr" style="color:#64748b;font-size:12px;transition:transform 0.2s;
+            transform:{% if hr_open %}rotate(180deg){% else %}rotate(0deg){% endif %}">&#9660;</span>
+    </div>
+    <div id="mkt-hr" style="overflow:hidden;transition:max-height 0.25s ease;
+         max-height:{% if hr_open %}200px{% else %}0{% endif %}">
+      <div style="padding:2px 0 4px 8px">
+        <a href="{{ url_for('croazia.nuovo_preventivo') }}"
+           class="nav-link" style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-plus-circle" style="color:#0ea5e9"></i> Nova usluga
+        </a>
+        <a href="{{ url_for('croazia.pratiche') }}"
+           class="nav-link {% if request.endpoint == 'croazia.pratiche' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-folder2-open" style="color:#0ea5e9"></i> Pratiche HR
+        </a>
+        <a href="{{ url_for('croazia.normativa') }}"
+           class="nav-link {% if request.endpoint == 'croazia.normativa' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-journal-text" style="color:#0ea5e9"></i> Normativa HR
+        </a>
+        <a href="{{ url_for('croazia.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'croazia.dashboard' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#64748b">
+          <i class="bi bi-grid" style="color:#64748b"></i> Dashboard HR
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if current_user.role in ('owner','admin','segreteria') or current_user.market == 'SI' %}
+    <!-- ── SLOVENIA ── -->
+    {% set si_open = request.endpoint and 'slovenia' in request.endpoint %}
+    <div class="mkt-header" onclick="toggleMkt('si')"
+         style="display:flex;align-items:center;justify-content:space-between;
+                padding:6px 10px 6px 8px;cursor:pointer;border-radius:8px;
+                margin:2px 4px;transition:background 0.15s;
+                background:{% if si_open %}#1e2d4566{% else %}transparent{% endif %}">
+      <span style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:0.8px">
+        SI  Slovenia
+      </span>
+      <span id="arrow-si" style="color:#64748b;font-size:12px;transition:transform 0.2s;
+            transform:{% if si_open %}rotate(180deg){% else %}rotate(0deg){% endif %}">&#9660;</span>
+    </div>
+    <div id="mkt-si" style="overflow:hidden;transition:max-height 0.25s ease;
+         max-height:{% if si_open %}200px{% else %}0{% endif %}">
+      <div style="padding:2px 0 4px 8px">
+        <a href="{{ url_for('slovenia.nuovo_preventivo') }}"
+           class="nav-link" style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-plus-circle" style="color:#10b981"></i> Nova storitev
+        </a>
+        <a href="{{ url_for('slovenia.pratiche') }}"
+           class="nav-link {% if request.endpoint == 'slovenia.pratiche' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-folder2-open" style="color:#10b981"></i> Pratiche SI
+        </a>
+        <a href="{{ url_for('slovenia.normativa') }}"
+           class="nav-link {% if request.endpoint == 'slovenia.normativa' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-journal-text" style="color:#10b981"></i> Normativa SI
+        </a>
+        <a href="{{ url_for('slovenia.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'slovenia.dashboard' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#64748b">
+          <i class="bi bi-grid" style="color:#64748b"></i> Dashboard SI
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
     {% endif %}
     {% if current_user.is_admin %}
     <div class="nav-section" style="margin-top:8px">Admin</div>
@@ -680,7 +760,7 @@ function toggleMkt(id) {
   if (!el) return;
   var open = el.style.maxHeight && el.style.maxHeight !== '0px' && el.style.maxHeight !== '0';
   // Chiudi tutti
-  ['it','ro','al','pl'].forEach(function(k) {
+  ['it','ro','al','pl','hr','si'].forEach(function(k) {
     var e = document.getElementById('mkt-'+k);
     var a = document.getElementById('arrow-'+k);
     if (e) e.style.maxHeight = '0';
