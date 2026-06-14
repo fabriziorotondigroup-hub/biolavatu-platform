@@ -491,7 +491,7 @@ var _cambioLive = CAMBIO;
 var _scenarioRO = 'realistico';
 var mapRO = null;
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+// -- Navigation ----------------------------------------------------------------
 function goStep(n) {
   document.querySelectorAll('.wizard-step').forEach(function(el){el.style.display='none'});
   document.querySelectorAll('[id^="step-tab-"]').forEach(function(el){
@@ -506,7 +506,7 @@ function goStep(n) {
 }
 goStep(1);
 
-// ── Cambio RON live ───────────────────────────────────────────────────────────
+// -- Cambio RON live -----------------------------------------------------------
 fetch('/ro/api/cambio').then(function(r){return r.json()}).then(function(d){
   _cambioLive = d.eur_ron;
   var cd = document.getElementById('cambio-display');
@@ -518,17 +518,17 @@ fetch('/ro/api/cambio').then(function(r){return r.json()}).then(function(d){
 function aggiornaCambioAffitto() {
   var ron = parseFloat(document.getElementById('f_affitto').value) || 0;
   var el  = document.getElementById('affitto-eur-display');
-  if(el) el.textContent = ron > 0 ? Math.round(ron / _cambioLive) : '—';
+  if(el) el.textContent = ron > 0 ? Math.round(ron / _cambioLive) : '';
 }
 
 function aggiornaCapex() {
   var ron = parseFloat(document.getElementById('f_capex_ron').value) || 0;
   var tva = ron * 0.19;
-  var td = document.getElementById('tva-display');     if(td) td.textContent = ron>0 ? Math.round(tva).toLocaleString('ro-RO')+' RON':'—';
-  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = ron>0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON':'—';
+  var td = document.getElementById('tva-display');     if(td) td.textContent = ron>0 ? Math.round(tva).toLocaleString('ro-RO')+' RON':'';
+  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = ron>0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON':'';
 }
 
-// ── Geocodifica Romania ───────────────────────────────────────────────────────
+// -- Geocodifica Romania -------------------------------------------------------
 function geocodificaRO() {
   var ind   = document.getElementById('f_indirizzo').value.trim();
   var citta = document.getElementById('f_citta').value.trim();
@@ -552,7 +552,7 @@ function geocodificaRO() {
     if(kpi) {
       kpi.style.display = 'block';
       var nome = document.getElementById('ins-judet-nome');
-      if(nome) nome.textContent = judet + ' — ' + citta;
+      if(nome) nome.textContent = judet + '  ' + citta;
       var grid = document.getElementById('ins-kpi-grid');
       if(grid) grid.innerHTML = [
         ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('ro-RO')+' RON/an','#f59e0b'],
@@ -569,14 +569,14 @@ function geocodificaRO() {
   .catch(function(e){ stat.textContent='Errore: '+e.message; stat.style.color='#ef4444'; });
 }
 
-// ── Mappa Leaflet Romania ─────────────────────────────────────────────────────
+// -- Mappa Leaflet Romania -----------------------------------------------------
 function initMapRO() {
   var lat = parseFloat(document.getElementById('f_lat').value) || 45.9432;
   var lng = parseFloat(document.getElementById('f_lng').value) || 24.9668;
   var zoom = lat === 45.9432 ? 7 : 15;
   if(mapRO) { mapRO.setView([lat,lng],zoom); mapRO.invalidateSize(); return; }
   mapRO = L.map('map').setView([lat,lng], zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(mapRO);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:' OSM'}).addTo(mapRO);
   if(lat !== 45.9432) caricaZonaRO(lat, lng);
 }
 
@@ -606,7 +606,7 @@ function caricaZonaRO(lat, lng) {
     sv('f_reddito', (d.demografici||{}).reddito_medio||0);
     var scEl = document.getElementById('d_score');
     if(scEl) scEl.style.color = d.score_colore||'#10b981';
-    // ── Mappa Romania con POI pulsanti ──────────────────────────────────────
+    // -- Mappa Romania con POI pulsanti --------------------------------------
     if(mapRO) {
       var clat = parseFloat(d.lat||lat), clng = parseFloat(d.lng||lng);
       mapRO.setView([clat, clng], 15);
@@ -640,7 +640,7 @@ function caricaZonaRO(lat, lng) {
   .catch(function(e){ console.error('[zona_ro] ERRORE:', e); });
 }
 
-// ── Business Plan Romania ─────────────────────────────────────────────────────
+// -- Business Plan Romania -----------------------------------------------------
 function aggiornaBPRO() {
   var payload = {
     n_std: parseInt(document.getElementById('f_n_std').value)||0,
@@ -674,7 +674,7 @@ function aggiornaBPRO() {
     var bue=document.getElementById('bp-utile-eur');   if(bue) bue.textContent=fmtE(d.utile_eur);
     var boc=document.getElementById('bp-occ');         if(boc) boc.textContent=d.occupazione_pct+'%';
     var bco=document.getElementById('bp-costi-ron');   if(bco) bco.textContent=fmt(d.costi_ron)+' RON';
-    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '—';
+    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '';
     document.getElementById('f_incasso_eur').value = d.incasso_eur;
     document.getElementById('f_costi_eur').value   = d.costi_ron / (_cambioLive||4.97);
     document.getElementById('f_utile_eur').value   = d.utile_eur;
@@ -692,7 +692,7 @@ function setScenarioRO(sc) {
   aggiornaBPRO();
 }
 
-// ── Analisi AI Romania ────────────────────────────────────────────────────────
+// -- Analisi AI Romania --------------------------------------------------------
 function generaAI_RO() {
   var txtEl  = document.getElementById('ai-ro-text');
   var loadEl = document.getElementById('ai-ro-loading');
@@ -726,9 +726,9 @@ function generaAI_RO() {
   });
 }
 
-// ── Riepilogo ─────────────────────────────────────────────────────────────────
+// -- Riepilogo -----------------------------------------------------------------
 function aggiornaRiepilogoRO() {
-  var citta = (document.getElementById('f_citta')||{value:'—'}).value || '—';
+  var citta = (document.getElementById('f_citta')||{value:''}).value || '';
   var inc   = document.getElementById('bp-incasso-ron');
   var uti   = document.getElementById('bp-utile-ron');
   var occ   = document.getElementById('bp-occ');
@@ -737,9 +737,9 @@ function aggiornaRiepilogoRO() {
   el.innerHTML = [
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
     kv('Città / Oras', citta),
-    kv('Incasari', inc ? inc.textContent : '—'),
-    kv('Profit net', uti ? uti.textContent : '—'),
-    kv('Ocupare', occ ? occ.textContent : '—'),
+    kv('Incasari', inc ? inc.textContent : ''),
+    kv('Profit net', uti ? uti.textContent : ''),
+    kv('Ocupare', occ ? occ.textContent : ''),
     '</div>',
   ].join('');
 }
@@ -749,7 +749,7 @@ function kv(k,v){
     +'<div style="font-size:13px;font-weight:600;color:#f59e0b">'+v+'</div></div>';
 }
 
-// ── Gestione layer POI per categoria ─────────────────────────────────────────
+// -- Gestione layer POI per categoria -----------------------------------------
 var _poiLayers    = {};   // {categoria: [L.marker, ...]}
 var _catActive    = {};   // {categoria: true/false}
 var _poiData      = [];   // tutti i POI ricevuti dal backend
@@ -805,8 +805,8 @@ function disegnaPoiConLayer(pois, concorrenti) {
       '<div style="min-width:160px">'
       +'<b style="color:'+col+'">'+(p.nome||'POI')+'</b>'
       +'<br><span style="color:#64748b;font-size:11px">'+(p.categoria||'')+'</span>'
-      +(p.distanza_m?'<br><span style="font-size:11px">📍 '+p.distanza_m+' m dalla sede</span>':'')
-      +(p.rating?'<br><span style="font-size:11px">⭐ '+p.rating+'</span>':'')
+      +(p.distanza_m?'<br><span style="font-size:11px"> '+p.distanza_m+' m dalla sede</span>':'')
+      +(p.rating?'<br><span style="font-size:11px"> '+p.rating+'</span>':'')
       +(p.vicinity?'<br><span style="font-size:10px;color:#64748b">'+p.vicinity+'</span>':'')
       +'</div>'
     );
@@ -863,13 +863,13 @@ function aggiornaTabellaPOI(pois, concorrenti) {
   if(totEl) totEl.textContent = tot + ' POI totali';
 
   var LABELS = {
-    'supermercati':'🛒 Supermercati / GDO','bar':'☕ Bar / Caffè',
-    'ristoranti':'🍽️ Ristoranti','farmacie':'💊 Farmacie',
-    'banche':'🏦 Banche / ATM','trasporti':'🚌 Trasporti',
-    'istruzione':'🎓 Università / Scuole','ospedali':'🏥 Ospedali',
-    'caserme':'🚔 Caserme / Polizia','hotel_bb':'🛏️ Hotel / B&B',
-    'parcheggi':'🅿️ Parcheggi','altro':'📌 Altro',
-    'concorrenti':'⚔️ Concorrenti self-service'
+    'supermercati':' Supermercati / GDO','bar':' Bar / Caffè',
+    'ristoranti':' Ristoranti','farmacie':' Farmacie',
+    'banche':' Banche / ATM','trasporti':' Trasporti',
+    'istruzione':' Università / Scuole','ospedali':' Ospedali',
+    'caserme':' Caserme / Polizia','hotel_bb':' Hotel / B&B',
+    'parcheggi':' Parcheggi','altro':' Altro',
+    'concorrenti':' Concorrenti self-service'
   };
 
   var html = '';
@@ -902,14 +902,14 @@ function aggiornaDemografici(demografici, demo_ins) {
   var d   = demografici || {};
   var ins = demo_ins   || {};
   var items = [
-    ['% Affittuari',          (ins.perc_affittuari||'—')+'%',            '#f59e0b'],
-    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'—')+'%',       '#ef4444'],
-    ['% Appartamenti',        (ins.perc_appartamenti||'—')+'%',          '#3b82f6'],
-    ['Mq medi appartamento',  (ins.mq_medi||'—')+' mq',                  '#8b5cf6'],
-    ['Studenti /1000 ab',     (ins.studenti_uni_1000||'—'),               '#0ea5e9'],
-    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'—')+'%','#10b981'],
-    ['Disoccupazione',        (ins.tasso_disoccupazione||'—')+'%',        '#f97316'],
-    ['Età media',             (d.eta_media||ins.eta_media||'—')+' anni',  '#94a3b8'],
+    ['% Affittuari',          (ins.perc_affittuari||'')+'%',            '#f59e0b'],
+    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'')+'%',       '#ef4444'],
+    ['% Appartamenti',        (ins.perc_appartamenti||'')+'%',          '#3b82f6'],
+    ['Mq medi appartamento',  (ins.mq_medi||'')+' mq',                  '#8b5cf6'],
+    ['Studenti /1000 ab',     (ins.studenti_uni_1000||''),               '#0ea5e9'],
+    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'')+'%','#10b981'],
+    ['Disoccupazione',        (ins.tasso_disoccupazione||'')+'%',        '#f97316'],
+    ['Età media',             (d.eta_media||ins.eta_media||'')+' anni',  '#94a3b8'],
     ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-RO'))+' RON/an','#10b981'],
   ];
 
