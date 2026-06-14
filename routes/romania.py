@@ -478,6 +478,154 @@ def calcola_bp_ro():
         'scenario':sc_n,'valuta':'RON',
     })
 
+
+# ── API Business Plan avanzato Romania (11 parametri) ────────────────────────
+@ro_bp.route('/api/calcola-bp-avanzato', methods=['POST'])
+@login_required
+def calcola_bp_avanzato_ro():
+    """
+    Business Plan Romania con formula lavaggi:
+    - Formula base: occupazione macchine (BP standard)
+    - Formula avanzata: potenziale lavaggi da 11 parametri
+    Entrambe mostrate in parallelo.
+    """
+    try:
+        d      = request.json or {}
+        cambio = _cambio()
+        judet  = d.get('judet_cod', '')
+        citta  = d.get('citta', '')
+
+        # Dati demografici (auto INS + override manuali)
+        demo    = get_demographic_data_ro(judet, citta)
+        pop5    = int(d.get('pop_5min', 0) or 0)
+        perc_aff  = float(d.get('perc_affittuari',  demo['perc_affittuari'])  or demo['perc_affittuari'])
+        perc_lav  = float(d.get('perc_senza_lavatrice', demo['perc_senza_lavatrice']) or demo['perc_senza_lavatrice'])
+        stud_1000 = float(d.get('studenti_uni_1000', demo['studenti_uni_1000']) or demo['studenti_uni_1000'])
+        perc_str  = float(d.get('perc_stranieri',   demo['perc_stranieri'])   or demo['perc_stranieri'])
+        n_hotel   = int(d.get('n_hotel_bb', 0) or 0)
+        reddito   = float(d.get('reddito_medio', demo['reddito_medio']) or demo['reddito_medio'])
+
+        # Macchine
+        n_std = int(d.get('n_std', 0)); n_med = int(d.get('n_med', 0))
+        n_grd = int(d.get('n_grd', 0)); n_asc = int(d.get('n_asc', 0))
+        n_lav_tot = n_std + n_med + n_grd
+        t_std = float(d.get('t_std') or TARIFFE_DEFAULT_RO['lavaggio_std_ron'])
+        t_med = float(d.get('t_med') or TARIFFE_DEFAULT_RO['lavaggio_med_ron'])
+        t_grd = float(d.get('t_grd') or TARIFFE_DEFAULT_RO['lavaggio_grd_ron'])
+        t_asc = float(d.get('t_asc') or TARIFFE_DEFAULT_RO['asciugatura_ron'])
+        t_lav_medio = ((n_std*t_std + n_med*t_med + n_grd*t_grd) / max(1, n_lav_tot))
+
+        # Concorrenza
+        c500      = int(d.get('concorrenti_500m', 0))
+        c1k       = int(d.get('concorrenti_1km',  0))
+        lav_concorrenti = int(d.get('lav_concorrenti_zona', c500 * 7))  # stima 7 lav per concorrente
+
+        # ── FORMULA 1: Occupazione macchine (BP standard) ─────────────────────
+        if   c500 >= 5: ob = 0.08
+        elif c500 == 4: ob = 0.20
+        elif c500 == 3: ob = 0.28
+        elif c500 == 2: ob = 0.35
+        elif c500 == 1: ob = 0.42
+        elif c1k  >= 4: ob = 0.48
+        elif c1k  >= 2: ob = 0.52
+        elif c1k  == 1: ob = 0.55
+        else:            ob = OCC_BASE_RO
+
+        den   = float(d.get('densita', demo['densita']) or demo['densita'])
+        rec   = float(d.get('recensioni_zona', 0) or 0)
+        gdo   = int(d.get('gdo_500m', 0) or 0)
+        mult  = float(d.get('mult_attractor', 1.0) or 1.0)
+        popc  = float(d.get('pop_comune', 0) or 0)
+        aff_r = float(d.get('affitto_ron', 3000) or 3000)
+        capex = float(d.get('capex_ron', 0) or 0)
+
+        corr = 0.0
+        if den > 3000: corr += 0.04
+        elif den < 200: corr -= 0.08
+        if rec > 80000: corr += 0.04
+        elif rec < 5000: corr -= 0.06
+        if gdo >= 2: corr += 0.02
+        if reddito > 60000: corr -= 0.04
+        elif reddito < 18000: corr -= 0.05
+        corr += min((mult-1.0)*0.10, 0.08)
+        corr  = max(-0.20, min(0.20, corr))
+
+        fc   = get_f_citta_ro(int(popc))
+        occ  = min(0.75, ob*(1+corr)*fc)
+
+        inc1_ron = ((n_std*18*t_std + n_med*18*t_med + n_grd*18*t_grd) + n_asc*52*t_asc) * occ * 30
+        cos_ron  = aff_r + inc1_ron*0.28 + 1300
+        uti1_ron = inc1_ron - cos_ron
+
+        # ── FORMULA 2: Potenziale lavaggi da popolazione ──────────────────────
+        pot = calcola_potenziale_lavaggi_ro(
+            pop5, perc_aff, perc_lav, stud_1000, perc_str, n_hotel)
+
+        inc2_10 = calcola_incasso_da_lavaggi_ro(pot['quota_10pct'], t_lav_medio, 60, t_asc)
+        inc2_20 = calcola_incasso_da_lavaggi_ro(pot['quota_20pct'], t_lav_medio, 60, t_asc)
+        inc2_30 = calcola_incasso_da_lavaggi_ro(pot['quota_30pct'], t_lav_medio, 60, t_asc)
+
+        # ── Indice saturazione ────────────────────────────────────────────────
+        sat = calcola_saturazione_ro(pop5, lav_concorrenti + n_lav_tot)
+
+        # ── Costi operativi ───────────────────────────────────────────────────
+        costi_override = {}
+        for campo in ['kwh_ron','mc_acqua_ron','mc_fognatura_ron','mc_gas_ron']:
+            if d.get(campo):
+                costi_override[campo] = float(d[campo])
+        costi_op = calcola_costi_operativi_ro(n_lav_tot, n_asc,
+            costi_override=costi_override)
+
+        # ── Affitto max ───────────────────────────────────────────────────────
+        inc_medio = (inc1_ron + inc2_20) / 2
+        aff_max   = calcola_affitto_max_ro(inc_medio)
+
+        pb1 = (capex*1.19/uti1_ron/12) if uti1_ron > 0 else None
+        pb2 = (capex*1.19/(inc2_20-cos_ron)/12) if (inc2_20-cos_ron) > 0 else None
+
+        return jsonify({
+            # Formula 1 — occupazione macchine
+            'f1': {
+                'metodo':       'Occupazione macchine',
+                'incasso_ron':  round(inc1_ron),
+                'incasso_eur':  round(converti_ron_eur(inc1_ron)),
+                'costi_ron':    round(cos_ron),
+                'utile_ron':    round(uti1_ron),
+                'occupazione':  round(occ*100,1),
+                'payback_anni': round(pb1,1) if pb1 else None,
+            },
+            # Formula 2 — potenziale lavaggi
+            'f2': {
+                'metodo':          'Potenziale lavaggi zona',
+                'lavaggi_teorici': pot['lavaggi_mese_teorici'],
+                'clienti_stimati': pot['clienti_totali_stimati'],
+                'segmenti':        pot['segmenti'],
+                'scenario_10pct': {'lavaggi':pot['quota_10pct'],'incasso_ron':inc2_10,'incasso_eur':round(converti_ron_eur(inc2_10))},
+                'scenario_20pct': {'lavaggi':pot['quota_20pct'],'incasso_ron':inc2_20,'incasso_eur':round(converti_ron_eur(inc2_20))},
+                'scenario_30pct': {'lavaggi':pot['quota_30pct'],'incasso_ron':inc2_30,'incasso_eur':round(converti_ron_eur(inc2_30))},
+                'payback_anni_medio': round(pb2,1) if pb2 else None,
+            },
+            # Saturazione
+            'saturazione': sat,
+            # Costi operativi
+            'costi_operativi': costi_op,
+            # Affitto max
+            'affitto_max': aff_max,
+            # Dati demografici usati
+            'demografici': {
+                'perc_affittuari':     perc_aff,
+                'perc_senza_lavatrice':perc_lav,
+                'studenti_uni_1000':   stud_1000,
+                'perc_stranieri':      perc_str,
+                'reddito_medio_ron':   reddito,
+                'fonte': 'INS Romania 2021 + override manuale',
+            },
+            'cambio_ron': cambio,
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'errore': str(e), 'detail': traceback.format_exc()[-400:]}), 200
+
 # ── API Analisi AI Romania ────────────────────────────────────────────────────
 @ro_bp.route('/api/analisi-ai', methods=['POST'])
 @login_required
