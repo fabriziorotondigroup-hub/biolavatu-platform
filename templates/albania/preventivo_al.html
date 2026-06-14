@@ -119,32 +119,24 @@
       <div class="col-md-5">
         <label class="form-label">Qyteti / Città *</label>
         <input type="text" name="citta" id="f_citta" class="form-control"
-               value="{{ pratica.citta if pratica else '' }}" placeholder="ex: Bucuresti">
+               value="{{ pratica.citta if pratica else '' }}" placeholder="ex: Tirane">
       </div>
       <div class="col-md-4">
-        <label class="form-label">Judet *</label>
+        <label class="form-label">Qark / Regione *</label>
         <select name="qark_cod" id="f_qark" class="form-select">
-          <option value="">— Selecteaza —</option>
-          <option value="B">București</option>
-          <option value="CJ">Cluj</option>
-          <option value="TM">Timiș</option>
-          <option value="IS">Iași</option>
-          <option value="CT">Constanța</option>
-          <option value="BV">Brașov</option>
-          <option value="PH">Prahova</option>
-          <option value="IF">Ilfov</option>
-          <option value="AG">Argeș</option>
-          <option value="BC">Bacău</option>
-          <option value="BH">Bihor</option>
-          <option value="SB">Sibiu</option>
-          <option value="DJ">Dolj</option>
-          <option value="GL">Galați</option>
-          <option value="MM">Maramureș</option>
-          <option value="NT">Neamț</option>
-          <option value="SV">Suceava</option>
-          <option value="VS">Vaslui</option>
-          <option value="AR">Arad</option>
-          <option value="MS">Mureș</option>
+          <option value="">— Zgjidh —</option>
+          <option value="TI">Tiranë</option>
+          <option value="DR">Durrës</option>
+          <option value="VL">Vlorë</option>
+          <option value="SH">Shkodër</option>
+          <option value="EL">Elbasan</option>
+          <option value="KO">Korçë</option>
+          <option value="FK">Fier</option>
+          <option value="GJ">Gjirokastër</option>
+          <option value="BE">Berat</option>
+          <option value="DI">Dibër</option>
+          <option value="LE">Lezhë</option>
+          <option value="KU">Kukës</option>
         </select>
       </div>
       <div class="col-md-3">
@@ -155,7 +147,7 @@
         <label class="form-label">Chirie lunara (ALL)</label>
         <div class="input-group">
           <input type="number" name="affitto_all" id="f_affitto" class="form-control"
-                 value="3000" oninput="aggiornaCambioAffitto()">
+                 value="30000" oninput="aggiornaCambioAffitto()">
           <span class="input-group-text" style="background:#1e2d45;color:#64748b">
             = EUR <span id="affitto-eur-display">—</span>
           </span>
@@ -643,7 +635,7 @@ function aggiornaBPAL() {
     t_grd: parseFloat(document.getElementById('f_t_grd').value)||35,
     t_asc: parseFloat(document.getElementById('f_t_asc').value)||5,
     capex_all:     parseFloat(document.getElementById('f_capex_all').value)||0,
-    affitto_all:   parseFloat(document.getElementById('f_affitto').value)||3000,
+    affitto_all:   parseFloat(document.getElementById('f_affitto').value)||300000,
     concorrenti_500m: parseInt(document.getElementById('f_c500').value)||0,
     concorrenti_1km:  parseInt(document.getElementById('f_c1k').value)||0,
     densita:       parseFloat(document.getElementById('f_densita').value)||500,
