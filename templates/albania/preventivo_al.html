@@ -188,22 +188,56 @@
 <!-- ══ STEP 3: ZONA ══ -->
 <div class="wizard-step" id="panel-3" style="display:none">
   <div style="padding:16px">
-    <!-- Legenda -->
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:0 8px">
-      {% for cat, col, lab in [
-        ('konkurente','#ef4444','Concorrenti'),
-        ('supermarkete','#22c55e','Supermercati'),
-        ('bar','#f59e0b','Bar/Restorante'),
-        ('transport','#6d28d9','Transport'),
-        ('arsim','#0ea5e9','Universita'),
-        ('spitale','#ec4899','Spitale'),
-        ('farmaci','#ec4899','Farmaci'),
-      ] %}
-      <span style="font-size:11px;padding:3px 10px;border-radius:20px;
-                   background:{{ col }}22;color:{{ col }};border:1px solid {{ col }}44">
-        {{ lab }}
-      </span>
-      {% endfor %}
+    <!-- Legenda POI cliccabile — stesso metodo Romania -->
+    <div id="poi-legenda" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:0 8px">
+      <span onclick="toggleCategoria('konkurente')" id="badge-konkurente"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#ef444422;color:#ef4444;border:1px solid #ef444444">
+        Konkurente</span>
+      <span onclick="toggleCategoria('supermarkete')" id="badge-supermarkete"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#22c55e22;color:#22c55e;border:1px solid #22c55e44">
+        Supermarkete</span>
+      <span onclick="toggleCategoria('bar')" id="badge-bar"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">
+        Bar / Kafe</span>
+      <span onclick="toggleCategoria('restorante')" id="badge-restorante"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#f9731622;color:#f97316;border:1px solid #f9731644">
+        Restorante</span>
+      <span onclick="toggleCategoria('farmaci')" id="badge-farmaci"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#ec489922;color:#ec4899;border:1px solid #ec489944">
+        Farmaci</span>
+      <span onclick="toggleCategoria('banka')" id="badge-banka"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#06b6d422;color:#06b6d4;border:1px solid #06b6d444">
+        Banka / ATM</span>
+      <span onclick="toggleCategoria('transport')" id="badge-transport"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#7c3aed22;color:#7c3aed;border:1px solid #7c3aed44">
+        Transport</span>
+      <span onclick="toggleCategoria('arsim')" id="badge-arsim"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#0ea5e922;color:#0ea5e9;border:1px solid #0ea5e944">
+        Universitete</span>
+      <span onclick="toggleCategoria('spitale')" id="badge-spitale"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#ef444422;color:#ef4444;border:1px solid #ef444444">
+        Spitale</span>
+      <span onclick="toggleCategoria('hotele')" id="badge-hotele"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#a855f722;color:#a855f7;border:1px solid #a855f744">
+        Hotele / B&B</span>
+      <span onclick="toggleCategoria('parking')" id="badge-parking"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#64748b22;color:#64748b;border:1px solid #64748b44">
+        Parking</span>
+      <span onclick="toggleCategoria('tjeter')" id="badge-tjeter"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;
+                   background:#14b8a622;color:#14b8a6;border:1px solid #14b8a644">
+        Tjeter</span>
     </div>
     <!-- Mappa -->
     <div id="map" style="height:420px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
@@ -270,7 +304,7 @@
          background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px">
       <div style="font-size:11px;font-weight:600;color:#64748b;
                   text-transform:uppercase;margin-bottom:10px">
-        🏘️ Parametri demografici zona (INS 2021)
+        🏘️ Parametri demografici zona (INSTAT Albania 2023)
       </div>
       <div id="demo-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
       <div style="margin-top:10px;font-size:10px;color:#475569">
@@ -432,7 +466,7 @@
 <div class="wizard-step" id="panel-6" style="display:none">
   <div style="padding:24px;max-width:700px;margin:0 auto">
     <h5 style="color:#f59e0b;margin-bottom:20px">✅ Rezumat / Riepilogo</h5>
-    <div id="riepilogo-ro" style="background:#0f172a;border-radius:10px;padding:16px;
+    <div id="riepilogo-al" style="background:#0f172a;border-radius:10px;padding:16px;
                                    font-size:13px;color:#94a3b8">
       Carica dati...
     </div>
@@ -507,8 +541,8 @@ function aggiornaCambioAffitto() {
 function aggiornaCapex() {
   var all = parseFloat(document.getElementById('f_capex_all').value) || 0;
   var tva = all * 0.20;
-  var td = document.getElementById('tva-display');     if(td) td.textContent = all>0 ? Math.round(tva).toLocaleString('ro-AL')+' ALL':'—';
-  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = all>0 ? Math.round(all+tva).toLocaleString('ro-AL')+' ALL':'—';
+  var td = document.getElementById('tva-display');     if(td) td.textContent = all>0 ? Math.round(tva).toLocaleString('it-IT')+' ALL':'—';
+  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = all>0 ? Math.round(all+tva).toLocaleString('it-IT')+' ALL':'—';
 }
 
 // ── Geocodifica Shqiperia ───────────────────────────────────────────────────────
@@ -538,9 +572,9 @@ function geocodificaAL() {
       if(nome) nome.textContent = qark + ' — ' + citta;
       var grid = document.getElementById('ins-kpi-grid');
       if(grid) grid.innerHTML = [
-        ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('ro-AL')+' ALL/an','#f59e0b'],
+        ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('it-IT')+' ALL/an','#f59e0b'],
         ['Equiv. EUR','EUR '+Math.round((d.reddito_eur||0)).toLocaleString(),'#10b981'],
-        ['Densita',Math.round(d.densita||0).toLocaleString('ro-AL')+' loc/km2','#3b82f6'],
+        ['Densita',Math.round(d.densita||0).toLocaleString('it-IT')+' loc/km2','#3b82f6'],
       ].map(function(r){
         return '<div style="background:#111827;border-radius:8px;padding:10px;text-align:center">'
           +'<div style="font-size:11px;color:#64748b;margin-bottom:4px">'+r[0]+'</div>'
@@ -572,9 +606,9 @@ function caricaZonaAL(lat, lng) {
   .then(function(d){
     // KPI
     function st(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
-    st('d_pop3',  (d.pop_3min||0).toLocaleString('ro-AL'));
-    st('d_pop5',  (d.pop_5min||0).toLocaleString('ro-AL'));
-    st('d_pop10', (d.pop_10min||0).toLocaleString('ro-AL'));
+    st('d_pop3',  (d.pop_3min||0).toLocaleString('it-IT'));
+    st('d_pop5',  (d.pop_5min||0).toLocaleString('it-IT'));
+    st('d_pop10', (d.pop_10min||0).toLocaleString('it-IT'));
     st('d_score', Math.round(d.score||0)+'/100');
     st('d_label', d.score_label||'');
     st('d_conc500', d.concorrenti_500m||0);
@@ -620,7 +654,7 @@ function caricaZonaAL(lat, lng) {
     }
     aggiornaBPAL();
   })
-  .catch(function(e){ console.error('[zona_ro] ERALRE:', e); });
+  .catch(function(e){ console.error('[zona_al] ERALRE:', e); });
 }
 
 // ── Business Plan Shqiperia ─────────────────────────────────────────────────────
@@ -649,7 +683,7 @@ function aggiornaBPAL() {
     headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
   .then(function(r){return r.json()})
   .then(function(d){
-    function fmt(n){ return n.toLocaleString('ro-AL'); }
+    function fmt(n){ return n.toLocaleString('it-IT'); }
     function fmtE(n){ return 'EUR '+n.toLocaleString(); }
     var bir=document.getElementById('bp-incasso-all'); if(bir) bir.textContent=fmt(d.incasso_all)+' ALL';
     var bie=document.getElementById('bp-incasso-eur'); if(bie) bie.textContent=fmtE(d.incasso_eur);
@@ -715,7 +749,7 @@ function aggiornaRiepilogoAL() {
   var inc   = document.getElementById('bp-incasso-all');
   var uti   = document.getElementById('bp-utile-all');
   var occ   = document.getElementById('bp-occ');
-  var el    = document.getElementById('riepilogo-ro');
+  var el    = document.getElementById('riepilogo-al');
   if(!el) return;
   el.innerHTML = [
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
@@ -738,6 +772,9 @@ var _catActive    = {};   // {categoria: true/false}
 var _poiData      = [];   // tutti i POI ricevuti dal backend
 
 function toggleCategoria(cat) {
+  var badge = document.getElementById('badge-'+cat);
+  var willHide = (_catActive[cat] !== false);
+  if(badge){ badge.style.opacity = willHide ? '0.35':'1'; badge.style.textDecoration = willHide ? 'line-through':'none'; }
   _catActive[cat] = !_catActive[cat];
   var btn = document.getElementById('leg-'+cat);
   if(btn) {
@@ -893,7 +930,7 @@ function aggiornaDemografici(demografici, demo_ins) {
     ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'—')+'%','#10b981'],
     ['Disoccupazione',        (ins.tasso_disoccupazione||'—')+'%',        '#f97316'],
     ['Età media',             (d.eta_media||ins.eta_media||'—')+' anni',  '#94a3b8'],
-    ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-AL'))+' ALL/an','#10b981'],
+    ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('it-IT'))+' ALL/vit','#10b981'],
   ];
 
   grid.innerHTML = items.map(function(it){
