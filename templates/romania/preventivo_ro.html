@@ -534,7 +534,7 @@ function geocodificaRO() {
   var citta = document.getElementById('f_citta').value.trim();
   var judet = document.getElementById('f_judet').value;
   var stat  = document.getElementById('geo-status');
-  if(!citta){ stat.textContent = 'Inserisci almeno la città'; return; }
+  if(!citta){ stat.textContent = 'Inserisci almeno la citta'; return; }
   stat.textContent = 'Geocodifica in corso...';
   fetch('/ro/api/geocode?indirizzo='+encodeURIComponent(ind)
     +'&citta='+encodeURIComponent(citta)+'&judet='+encodeURIComponent(judet))
@@ -736,7 +736,7 @@ function aggiornaRiepilogoRO() {
   if(!el) return;
   el.innerHTML = [
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
-    kv('Città / Oras', citta),
+    kv('Citta / Oras', citta),
     kv('Incasari', inc ? inc.textContent : ''),
     kv('Profit net', uti ? uti.textContent : ''),
     kv('Ocupare', occ ? occ.textContent : ''),
@@ -863,10 +863,10 @@ function aggiornaTabellaPOI(pois, concorrenti) {
   if(totEl) totEl.textContent = tot + ' POI totali';
 
   var LABELS = {
-    'supermercati':' Supermercati / GDO','bar':' Bar / Caffè',
+    'supermercati':' Supermercati / GDO','bar':' Bar / Caffe',
     'ristoranti':' Ristoranti','farmacie':' Farmacie',
     'banche':' Banche / ATM','trasporti':' Trasporti',
-    'istruzione':' Università / Scuole','ospedali':' Ospedali',
+    'istruzione':' Universita / Scuole','ospedali':' Ospedali',
     'caserme':' Caserme / Polizia','hotel_bb':' Hotel / B&B',
     'parcheggi':' Parcheggi','altro':' Altro',
     'concorrenti':' Concorrenti self-service'
@@ -909,7 +909,7 @@ function aggiornaDemografici(demografici, demo_ins) {
     ['Studenti /1000 ab',     (ins.studenti_uni_1000||''),               '#0ea5e9'],
     ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'')+'%','#10b981'],
     ['Disoccupazione',        (ins.tasso_disoccupazione||'')+'%',        '#f97316'],
-    ['Età media',             (d.eta_media||ins.eta_media||'')+' anni',  '#94a3b8'],
+    ['Eta media',             (d.eta_media||ins.eta_media||'')+' anni',  '#94a3b8'],
     ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-RO'))+' RON/an','#10b981'],
   ];
 
