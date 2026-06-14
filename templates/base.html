@@ -441,6 +441,13 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
        style="color:#94a3b8">
       <i class="bi bi-folder2-open"></i> Dosare RO
     </a>
+    {% if current_user.can_manage_venditori %}
+    <a href="{{ url_for('romania.venditori') }}"
+       class="nav-link {% if request.endpoint == 'romania.venditori' %}active{% endif %}"
+       style="color:#94a3b8">
+      <i class="bi bi-people"></i> Agenti RO
+    </a>
+    {% endif %}
     {% endif %}
     {% if current_user.is_admin %}
     <div class="nav-section" style="margin-top:8px">Admin</div>
