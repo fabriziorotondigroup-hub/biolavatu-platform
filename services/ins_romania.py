@@ -5,6 +5,52 @@ ISOLATO — zero dipendenze da file italiani.
 """
 EUR_RON_RATE = 4.97
 
+# Densità urbana per città principale di ogni judet (loc/km²)
+# Molto più alta della densità judet — usata per calcolo popolazione isocrone
+DENSITA_URBANA_RO = {
+    'B':  8500,  # Bucuresti centro
+    'CJ': 6800,  # Cluj-Napoca
+    'TM': 5200,  # Timisoara
+    'IS': 6200,  # Iasi
+    'CT': 4800,  # Constanta
+    'BV': 6500,  # Brasov
+    'PH': 4200,  # Ploiesti
+    'IF': 3800,  # Ilfov area
+    'AG': 4500,  # Pitesti
+    'BC': 4000,  # Bacau
+    'BH': 4200,  # Oradea
+    'SB': 4800,  # Sibiu
+    'DJ': 4500,  # Craiova
+    'GL': 5200,  # Galati
+    'MM': 3800,  # Baia Mare
+    'NT': 3500,  # Piatra Neamt
+    'SV': 3200,  # Suceava
+    'VS': 2800,  # Vaslui
+    'AR': 3600,  # Arad
+    'MS': 4000,  # Targu Mures
+    'HD': 3200,  # Deva
+    'AB': 3000,  # Alba Iulia
+    'BN': 2800,  # Bistrita
+    'SM': 3400,  # Satu Mare
+    'VL': 3200,  # Ramnicu Valcea
+}
+
+
+def get_densita_urbana_ro(judet_cod: str, n_poi_zona: int = 0) -> float:
+    """
+    Stima densità urbana reale basata su:
+    1. Densità urbana città principale del judet (molto più alta della media judet)
+    2. Boost se ci sono molti POI vicini (proxy densità urbana reale)
+    """
+    base = DENSITA_URBANA_RO.get(judet_cod.upper() if judet_cod else '', 3000)
+    # Se ci sono molti POI → siamo in zona densa → usiamo densità piena
+    # Se pochi POI → periferia → riduciamo
+    if n_poi_zona >= 30:   factor = 1.0   # centro città
+    elif n_poi_zona >= 15: factor = 0.75  # zona semi-centrale
+    elif n_poi_zona >= 5:  factor = 0.50  # periferia
+    else:                   factor = 0.30  # zona rurale/suburbana
+    return base * factor
+
 JUDET_DATA = {
     'B':  {'nome':'Bucuresti',        'eta_media':39.8,'reddito_medio':52800,'densita':8247,'perc_stranieri':4.2,'pop_totale':1803425},
     'IF': {'nome':'Ilfov',            'eta_media':38.2,'reddito_medio':42000,'densita':352, 'perc_stranieri':2.8,'pop_totale':388738},
