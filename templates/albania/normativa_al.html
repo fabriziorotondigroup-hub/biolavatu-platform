@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Normativa Shqiperia — {{ cliente_nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:900px;margin:0 auto">
+
+  <!-- Header bilingue -->
+  <div style="background:linear-gradient(135deg,#0f172a,#1e2d45);border-radius:14px;
+              padding:24px;margin-bottom:24px;border:1px solid #f59e0b33">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:11px;color:#f59e0b;font-weight:600;letter-spacing:1px;
+                    text-transform:uppercase;margin-bottom:6px">
+          🇷🇴 BIOLavaTU — Normativa apertura
+        </div>
+        <h4 style="color:#e2e8f0;margin:0 0 4px">
+          {{ norm.titolo }}
+        </h4>
+        <div style="font-size:13px;color:#64748b">
+          {% if cliente_nome %}
+            Cliente / Client: <strong style="color:#f59e0b">{{ cliente_nome }}</strong>
+            {% if citta %} — {{ citta }}, România{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#64748b">Generato / Generat</div>
+        <div style="font-size:13px;color:#94a3b8">{{ data_oggi }}</div>
+        <!-- Switch lingua -->
+        <div style="margin-top:8px;display:flex;gap:4px;justify-content:flex-end">
+          <a href="?lingua=it" style="padding:4px 10px;border-radius:6px;font-size:11px;
+             font-weight:600;text-decoration:none;
+             {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='it' else 'background:#1e2d45;color:#64748b' }}">
+            🇮🇹 IT
+          </a>
+          <a href="?lingua=ro" style="padding:4px 10px;border-radius:6px;font-size:11px;
+             font-weight:600;text-decoration:none;
+             {{ 'background:#f59e0b;color:#0a0f1a' if lingua=='ro' else 'background:#1e2d45;color:#64748b' }}">
+            🇷🇴 RO
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sezioni normativa -->
+  {% for sez in norm.sezioni %}
+  <div style="background:#111827;border:1px solid {{ sez.colore }}33;border-radius:12px;
+              margin-bottom:16px;overflow:hidden">
+    <!-- Header sezione -->
+    <div style="background:{{ sez.colore }}15;padding:14px 20px;
+                border-bottom:1px solid {{ sez.colore }}22;
+                display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">{{ sez.icona }}</span>
+      <h5 style="margin:0;color:{{ sez.colore }};font-size:14px;font-weight:700">
+        {{ sez.titolo }}
+      </h5>
+    </div>
+    <!-- Voci -->
+    <div style="padding:4px 0">
+      {% for voce, descr in sez.voci %}
+      <div style="padding:12px 20px;border-bottom:1px solid #1e2d4544;
+                  display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start">
+        <div style="font-size:12px;font-weight:600;color:#e2e8f0">
+          {{ voce }}
+        </div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.5">
+          {{ descr }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Note finali -->
+  <div style="background:#0f172a;border:1px solid #f59e0b22;border-radius:12px;padding:16px;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:10px;text-transform:uppercase">
+      ℹ️ Note importanti / Note importante
+    </div>
+    {% for nota in norm.note_finali %}
+    <div style="font-size:12px;color:#64748b;padding:4px 0;border-bottom:1px solid #1e2d4533">
+      • {{ nota }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Azioni -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:32px">
+    <button onclick="window.print()"
+      style="background:#f59e0b;color:#0a0f1a;border:none;border-radius:8px;
+             padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
+      🖨️ Stampa / Printează
+    </button>
+    {% if pratica_id %}
+    <a href="{{ url_for('albania.modifica_preventivo', id=pratica_id) }}"
+      style="background:#1e2d45;color:#e2e8f0;border-radius:8px;padding:10px 20px;
+             font-size:13px;text-decoration:none;border:1px solid #334155">
+      ← Torna al preventivo
+    </a>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>
+@media print {
+  .sidebar, nav, footer, button, a { display:none!important; }
+  body { background:white!important; color:black!important; }
+  .container-fluid { max-width:100%!important; }
+}
+</style>
+{% endblock %}
