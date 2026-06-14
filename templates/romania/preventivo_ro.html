@@ -5,7 +5,7 @@
 <!-- Intestazione -->
 <div style="padding:12px 24px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:12px">
   <a href="{{ url_for('romania.dashboard') }}" style="color:#64748b;font-size:13px;text-decoration:none">
-    &larr; Indietro
+    {{ tr.indietro if tr else '← Indietro' }}
   </a>
   <span style="color:#1e2d45">|</span>
   <span style="font-size:15px;font-weight:600;color:#f59e0b">
@@ -97,7 +97,7 @@
     </div>
     <div class="d-flex justify-content-end mt-4">
       <button type="button" class="btn btn-warning" onclick="goStep(2)">
-        Avanti &rarr;
+        {{ tr.avanti if tr else 'Avanti →' }}
       </button>
     </div>
   </div>
@@ -185,8 +185,8 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="ins-kpi-grid"></div>
     </div>
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">&larr; {{ 'Inapoi' if lingua=='ro' else 'Indietro' }}</button>
-      <button type="button" class="btn btn-warning" onclick="goStep(3)">Inainte / Avanti &rarr;</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(1)">← {{ 'Inapoi' if lingua=='ro' else 'Indietro' }}</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(3)">Inainte / Avanti →</button>
     </div>
   </div>
 </div>
@@ -194,35 +194,24 @@
 <!-- ══ STEP 3: ZONA ══ -->
 <div class="wizard-step" id="panel-3" style="display:none">
   <div style="padding:16px">
-    <!-- Legenda cliccabile ON/OFF -->
-    <div id="legenda-poi" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:0 8px">
+    <!-- Legenda -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding:0 8px">
       {% for cat, col, lab in [
         ('concorrenti','#ef4444','Concorrenti'),
         ('supermercati','#22c55e','Supermercati'),
         ('bar','#f59e0b','Bar/Ristoranti'),
-        ('farmacie','#ec4899','Farmacie'),
         ('trasporti','#6d28d9','Trasporti'),
         ('istruzione','#0ea5e9','Universita'),
-        ('ospedali','#ef4444','Ospedali'),
-        ('banche','#06b6d4','Banche'),
-        ('hotel_bb','#a855f7','Hotel/B&B'),
-        ('caserme','#dc2626','Caserme'),
-        ('altro','#14b8a6','Altro'),
+        ('ospedali','#ec4899','Ospedali'),
+        ('farmacie','#ec4899','Farmacie'),
       ] %}
-      <button type="button"
-        onclick="toggleCategoria('{{ cat }}')"
-        id="leg-{{ cat }}"
-        data-col="{{ col }}"
-        data-active="1"
-        style="font-size:11px;padding:5px 14px;border-radius:20px;cursor:pointer;
-               background:{{ col }};color:white;border:2px solid {{ col }};
-               transition:all 0.25s ease;user-select:none;font-weight:600;
-               box-shadow:0 0 10px {{ col }}55;outline:none">
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;
+                   background:{{ col }}22;color:{{ col }};border:1px solid {{ col }}44">
         {{ lab }}
-      </button>
+      </span>
       {% endfor %}
     </div>
-        <!-- Mappa -->
+    <!-- Mappa -->
     <div id="map" style="height:420px;border-radius:8px;border:1px solid #1e2d45;width:100%"></div>
     <!-- KPI zona -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
@@ -317,8 +306,8 @@
       </div>
     </div>
     <div class="d-flex justify-content-between mt-3">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">&larr; Inapoi</button>
-      <button type="button" class="btn btn-warning" onclick="goStep(4)">{{ 'Inainte' if lingua=='ro' else 'Avanti' }} &rarr;</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(2)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(4)">{{ 'Inainte' if lingua=='ro' else 'Avanti' }} →</button>
     </div>
   </div>
 </div>
@@ -391,8 +380,8 @@
       </div>
     </div>
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">&larr; Inapoi</button>
-      <button type="button" class="btn btn-warning" onclick="goStep(5)">Inainte &rarr;</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(3)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(5)">Inainte →</button>
     </div>
   </div>
 </div>
@@ -439,8 +428,8 @@
       </div>
     </div>
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)">&larr; Inapoi</button>
-      <button type="button" class="btn btn-warning" onclick="goStep(6)">Inainte &rarr;</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(4)">← Inapoi</button>
+      <button type="button" class="btn btn-warning" onclick="goStep(6)">Inainte →</button>
     </div>
   </div>
 </div>
@@ -454,7 +443,7 @@
       Carica dati...
     </div>
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">&larr; Inapoi</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="goStep(5)">← Inapoi</button>
       <button type="submit" class="btn btn-warning btn-lg">
         💾 {{ tr.salva if tr else 'Salva pratica' }}
       </button>
@@ -491,7 +480,7 @@ var _cambioLive = CAMBIO;
 var _scenarioRO = 'realistico';
 var mapRO = null;
 
-// -- Navigation ----------------------------------------------------------------
+// ── Navigation ────────────────────────────────────────────────────────────────
 function goStep(n) {
   document.querySelectorAll('.wizard-step').forEach(function(el){el.style.display='none'});
   document.querySelectorAll('[id^="step-tab-"]').forEach(function(el){
@@ -506,7 +495,7 @@ function goStep(n) {
 }
 goStep(1);
 
-// -- Cambio RON live -----------------------------------------------------------
+// ── Cambio RON live ───────────────────────────────────────────────────────────
 fetch('/ro/api/cambio').then(function(r){return r.json()}).then(function(d){
   _cambioLive = d.eur_ron;
   var cd = document.getElementById('cambio-display');
@@ -518,23 +507,23 @@ fetch('/ro/api/cambio').then(function(r){return r.json()}).then(function(d){
 function aggiornaCambioAffitto() {
   var ron = parseFloat(document.getElementById('f_affitto').value) || 0;
   var el  = document.getElementById('affitto-eur-display');
-  if(el) el.textContent = ron > 0 ? Math.round(ron / _cambioLive) : '';
+  if(el) el.textContent = ron > 0 ? Math.round(ron / _cambioLive) : '—';
 }
 
 function aggiornaCapex() {
   var ron = parseFloat(document.getElementById('f_capex_ron').value) || 0;
   var tva = ron * 0.19;
-  var td = document.getElementById('tva-display');     if(td) td.textContent = ron>0 ? Math.round(tva).toLocaleString('ro-RO')+' RON':'';
-  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = ron>0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON':'';
+  var td = document.getElementById('tva-display');     if(td) td.textContent = ron>0 ? Math.round(tva).toLocaleString('ro-RO')+' RON':'—';
+  var cd = document.getElementById('capex-tva-display'); if(cd) cd.textContent = ron>0 ? Math.round(ron+tva).toLocaleString('ro-RO')+' RON':'—';
 }
 
-// -- Geocodifica Romania -------------------------------------------------------
+// ── Geocodifica Romania ───────────────────────────────────────────────────────
 function geocodificaRO() {
   var ind   = document.getElementById('f_indirizzo').value.trim();
   var citta = document.getElementById('f_citta').value.trim();
   var judet = document.getElementById('f_judet').value;
   var stat  = document.getElementById('geo-status');
-  if(!citta){ stat.textContent = 'Inserisci almeno la citta'; return; }
+  if(!citta){ stat.textContent = 'Inserisci almeno la città'; return; }
   stat.textContent = 'Geocodifica in corso...';
   fetch('/ro/api/geocode?indirizzo='+encodeURIComponent(ind)
     +'&citta='+encodeURIComponent(citta)+'&judet='+encodeURIComponent(judet))
@@ -552,7 +541,7 @@ function geocodificaRO() {
     if(kpi) {
       kpi.style.display = 'block';
       var nome = document.getElementById('ins-judet-nome');
-      if(nome) nome.textContent = judet + '  ' + citta;
+      if(nome) nome.textContent = judet + ' — ' + citta;
       var grid = document.getElementById('ins-kpi-grid');
       if(grid) grid.innerHTML = [
         ['Reddito medio',Math.round(d.reddito_medio||0).toLocaleString('ro-RO')+' RON/an','#f59e0b'],
@@ -569,14 +558,14 @@ function geocodificaRO() {
   .catch(function(e){ stat.textContent='Errore: '+e.message; stat.style.color='#ef4444'; });
 }
 
-// -- Mappa Leaflet Romania -----------------------------------------------------
+// ── Mappa Leaflet Romania ─────────────────────────────────────────────────────
 function initMapRO() {
   var lat = parseFloat(document.getElementById('f_lat').value) || 45.9432;
   var lng = parseFloat(document.getElementById('f_lng').value) || 24.9668;
   var zoom = lat === 45.9432 ? 7 : 15;
   if(mapRO) { mapRO.setView([lat,lng],zoom); mapRO.invalidateSize(); return; }
   mapRO = L.map('map').setView([lat,lng], zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:' OSM'}).addTo(mapRO);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(mapRO);
   if(lat !== 45.9432) caricaZonaRO(lat, lng);
 }
 
@@ -606,7 +595,7 @@ function caricaZonaRO(lat, lng) {
     sv('f_reddito', (d.demografici||{}).reddito_medio||0);
     var scEl = document.getElementById('d_score');
     if(scEl) scEl.style.color = d.score_colore||'#10b981';
-    // -- Mappa Romania con POI pulsanti --------------------------------------
+    // ── Mappa Romania con POI pulsanti ──────────────────────────────────────
     if(mapRO) {
       var clat = parseFloat(d.lat||lat), clng = parseFloat(d.lng||lng);
       mapRO.setView([clat, clng], 15);
@@ -640,7 +629,7 @@ function caricaZonaRO(lat, lng) {
   .catch(function(e){ console.error('[zona_ro] ERRORE:', e); });
 }
 
-// -- Business Plan Romania -----------------------------------------------------
+// ── Business Plan Romania ─────────────────────────────────────────────────────
 function aggiornaBPRO() {
   var payload = {
     n_std: parseInt(document.getElementById('f_n_std').value)||0,
@@ -674,7 +663,7 @@ function aggiornaBPRO() {
     var bue=document.getElementById('bp-utile-eur');   if(bue) bue.textContent=fmtE(d.utile_eur);
     var boc=document.getElementById('bp-occ');         if(boc) boc.textContent=d.occupazione_pct+'%';
     var bco=document.getElementById('bp-costi-ron');   if(bco) bco.textContent=fmt(d.costi_ron)+' RON';
-    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '';
+    var bpb=document.getElementById('bp-payback');     if(bpb) bpb.textContent=d.payback_anni ? d.payback_anni+' ani' : '—';
     document.getElementById('f_incasso_eur').value = d.incasso_eur;
     document.getElementById('f_costi_eur').value   = d.costi_ron / (_cambioLive||4.97);
     document.getElementById('f_utile_eur').value   = d.utile_eur;
@@ -692,7 +681,7 @@ function setScenarioRO(sc) {
   aggiornaBPRO();
 }
 
-// -- Analisi AI Romania --------------------------------------------------------
+// ── Analisi AI Romania ────────────────────────────────────────────────────────
 function generaAI_RO() {
   var txtEl  = document.getElementById('ai-ro-text');
   var loadEl = document.getElementById('ai-ro-loading');
@@ -726,9 +715,9 @@ function generaAI_RO() {
   });
 }
 
-// -- Riepilogo -----------------------------------------------------------------
+// ── Riepilogo ─────────────────────────────────────────────────────────────────
 function aggiornaRiepilogoRO() {
-  var citta = (document.getElementById('f_citta')||{value:''}).value || '';
+  var citta = (document.getElementById('f_citta')||{value:'—'}).value || '—';
   var inc   = document.getElementById('bp-incasso-ron');
   var uti   = document.getElementById('bp-utile-ron');
   var occ   = document.getElementById('bp-occ');
@@ -736,10 +725,10 @@ function aggiornaRiepilogoRO() {
   if(!el) return;
   el.innerHTML = [
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">',
-    kv('Citta / Oras', citta),
-    kv('Incasari', inc ? inc.textContent : ''),
-    kv('Profit net', uti ? uti.textContent : ''),
-    kv('Ocupare', occ ? occ.textContent : ''),
+    kv('Città / Oras', citta),
+    kv('Incasari', inc ? inc.textContent : '—'),
+    kv('Profit net', uti ? uti.textContent : '—'),
+    kv('Ocupare', occ ? occ.textContent : '—'),
     '</div>',
   ].join('');
 }
@@ -749,7 +738,7 @@ function kv(k,v){
     +'<div style="font-size:13px;font-weight:600;color:#f59e0b">'+v+'</div></div>';
 }
 
-// -- Gestione layer POI per categoria -----------------------------------------
+// ── Gestione layer POI per categoria ─────────────────────────────────────────
 var _poiLayers    = {};   // {categoria: [L.marker, ...]}
 var _catActive    = {};   // {categoria: true/false}
 var _poiData      = [];   // tutti i POI ricevuti dal backend
@@ -805,8 +794,8 @@ function disegnaPoiConLayer(pois, concorrenti) {
       '<div style="min-width:160px">'
       +'<b style="color:'+col+'">'+(p.nome||'POI')+'</b>'
       +'<br><span style="color:#64748b;font-size:11px">'+(p.categoria||'')+'</span>'
-      +(p.distanza_m?'<br><span style="font-size:11px"> '+p.distanza_m+' m dalla sede</span>':'')
-      +(p.rating?'<br><span style="font-size:11px"> '+p.rating+'</span>':'')
+      +(p.distanza_m?'<br><span style="font-size:11px">📍 '+p.distanza_m+' m dalla sede</span>':'')
+      +(p.rating?'<br><span style="font-size:11px">⭐ '+p.rating+'</span>':'')
       +(p.vicinity?'<br><span style="font-size:10px;color:#64748b">'+p.vicinity+'</span>':'')
       +'</div>'
     );
@@ -863,13 +852,13 @@ function aggiornaTabellaPOI(pois, concorrenti) {
   if(totEl) totEl.textContent = tot + ' POI totali';
 
   var LABELS = {
-    'supermercati':' Supermercati / GDO','bar':' Bar / Caffe',
-    'ristoranti':' Ristoranti','farmacie':' Farmacie',
-    'banche':' Banche / ATM','trasporti':' Trasporti',
-    'istruzione':' Universita / Scuole','ospedali':' Ospedali',
-    'caserme':' Caserme / Polizia','hotel_bb':' Hotel / B&B',
-    'parcheggi':' Parcheggi','altro':' Altro',
-    'concorrenti':' Concorrenti self-service'
+    'supermercati':'🛒 Supermercati / GDO','bar':'☕ Bar / Caffè',
+    'ristoranti':'🍽️ Ristoranti','farmacie':'💊 Farmacie',
+    'banche':'🏦 Banche / ATM','trasporti':'🚌 Trasporti',
+    'istruzione':'🎓 Università / Scuole','ospedali':'🏥 Ospedali',
+    'caserme':'🚔 Caserme / Polizia','hotel_bb':'🛏️ Hotel / B&B',
+    'parcheggi':'🅿️ Parcheggi','altro':'📌 Altro',
+    'concorrenti':'⚔️ Concorrenti self-service'
   };
 
   var html = '';
@@ -902,14 +891,14 @@ function aggiornaDemografici(demografici, demo_ins) {
   var d   = demografici || {};
   var ins = demo_ins   || {};
   var items = [
-    ['% Affittuari',          (ins.perc_affittuari||'')+'%',            '#f59e0b'],
-    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'')+'%',       '#ef4444'],
-    ['% Appartamenti',        (ins.perc_appartamenti||'')+'%',          '#3b82f6'],
-    ['Mq medi appartamento',  (ins.mq_medi||'')+' mq',                  '#8b5cf6'],
-    ['Studenti /1000 ab',     (ins.studenti_uni_1000||''),               '#0ea5e9'],
-    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'')+'%','#10b981'],
-    ['Disoccupazione',        (ins.tasso_disoccupazione||'')+'%',        '#f97316'],
-    ['Eta media',             (d.eta_media||ins.eta_media||'')+' anni',  '#94a3b8'],
+    ['% Affittuari',          (ins.perc_affittuari||'—')+'%',            '#f59e0b'],
+    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'—')+'%',       '#ef4444'],
+    ['% Appartamenti',        (ins.perc_appartamenti||'—')+'%',          '#3b82f6'],
+    ['Mq medi appartamento',  (ins.mq_medi||'—')+' mq',                  '#8b5cf6'],
+    ['Studenti /1000 ab',     (ins.studenti_uni_1000||'—'),               '#0ea5e9'],
+    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'—')+'%','#10b981'],
+    ['Disoccupazione',        (ins.tasso_disoccupazione||'—')+'%',        '#f97316'],
+    ['Età media',             (d.eta_media||ins.eta_media||'—')+' anni',  '#94a3b8'],
     ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-RO'))+' RON/an','#10b981'],
   ];
 
