@@ -528,6 +528,13 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
            style="padding:5px 8px;font-size:12px;color:#94a3b8">
           <i class="bi bi-journal-text" style="color:#e11d48"></i> Normativa AL
         </a>
+        {% if current_user.can_manage_venditori %}
+        <a href="{{ url_for('albania.venditori') }}"
+           class="nav-link {% if request.endpoint == 'albania.venditori' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#e11d48"></i> Agenti AL
+        </a>
+        {% endif %}
         <a href="{{ url_for('albania.dashboard') }}"
            class="nav-link {% if request.endpoint == 'albania.dashboard' %}active{% endif %}"
            style="padding:5px 8px;font-size:12px;color:#64748b">
@@ -568,6 +575,13 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
            style="padding:5px 8px;font-size:12px;color:#94a3b8">
           <i class="bi bi-journal-text" style="color:#dc2626"></i> Normativa PL
         </a>
+        {% if current_user.can_manage_venditori %}
+        <a href="{{ url_for('polonia.venditori') }}"
+           class="nav-link {% if request.endpoint == 'polonia.venditori' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#dc2626"></i> Agenti PL
+        </a>
+        {% endif %}
         <a href="{{ url_for('polonia.dashboard') }}"
            class="nav-link {% if request.endpoint == 'polonia.dashboard' %}active{% endif %}"
            style="padding:5px 8px;font-size:12px;color:#64748b">
@@ -608,6 +622,13 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
            style="padding:5px 8px;font-size:12px;color:#94a3b8">
           <i class="bi bi-journal-text" style="color:#0ea5e9"></i> Normativa HR
         </a>
+        {% if current_user.can_manage_venditori %}
+        <a href="{{ url_for('croazia.venditori') }}"
+           class="nav-link {% if request.endpoint == 'croazia.venditori' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#0ea5e9"></i> Agenti HR
+        </a>
+        {% endif %}
         <a href="{{ url_for('croazia.dashboard') }}"
            class="nav-link {% if request.endpoint == 'croazia.dashboard' %}active{% endif %}"
            style="padding:5px 8px;font-size:12px;color:#64748b">
@@ -648,6 +669,13 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
            style="padding:5px 8px;font-size:12px;color:#94a3b8">
           <i class="bi bi-journal-text" style="color:#10b981"></i> Normativa SI
         </a>
+        {% if current_user.can_manage_venditori %}
+        <a href="{{ url_for('slovenia.venditori') }}"
+           class="nav-link {% if request.endpoint == 'slovenia.venditori' %}active{% endif %}"
+           style="padding:5px 8px;font-size:12px;color:#94a3b8">
+          <i class="bi bi-people" style="color:#10b981"></i> Agenti SI
+        </a>
+        {% endif %}
         <a href="{{ url_for('slovenia.dashboard') }}"
            class="nav-link {% if request.endpoint == 'slovenia.dashboard' %}active{% endif %}"
            style="padding:5px 8px;font-size:12px;color:#64748b">
