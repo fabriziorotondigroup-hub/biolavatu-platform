@@ -283,17 +283,27 @@ def zona_analisi_ro():
 
         r3 = walking_radius(3); r5 = walking_radius(5); r10 = walking_radius(10)
 
-        raw_sup  = gmaps_nearby(lat, lng, r10, 'supermarket')
-        raw_conv = gmaps_nearby(lat, lng, r5,  'convenience_store')
-        raw_farm = gmaps_nearby(lat, lng, r5,  'pharmacy')
-        raw_bar  = gmaps_nearby(lat, lng, r5,  'bar')
-        raw_rest = gmaps_nearby(lat, lng, r5,  'restaurant')
-        raw_park = gmaps_nearby(lat, lng, r5,  'parking')
-        raw_metro= gmaps_nearby(lat, lng, r5,  'subway_station')
-        raw_bus  = gmaps_nearby(lat, lng, r5,  'bus_station')
-        raw_scol = gmaps_nearby(lat, lng, r10, 'university')
-        raw_osp  = gmaps_nearby(lat, lng, r10, 'hospital')
-        raw_lav  = gmaps_nearby(lat, lng, r10, 'laundry')
+        # POI completi Romania — tutte le categorie attractor
+        raw_sup    = gmaps_nearby(lat, lng, r10, 'supermarket')
+        raw_conv   = gmaps_nearby(lat, lng, r5,  'convenience_store')
+        raw_hyp    = gmaps_nearby(lat, lng, r10, 'grocery_or_supermarket')
+        raw_farm   = gmaps_nearby(lat, lng, r5,  'pharmacy')
+        raw_bar    = gmaps_nearby(lat, lng, r5,  'bar')
+        raw_cafe   = gmaps_nearby(lat, lng, r5,  'cafe')
+        raw_rest   = gmaps_nearby(lat, lng, r5,  'restaurant')
+        raw_bank   = gmaps_nearby(lat, lng, r5,  'bank')
+        raw_atm    = gmaps_nearby(lat, lng, r5,  'atm')
+        raw_park   = gmaps_nearby(lat, lng, r5,  'parking')
+        raw_metro  = gmaps_nearby(lat, lng, r5,  'subway_station')
+        raw_bus    = gmaps_nearby(lat, lng, r5,  'bus_station')
+        raw_train  = gmaps_nearby(lat, lng, r10, 'train_station')
+        raw_scol   = gmaps_nearby(lat, lng, r10, 'university')
+        raw_scuola = gmaps_nearby(lat, lng, r10, 'school')
+        raw_osp    = gmaps_nearby(lat, lng, r10, 'hospital')
+        raw_cas    = gmaps_nearby(lat, lng, r10, 'police')
+        raw_hotel  = gmaps_nearby(lat, lng, r10, 'lodging')
+        raw_gym    = gmaps_nearby(lat, lng, r5,  'gym')
+        raw_lav    = gmaps_nearby(lat, lng, r10, 'laundry')
 
         pois = []
         def add(places, cat, col, icon):
@@ -301,15 +311,25 @@ def zona_analisi_ro():
                 poi = place_to_poi(p, lat, lng, cat, col, icon)
                 if poi: pois.append(poi)
 
-        add(raw_sup,  'supermercati','#22c55e','🛒')
-        add(raw_farm, 'farmacie',    '#ec4899','💊')
-        add(raw_bar,  'bar',         '#f59e0b','☕')
-        add(raw_rest, 'ristoranti',  '#f97316','🍽️')
-        add(raw_park, 'parcheggi',   '#64748b','🅿️')
-        add(raw_metro,'trasporti',   '#6d28d9','🚇')
-        add(raw_bus,  'trasporti',   '#7c3aed','🚌')
-        add(raw_scol, 'istruzione',  '#0ea5e9','🎓')
-        add(raw_osp,  'ospedali',    '#ef4444','🏥')
+        add(raw_sup,    'supermercati',  '#22c55e', '🛒')
+        add(raw_conv,   'supermercati',  '#16a34a', '🛍️')
+        add(raw_hyp,    'supermercati',  '#15803d', '🏪')
+        add(raw_farm,   'farmacie',      '#ec4899', '💊')
+        add(raw_bar,    'bar',           '#f59e0b', '☕')
+        add(raw_cafe,   'bar',           '#d97706', '🍵')
+        add(raw_rest,   'ristoranti',    '#f97316', '🍽️')
+        add(raw_bank,   'banche',        '#06b6d4', '🏦')
+        add(raw_atm,    'banche',        '#0891b2', '💳')
+        add(raw_park,   'parcheggi',     '#64748b', '🅿️')
+        add(raw_metro,  'trasporti',     '#6d28d9', '🚇')
+        add(raw_bus,    'trasporti',     '#7c3aed', '🚌')
+        add(raw_train,  'trasporti',     '#8b5cf6', '🚂')
+        add(raw_scol,   'istruzione',    '#0ea5e9', '🎓')
+        add(raw_scuola, 'istruzione',    '#0284c7', '🏫')
+        add(raw_osp,    'ospedali',      '#ef4444', '🏥')
+        add(raw_cas,    'caserme',       '#dc2626', '🚔')
+        add(raw_hotel,  'hotel_bb',      '#a855f7', '🛏️')
+        add(raw_gym,    'altro',         '#14b8a6', '🏋️')
 
         conc500 = 0; conc1k = 0; comp_det = []
         for c in (raw_lav or []):
@@ -325,8 +345,8 @@ def zona_analisi_ro():
                 'rating':c.get('rating'),'lat':clat,'lng':clng,
                 'raggio_copertura':300,'cerchio_colore':col,'saturazione':sat})
 
-        gdo_500m = len([p for p in (raw_sup or [])+(raw_conv or []) if p and
-            int(haversine(lat, lng,
+        gdo_500m = len([p for p in (raw_sup or [])+(raw_conv or [])+(raw_hyp or [])
+            if p and int(haversine(lat, lng,
                 float(p.get('geometry',{}).get('location',{}).get('lat',lat)),
                 float(p.get('geometry',{}).get('location',{}).get('lng',lng)))*1000) <= 500])
 
@@ -338,6 +358,15 @@ def zona_analisi_ro():
             if p: mult = min(1.6, mult + 0.20)
         for p in (raw_osp or []):
             if p: mult = min(1.6, mult + 0.12)
+        for p in (raw_hotel or []):
+            if p: mult = min(1.6, mult + 0.08)
+        for p in (raw_cas or []):
+            if p: mult = min(1.6, mult + 0.08)
+        for p in (raw_scuola or []):
+            if p: mult = min(1.6, mult + 0.06)
+        # GDO boost
+        gdo_types = (raw_sup or []) + (raw_hyp or [])
+        if len(gdo_types) >= 2: mult = min(1.6, mult + 0.04)
 
         demo = get_demographic_data_ro(judet, citta)
         den  = float(demo['densita'])
@@ -446,11 +475,14 @@ def calcola_bp_ro():
 @ro_bp.route('/api/analisi-ai', methods=['POST'])
 @login_required
 def analisi_ai_ro():
-    import anthropic as _anth
     d = request.json or {}
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         return jsonify({'errore':'ANTHROPIC_API_KEY non configurata'}), 500
+    try:
+        import anthropic as _anth
+    except ImportError:
+        return jsonify({'errore':'Libreria anthropic non installata'}), 500
     cambio = _cambio()
     inc = float(d.get('incasso_ron',0) or 0)
     cos = float(d.get('costi_ron',0) or 0)
