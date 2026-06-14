@@ -259,6 +259,31 @@
         </div>
       </div>
     </div>
+    <!-- Tabella POI per categoria -->
+    <div id="tabella-poi" style="display:none;margin-top:12px;background:#0f172a;
+         border:1px solid #1e2d45;border-radius:10px;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid #1e2d45;
+                  font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;
+                  display:flex;justify-content:space-between;align-items:center">
+        <span>📊 POI rilevati nella zona</span>
+        <span id="poi-total-count" style="color:#f59e0b"></span>
+      </div>
+      <div id="poi-table-body" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Dati demografici dettaglio -->
+    <div id="box-demografici" style="display:none;margin-top:12px;
+         background:#0f172a;border:1px solid #1e2d45;border-radius:10px;padding:14px">
+      <div style="font-size:11px;font-weight:600;color:#64748b;
+                  text-transform:uppercase;margin-bottom:10px">
+        🏘️ Parametri demografici zona (INS 2021)
+      </div>
+      <div id="demo-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px"></div>
+      <div style="margin-top:10px;font-size:10px;color:#475569">
+        * Dati INS Romania 2021 — modificabili manualmente nello step Business Plan
+      </div>
+    </div>
+
     <!-- Analisi AI -->
     <div style="margin-top:12px;background:rgba(124,58,237,0.08);border:1px solid #7c3aed44;
                 border-radius:12px;padding:16px">
@@ -575,7 +600,7 @@ function caricaZonaRO(lat, lng) {
       var clat = parseFloat(d.lat||lat), clng = parseFloat(d.lng||lng);
       mapRO.setView([clat, clng], 15);
 
-      // Cerchio 1km (tratteggiato giallo)
+      // Cerchio 1km tratteggiato
       L.circle([clat,clng],{radius:1000,color:'#f59e0b',weight:1.5,
         dashArray:'8 5',fillOpacity:0,opacity:0.6}).addTo(mapRO);
 
@@ -585,43 +610,17 @@ function caricaZonaRO(lat, lng) {
           fillColor:c[1],fillOpacity:c[2]}).addTo(mapRO);
       });
 
-      // POI con cerchio pulsante
-      var _pc = 0;
-      (d.pois||[]).forEach(function(p){
-        if(!p||!p.lat||!p.lng) return;
-        _pc++;
-        var col = p.colore||'#3b82f6';
-        // Cerchio pulsante attorno al POI
-        L.circle([parseFloat(p.lat),parseFloat(p.lng)],{
-          radius:35,color:col,weight:1,fillColor:col,fillOpacity:0.2,
-          className:'poi-ring'}).addTo(mapRO);
-        // Punto centrale
-        var ic = L.divIcon({className:'',iconSize:[10,10],iconAnchor:[5,5],
-          html:'<div class="poi-dot" style="background:'+col+';width:10px;height:10px;'
-            +'border-radius:50%;border:2px solid white;'
-            +'box-shadow:0 0 6px '+col+'"></div>'});
-        L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic}).addTo(mapRO)
-          .bindPopup('<b>'+(p.nome||'POI')+'</b>'
-            +'<br><small style="color:#64748b">'+(p.categoria||'')+'</small>'
-            +(p.distanza_m?'<br><small>'+p.distanza_m+'m</small>':''));
-      });
-
-      // Concorrenti
-      (d.competitors_detail||[]).forEach(function(c){
-        if(!c.lat||!c.lng) return;
-        var ccol=c.cerchio_colore||'#ef4444';
-        L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
-          color:ccol,weight:2,fillColor:ccol,fillOpacity:0.12}).addTo(mapRO)
-          .bindPopup('<b>'+c.nome+'</b>'+(c.distanza_m?'<br>'+c.distanza_m+'m':''));
-        L.divIcon&&L.marker([c.lat,c.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
-          html:'<div style="background:'+ccol+';width:14px;height:14px;border-radius:3px;border:2px solid white"></div>'})}).addTo(mapRO);
-      });
-
       // Sede
       L.marker([clat,clng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
         html:'<div style="background:#1d4ed8;width:22px;height:22px;border-radius:50%;'
           +'border:3px solid white;box-shadow:0 2px 10px rgba(29,78,216,0.7)"></div>'})})
         .addTo(mapRO).bindPopup('<b>Sediu propus</b>');
+
+      // POI con layer per categoria + tabella
+      disegnaPoiConLayer(d.pois||[], d.competitors_detail||[]);
+
+      // Dati demografici
+      aggiornaDemografici(d.demografici||{}, d.ins_data||{});
 
       mapRO.invalidateSize();
     }
@@ -738,5 +737,180 @@ function kv(k,v){
     +'<div style="font-size:10px;color:#64748b;margin-bottom:4px">'+k+'</div>'
     +'<div style="font-size:13px;font-weight:600;color:#f59e0b">'+v+'</div></div>';
 }
+
+// ── Gestione layer POI per categoria ─────────────────────────────────────────
+var _poiLayers    = {};   // {categoria: [L.marker, ...]}
+var _catActive    = {};   // {categoria: true/false}
+var _poiData      = [];   // tutti i POI ricevuti dal backend
+
+function toggleCategoria(cat) {
+  _catActive[cat] = !_catActive[cat];
+  var btn = document.getElementById('leg-'+cat);
+  if(btn) {
+    btn.style.opacity = _catActive[cat] ? '1' : '0.35';
+    btn.style.fontWeight = _catActive[cat] ? '700' : '400';
+  }
+  var layers = _poiLayers[cat] || [];
+  layers.forEach(function(lyr) {
+    if(_catActive[cat]) {
+      if(mapRO && !mapRO.hasLayer(lyr)) lyr.addTo(mapRO);
+    } else {
+      if(mapRO && mapRO.hasLayer(lyr)) mapRO.removeLayer(lyr);
+    }
+  });
+}
+
+function disegnaPoiConLayer(pois, concorrenti) {
+  // Pulisci layer precedenti
+  Object.values(_poiLayers).forEach(function(arr){
+    arr.forEach(function(l){ if(mapRO&&mapRO.hasLayer(l)) mapRO.removeLayer(l); });
+  });
+  _poiLayers = {};
+  _poiData   = pois || [];
+
+  // Attiva tutte le categorie all'inizio
+  var categorie = [...new Set((pois||[]).map(function(p){return p.categoria}))];
+  categorie.forEach(function(cat){ _catActive[cat] = true; });
+  _catActive['concorrenti'] = true;
+
+  // Disegna POI
+  (pois||[]).forEach(function(p){
+    if(!p||!p.lat||!p.lng) return;
+    var col = p.colore||'#3b82f6';
+    var cat = p.categoria||'altro';
+
+    // Cerchio pulsante
+    var circle = L.circle([parseFloat(p.lat),parseFloat(p.lng)],{
+      radius:35,color:col,weight:1,fillColor:col,fillOpacity:0.2,
+      className:'poi-ring'});
+    circle.addTo(mapRO);
+
+    // Punto
+    var ic = L.divIcon({className:'',iconSize:[10,10],iconAnchor:[5,5],
+      html:'<div class="poi-dot" style="background:'+col+';width:10px;height:10px;'
+        +'border-radius:50%;border:2px solid white;box-shadow:0 0 6px '+col+'"></div>'});
+    var marker = L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic});
+    marker.bindPopup(
+      '<div style="min-width:160px">'
+      +'<b style="color:'+col+'">'+(p.nome||'POI')+'</b>'
+      +'<br><span style="color:#64748b;font-size:11px">'+(p.categoria||'')+'</span>'
+      +(p.distanza_m?'<br><span style="font-size:11px">📍 '+p.distanza_m+' m dalla sede</span>':'')
+      +(p.rating?'<br><span style="font-size:11px">⭐ '+p.rating+'</span>':'')
+      +(p.vicinity?'<br><span style="font-size:10px;color:#64748b">'+p.vicinity+'</span>':'')
+      +'</div>'
+    );
+    marker.addTo(mapRO);
+
+    if(!_poiLayers[cat]) _poiLayers[cat] = [];
+    _poiLayers[cat].push(circle);
+    _poiLayers[cat].push(marker);
+  });
+
+  // Disegna concorrenti come layer separato
+  _poiLayers['concorrenti'] = [];
+  (concorrenti||[]).forEach(function(c){
+    if(!c.lat||!c.lng) return;
+    var ccol = c.cerchio_colore||'#ef4444';
+    var ring = L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
+      color:ccol,weight:2,fillColor:ccol,fillOpacity:0.12});
+    ring.bindPopup('<b>'+c.nome+'</b>'+(c.distanza_m?'<br>'+c.distanza_m+'m':''));
+    ring.addTo(mapRO);
+    var sq = L.marker([c.lat,c.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
+      html:'<div style="background:'+ccol+';width:14px;height:14px;border-radius:3px;border:2px solid white"></div>'})});
+    sq.bindPopup('<b>'+c.nome+'</b>');
+    sq.addTo(mapRO);
+    _poiLayers['concorrenti'].push(ring);
+    _poiLayers['concorrenti'].push(sq);
+  });
+
+  aggiornaTabellaPOI(pois, concorrenti);
+}
+
+function aggiornaTabellaPOI(pois, concorrenti) {
+  var tbl = document.getElementById('tabella-poi');
+  var body = document.getElementById('poi-table-body');
+  var totEl = document.getElementById('poi-total-count');
+  if(!body) return;
+
+  // Raggruppa per categoria
+  var gruppi = {};
+  (pois||[]).forEach(function(p){
+    var cat = p.categoria||'altro';
+    if(!gruppi[cat]) gruppi[cat] = {count:0,distanze:[],col:p.colore||'#64748b'};
+    gruppi[cat].count++;
+    if(p.distanza_m) gruppi[cat].distanze.push(parseInt(p.distanza_m));
+  });
+  if(concorrenti&&concorrenti.length>0) {
+    gruppi['concorrenti'] = {
+      count:concorrenti.length,
+      distanze:concorrenti.map(function(c){return c.distanza_m||0}),
+      col:'#ef4444'
+    };
+  }
+
+  var tot = (pois||[]).length + (concorrenti||[]).length;
+  if(totEl) totEl.textContent = tot + ' POI totali';
+
+  var LABELS = {
+    'supermercati':'🛒 Supermercati / GDO','bar':'☕ Bar / Caffè',
+    'ristoranti':'🍽️ Ristoranti','farmacie':'💊 Farmacie',
+    'banche':'🏦 Banche / ATM','trasporti':'🚌 Trasporti',
+    'istruzione':'🎓 Università / Scuole','ospedali':'🏥 Ospedali',
+    'caserme':'🚔 Caserme / Polizia','hotel_bb':'🛏️ Hotel / B&B',
+    'parcheggi':'🅿️ Parcheggi','altro':'📌 Altro',
+    'concorrenti':'⚔️ Concorrenti self-service'
+  };
+
+  var html = '';
+  Object.keys(gruppi).sort().forEach(function(cat){
+    var g   = gruppi[cat];
+    var dMin = g.distanze.length ? Math.min.apply(null,g.distanze) : 0;
+    var dMax = g.distanze.length ? Math.max.apply(null,g.distanze) : 0;
+    var dAvg = g.distanze.length ? Math.round(g.distanze.reduce(function(a,b){return a+b},0)/g.distanze.length) : 0;
+    html += '<div style="display:flex;align-items:center;padding:8px 14px;'
+      +'border-bottom:1px solid #1e2d4522;cursor:pointer;transition:background 0.1s"'
+      +' onclick="toggleCategoria(''+cat+'')" id="row-'+cat+'">'
+      +'<span style="width:10px;height:10px;border-radius:50%;background:'+g.col
+        +';display:inline-block;margin-right:10px;flex-shrink:0"></span>'
+      +'<span style="flex:1;font-size:12px;color:#e2e8f0">'+(LABELS[cat]||cat)+'</span>'
+      +'<span style="font-size:13px;font-weight:700;color:'+g.col+';margin-right:12px;min-width:24px;text-align:right">'
+        +g.count+'</span>'
+      +(dAvg>0?'<span style="font-size:10px;color:#64748b;min-width:80px;text-align:right">'
+        +'min '+dMin+'m / avg '+dAvg+'m</span>':'')
+      +'</div>';
+  });
+  body.innerHTML = html || '<div style="padding:16px;color:#64748b;text-align:center">Nessun POI</div>';
+  if(tbl) tbl.style.display = tot > 0 ? 'block' : 'none';
+}
+
+function aggiornaDemografici(demografici, demo_ins) {
+  var box  = document.getElementById('box-demografici');
+  var grid = document.getElementById('demo-grid');
+  if(!grid) return;
+
+  var d   = demografici || {};
+  var ins = demo_ins   || {};
+  var items = [
+    ['% Affittuari',          (ins.perc_affittuari||'—')+'%',            '#f59e0b'],
+    ['% Senza lavatrice',     (ins.perc_senza_lavatrice||'—')+'%',       '#ef4444'],
+    ['% Appartamenti',        (ins.perc_appartamenti||'—')+'%',          '#3b82f6'],
+    ['Mq medi appartamento',  (ins.mq_medi||'—')+' mq',                  '#8b5cf6'],
+    ['Studenti /1000 ab',     (ins.studenti_uni_1000||'—'),               '#0ea5e9'],
+    ['% Stranieri',           (ins.perc_stranieri||d.perc_stranieri||'—')+'%','#10b981'],
+    ['Disoccupazione',        (ins.tasso_disoccupazione||'—')+'%',        '#f97316'],
+    ['Età media',             (d.eta_media||ins.eta_media||'—')+' anni',  '#94a3b8'],
+    ['Reddito medio',         ((d.reddito_medio||0).toLocaleString('ro-RO'))+' RON/an','#10b981'],
+  ];
+
+  grid.innerHTML = items.map(function(it){
+    return '<div style="background:#111827;border-radius:8px;padding:10px">'
+      +'<div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-bottom:4px">'+it[0]+'</div>'
+      +'<div style="font-size:14px;font-weight:700;color:'+it[2]+'">'+it[1]+'</div>'
+      +'</div>';
+  }).join('');
+
+  if(box) box.style.display = 'block';
+}
+
 </script>
 {% endblock %}
