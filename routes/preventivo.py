@@ -82,8 +82,10 @@ def _build_bp_avanzato_json(data):
 @login_required
 def nuovo():
     # Agenti di mercati esteri non accedono al wizard IT
-    if hasattr(current_user, 'market') and current_user.market and \
-       current_user.market != 'IT' and current_user.role not in ('owner','admin','segreteria'):
+    # Owner, admin e segreteria passano SEMPRE senza controllo market
+    _ruoli_liberi = ('owner', 'admin', 'segreteria')
+    _market_utente = getattr(current_user, 'market', 'IT') or 'IT'
+    if current_user.role not in _ruoli_liberi and _market_utente != 'IT':
         return redirect(url_for('dashboard.index'))
     macchine = Macchina.query.filter_by(attiva=True).order_by(Macchina.categoria, Macchina.nome).all()
     clienti = Cliente.query.order_by(Cliente.nome).all()
