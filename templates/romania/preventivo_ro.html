@@ -564,15 +564,18 @@ function caricaZonaRO(lat, lng) {
         L.circle([d.lat||lat, d.lng||lng], {radius:c[0], color:c[2], weight:1.5,
           fillColor:c[1], fillOpacity:0.12}).addTo(mapRO);
       });
-      // POI
+      // POI — debug
+      console.log('[RO] POI ricevuti:', (d.pois||[]).length);
       (d.pois||[]).forEach(function(p){
-        if(!p.lat||!p.lng) return;
+        if(!p || !p.lat || !p.lng) return;
+        var col = p.colore || '#3b82f6';
         var ic = L.divIcon({className:'',
-          html:'<div style="background:'+p.colore+';width:8px;height:8px;border-radius:50%;border:1.5px solid white"></div>',
-          iconSize:[8,8],iconAnchor:[4,4]});
-        L.marker([p.lat,p.lng],{icon:ic}).addTo(mapRO)
-          .bindPopup('<b>'+(p.nome||p.tipo||'')+'</b>');
+          html:'<div style="background:'+col+';width:10px;height:10px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>',
+          iconSize:[10,10],iconAnchor:[5,5]});
+        L.marker([parseFloat(p.lat), parseFloat(p.lng)], {icon:ic}).addTo(mapRO)
+          .bindPopup('<b>'+(p.nome||p.categoria||'POI')+'</b><br><small>'+(p.categoria||'')+'</small>');
       });
+      console.log('[RO] Concorrenti:', (d.competitors_detail||[]).length);
       // Concorrenti con cerchi
       (d.competitors_detail||[]).forEach(function(c){
         if(!c.lat||!c.lng) return;
@@ -589,7 +592,7 @@ function caricaZonaRO(lat, lng) {
     }
     aggiornaBPRO();
   })
-  .catch(function(e){ console.warn('[zona_ro]', e); });
+  .catch(function(e){ console.error('[zona_ro] ERRORE:', e); });
 }
 
 // ── Business Plan Romania ─────────────────────────────────────────────────────
