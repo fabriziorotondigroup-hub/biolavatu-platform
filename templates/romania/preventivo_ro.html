@@ -435,6 +435,18 @@
 <style>
 .wizard-step { display:none }
 .step-tab-active { color:#f59e0b!important; border-bottom-color:#f59e0b!important; }
+
+/* POI animazioni */
+@keyframes poiPulse {
+  0%,100%{opacity:0.2;transform:scale(1)}
+  50%{opacity:0.5;transform:scale(1.15)}
+}
+.poi-ring { animation: poiPulse 2.5s ease-in-out infinite; }
+@keyframes poiGlow {
+  0%,100%{box-shadow:0 0 4px currentColor}
+  50%{box-shadow:0 0 12px currentColor}
+}
+.poi-dot { animation: poiGlow 2s ease-in-out infinite; }
 </style>
 
 <script>
@@ -558,36 +570,59 @@ function caricaZonaRO(lat, lng) {
     sv('f_reddito', (d.demografici||{}).reddito_medio||0);
     var scEl = document.getElementById('d_score');
     if(scEl) scEl.style.color = d.score_colore||'#10b981';
-    // Cerchi isocrone
+    // ── Mappa Romania con POI pulsanti ──────────────────────────────────────
     if(mapRO) {
-      [[240,'#3b82f622','#3b82f6'],[400,'#8b5cf622','#8b5cf6'],[800,'#ec489922','#ec4899']].forEach(function(c){
-        L.circle([d.lat||lat, d.lng||lng], {radius:c[0], color:c[2], weight:1.5,
-          fillColor:c[1], fillOpacity:0.12}).addTo(mapRO);
+      var clat = parseFloat(d.lat||lat), clng = parseFloat(d.lng||lng);
+      mapRO.setView([clat, clng], 15);
+
+      // Cerchio 1km (tratteggiato giallo)
+      L.circle([clat,clng],{radius:1000,color:'#f59e0b',weight:1.5,
+        dashArray:'8 5',fillOpacity:0,opacity:0.6}).addTo(mapRO);
+
+      // Cerchi pedonali 3/5/10 min
+      [[240,'#3b82f6',0.18],[400,'#8b5cf6',0.12],[800,'#ec4899',0.07]].forEach(function(c){
+        L.circle([clat,clng],{radius:c[0],color:c[1],weight:1.5,
+          fillColor:c[1],fillOpacity:c[2]}).addTo(mapRO);
       });
-      // POI — debug
-      console.log('[RO] POI ricevuti:', (d.pois||[]).length);
+
+      // POI con cerchio pulsante
+      var _pc = 0;
       (d.pois||[]).forEach(function(p){
-        if(!p || !p.lat || !p.lng) return;
-        var col = p.colore || '#3b82f6';
-        var ic = L.divIcon({className:'',
-          html:'<div style="background:'+col+';width:10px;height:10px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></div>',
-          iconSize:[10,10],iconAnchor:[5,5]});
-        L.marker([parseFloat(p.lat), parseFloat(p.lng)], {icon:ic}).addTo(mapRO)
-          .bindPopup('<b>'+(p.nome||p.categoria||'POI')+'</b><br><small>'+(p.categoria||'')+'</small>');
+        if(!p||!p.lat||!p.lng) return;
+        _pc++;
+        var col = p.colore||'#3b82f6';
+        // Cerchio pulsante attorno al POI
+        L.circle([parseFloat(p.lat),parseFloat(p.lng)],{
+          radius:35,color:col,weight:1,fillColor:col,fillOpacity:0.2,
+          className:'poi-ring'}).addTo(mapRO);
+        // Punto centrale
+        var ic = L.divIcon({className:'',iconSize:[10,10],iconAnchor:[5,5],
+          html:'<div class="poi-dot" style="background:'+col+';width:10px;height:10px;'
+            +'border-radius:50%;border:2px solid white;'
+            +'box-shadow:0 0 6px '+col+'"></div>'});
+        L.marker([parseFloat(p.lat),parseFloat(p.lng)],{icon:ic}).addTo(mapRO)
+          .bindPopup('<b>'+(p.nome||'POI')+'</b>'
+            +'<br><small style="color:#64748b">'+(p.categoria||'')+'</small>'
+            +(p.distanza_m?'<br><small>'+p.distanza_m+'m</small>':''));
       });
-      console.log('[RO] Concorrenti:', (d.competitors_detail||[]).length);
-      // Concorrenti con cerchi
+
+      // Concorrenti
       (d.competitors_detail||[]).forEach(function(c){
         if(!c.lat||!c.lng) return;
+        var ccol=c.cerchio_colore||'#ef4444';
         L.circle([c.lat,c.lng],{radius:c.raggio_copertura||300,
-          color:c.cerchio_colore||'#ef4444',weight:2,fillOpacity:0.15}).addTo(mapRO)
-          .bindPopup('<b>'+c.nome+'</b><br>'+c.distanza_m+'m');
+          color:ccol,weight:2,fillColor:ccol,fillOpacity:0.12}).addTo(mapRO)
+          .bindPopup('<b>'+c.nome+'</b>'+(c.distanza_m?'<br>'+c.distanza_m+'m':''));
+        L.divIcon&&L.marker([c.lat,c.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],
+          html:'<div style="background:'+ccol+';width:14px;height:14px;border-radius:3px;border:2px solid white"></div>'})}).addTo(mapRO);
       });
-      // Marker sede
-      L.marker([d.lat||lat, d.lng||lng], {icon:L.divIcon({className:'',
-        html:'<div style="background:#1d4ed8;width:18px;height:18px;border-radius:50%;border:3px solid white"></div>',
-        iconSize:[18,18],iconAnchor:[9,9]})}).addTo(mapRO)
-        .bindPopup('<b>Sediu propus</b>');
+
+      // Sede
+      L.marker([clat,clng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
+        html:'<div style="background:#1d4ed8;width:22px;height:22px;border-radius:50%;'
+          +'border:3px solid white;box-shadow:0 2px 10px rgba(29,78,216,0.7)"></div>'})})
+        .addTo(mapRO).bindPopup('<b>Sediu propus</b>');
+
       mapRO.invalidateSize();
     }
     aggiornaBPRO();
