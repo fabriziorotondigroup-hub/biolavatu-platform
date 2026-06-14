@@ -10,6 +10,7 @@ from flask_login import login_required, current_user
 from app import db
 from models.pratica import Pratica
 from models.cliente import Cliente
+from models.user import User
 from models.settings import Settings
 from services.normativa_albania import NORMATIVA_AL
 from services.ins_albania import (
@@ -523,6 +524,73 @@ def normativa(pratica_id=None):
         cliente_nome=cliente_nome, citta=citta,
         pratica_id=pratica_id, cambio_all=_cambio(),
         data_oggi=datetime.date.today().strftime('%d/%m/%Y'))
+
+
+
+# ── Venditori AL ─────────────────────────────────────────────────────────
+
+@al_bp.route('/venditori')
+@login_required
+def venditori():
+    if not _al_check(): return redirect(url_for('dashboard.index'))
+    if not current_user.can_manage_venditori:
+        flash('Accesso negato.', 'error')
+        return redirect(url_for('albania.dashboard'))
+    agenti = User.query.filter(
+        User.market == 'AL',
+        User.role.in_(('sales', 'sales_al', 'admin', 'segreteria'))
+    ).order_by(User.created.desc()).all()
+    ling = _get_lingua()
+    return render_template('albania/venditori_al.html',
+        agenti=agenti, lingua=ling, tr=TR.get(ling, TR['it']))
+
+
+@al_bp.route('/venditori/nuovo', methods=['POST'])
+@login_required
+def nuovo_venditore_al():
+    if not current_user.can_manage_venditori:
+        return redirect(url_for('albania.dashboard'))
+    email = request.form.get('email', '').strip()
+    if not email or User.query.filter_by(email=email).first():
+        flash('Email non valida o già registrata.', 'error')
+        return redirect(url_for('albania.venditori'))
+    u = User(
+        nome   = request.form.get('nome', '').strip(),
+        email  = email,
+        role   = request.form.get('role', 'sales_al'),
+        market = 'AL',
+        attivo = True,
+    )
+    u.set_password(request.form.get('password', 'Albania2026!'))
+    db.session.add(u)
+    db.session.commit()
+    flash(f'Agente {u.nome} creato.', 'success')
+    return redirect(url_for('albania.venditori'))
+
+
+@al_bp.route('/venditori/<int:id>/toggle', methods=['POST'])
+@login_required
+def toggle_venditore_al(id):
+    if not current_user.can_manage_venditori:
+        return jsonify({'error': 'Accesso negato'}), 403
+    u = User.query.get_or_404(id)
+    u.attivo = not u.attivo
+    db.session.commit()
+    return jsonify({'attivo': u.attivo, 'nome': u.nome})
+
+
+@al_bp.route('/venditori/<int:id>/elimina', methods=['POST'])
+@login_required
+def elimina_venditore_al(id):
+    if not current_user.is_owner:
+        return jsonify({'error': 'Solo il proprietario puo eliminare agenti'}), 403
+    u = User.query.get_or_404(id)
+    if u.is_owner:
+        return jsonify({'error': 'Non puoi eliminare il proprietario'}), 403
+    db.session.delete(u)
+    db.session.commit()
+    flash('Agente eliminato.', 'success')
+    return redirect(url_for('albania.venditori'))
 
 # ── Lingua ────────────────────────────────────────────────────────────────────
 @al_bp.route('/lingua/<lang>')
