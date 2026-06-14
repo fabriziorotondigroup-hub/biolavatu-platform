@@ -411,6 +411,16 @@ def zona_analisi_ro():
                 'n_parcheggi':len(raw_park or [])},
             'indice_famiglie_lav':{'indice':idx_f,'famiglie':fam5},
             'paese':'RO',
+            'ins_data': {
+                'perc_affittuari':      demo.get('perc_affittuari', 22),
+                'perc_senza_lavatrice': demo.get('perc_senza_lavatrice', 15),
+                'perc_appartamenti':    demo.get('perc_appartamenti', 55),
+                'mq_medi':              demo.get('mq_medi', 62),
+                'studenti_uni_1000':    demo.get('studenti_uni_1000', 25),
+                'tasso_disoccupazione': demo.get('tasso_disoccupazione', 5.5),
+                'eta_media':            demo.get('eta_media', 42),
+                'reddito_medio':        demo.get('reddito_medio', 30000),
+            },
         })
     except Exception as e:
         import traceback
