@@ -16,7 +16,7 @@ def index():
         pratiche = Pratica.query.order_by(Pratica.created.desc()).limit(10).all()
         tot_pratiche = Pratica.query.count()
         tot_clienti = Cliente.query.count()
-        tot_venditori = User.query.filter_by(role='sales', attivo=True).count()
+        tot_venditori = User.query.filter(User.role.in_(['sales','admin','segreteria']), User.attivo==True).count()
         pratiche_aperte = Pratica.query.filter(
             Pratica.stato.in_(['bozza', 'inviato', 'trattativa'])
         ).all()
