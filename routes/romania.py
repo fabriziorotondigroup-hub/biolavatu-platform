@@ -482,44 +482,48 @@ def calcola_bp_ro():
 @ro_bp.route('/api/analisi-ai', methods=['POST'])
 @login_required
 def analisi_ai_ro():
-    d = request.json or {}
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        return jsonify({'errore':'ANTHROPIC_API_KEY non configurata'}), 500
+    import traceback
     try:
-        import anthropic as _anth
-    except ImportError:
-        return jsonify({'errore':'Libreria anthropic non installata'}), 500
-    cambio = _cambio()
-    inc = float(d.get('incasso_ron',0) or 0)
-    cos = float(d.get('costi_ron',0) or 0)
-    cap = float(d.get('capex_ron',0) or 0)
-    prompt = (
-        "Sei un analista di piata din Romania specializat in spalatorii self-service. "
-        "Produce o analiza obiectiva - doar date si fapte. "
-        "Scrie in ITALIANA poi ROMANA.\n\n"
-        f"LOCATIE: {d.get('indirizzo','')}, {d.get('citta','')}, Romania\n"
-        f"Pop 5 min: {int(d.get('pop_5min',0)):,} ab | "
-        f"Densitate: {int(d.get('densita',0)):,} loc/km2\n"
-        f"Salariu: {int(d.get('reddito_medio',0)):,} RON/an "
-        f"(EUR {int(d.get('reddito_medio',0)/cambio):,}/an)\n"
-        f"Concurenta: {d.get('concorrenti_500m',0)} spalatorii 500m\n"
-        f"Incasari stimate: {inc:,.0f} RON/luna | Costuri: {cos:,.0f} RON\n"
-        f"Profit: {inc-cos:,.0f} RON/luna | Investitie: {cap:,.0f} RON + TVA 19%\n\n"
-        "Analiza in 4 sectiuni (max 400 cuvinte):\n"
-        "1. BACIN DEMOGRAFIC / BACINO DEMOGRAFICO\n"
-        "2. CONCURENTA / CONCORRENZA\n"
-        "3. PROIECTIE ECONOMICA / PROIEZIONE ECONOMICA\n"
-        "4. FACTORI DE RISC / FATTORI DI RISCHIO"
-    )
-    try:
-        msg = _anth.Anthropic(api_key=api_key).messages.create(
-            model='claude-sonnet-4-5', max_tokens=1200,
-            messages=[{'role':'user','content':prompt}])
-        return jsonify({'analisi':msg.content[0].text.strip(),'mercato':'RO'})
+        d       = request.json or {}
+        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        if not api_key:
+            return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata nel server'}), 200
+        cambio = _cambio()
+        inc    = float(d.get('incasso_ron', 0) or 0)
+        cos    = float(d.get('costi_ron',   0) or 0)
+        cap    = float(d.get('capex_ron',   0) or 0)
+        red    = float(d.get('reddito_medio', 30000) or 30000)
+        prompt = (
+            "Sei un analista specializzato nel mercato delle lavanderie self-service in Romania. "
+            "Produci un'analisi obiettiva della zona basata solo su dati e fatti. "
+            "Scrivi prima in ITALIANO, poi in RUMENO (Romana).\n\n"
+            f"LOCALITATE / LOCATIE: {d.get('indirizzo','')}, {d.get('citta','')}, Romania\n"
+            f"Populatie 5 min: {int(d.get('pop_5min', 0)):,} ab\n"
+            f"Densitate: {int(d.get('densita', 0)):,} loc/km2\n"
+            f"Salariu mediu net: {int(red):,} RON/an ({int(red/cambio):,} EUR/an)\n"
+            f"Concurenti self-service 500m: {d.get('concorrenti_500m', 0)}\n"
+            f"Incasari estimate: {inc:,.0f} RON/luna\n"
+            f"Costuri: {cos:,.0f} RON/luna | Profit: {inc-cos:,.0f} RON/luna\n"
+            f"Investitie: {cap:,.0f} RON + TVA 19%\n\n"
+            "Analiza in 4 sectiuni (max 350 cuvinte total):\n"
+            "1. BACINO DEMOGRAFICO / BAZIN DEMOGRAFIC\n"
+            "2. CONCORRENZA / CONCURENTA\n"
+            "3. PROIEZIONE ECONOMICA / PROIECTIE ECONOMICA\n"
+            "4. FATTORI DI RISCHIO / FACTORI DE RISC"
+        )
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg    = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=1200,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        testo = msg.content[0].text.strip()
+        return jsonify({'analisi': testo, 'mercato': 'RO'})
     except Exception as e:
-        import traceback
-        return jsonify({'errore':str(e),'detail':traceback.format_exc()[:300]}), 500
+        tb = traceback.format_exc()
+        print(f"[analisi_ai_ro] ERRORE: {tb}")
+        return jsonify({'errore': str(e), 'detail': tb[-400:]}), 200
 
 # ── API Cambio ────────────────────────────────────────────────────────────────
 @ro_bp.route('/api/cambio')
