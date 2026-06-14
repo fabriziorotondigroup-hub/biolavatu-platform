@@ -160,3 +160,37 @@ def converti_eur_eur(v): return round(v, 2)  # già in EUR
 
 def get_cambio_hr_live() -> float:
     return 1.0  # Croazia è in Eurozona dal 2023
+
+
+# ── Alias e costanti per compatibilità route ─────────────────────────────────
+EUR_HRK_RATE = 1.0   # Croazia usa EUR dal 2023
+OCC_BASE_HR  = 0.40
+
+def converti_eur_hr(v: float) -> float:
+    return round(v, 2)  # già in EUR
+
+def calcola_incasso_da_lavaggi_hr(
+    lavaggi_quota: int,
+    t_lav_medio_eur: float,
+    perc_asciugatura: float = 55,
+    t_asc_eur: float = 2.5,
+) -> float:
+    return round(lavaggi_quota * t_lav_medio_eur +
+                 lavaggi_quota * (perc_asciugatura / 100) * t_asc_eur)
+
+def calcola_affitto_max_hr(fatturato_eur: float) -> dict:
+    return {
+        'affitto_max_10pct': round(fatturato_eur * 0.10),
+        'affitto_max_12pct': round(fatturato_eur * 0.12),
+        'regola': '10-12% del fatturato previsto',
+    }
+
+def calcola_saturazione_hr(pop_5min: int, n_lavatrici_zona: int) -> dict:
+    if n_lavatrici_zona == 0:
+        return {'indice': 99999, 'label': 'Monopol', 'colore': '#10b981', 'n_lavatrici_zona': 0}
+    indice = pop_5min // n_lavatrici_zona
+    if   indice > 6000: label, colore = 'Optimalno',    '#10b981'
+    elif indice > 3000: label, colore = 'Konkurentno',  '#3b82f6'
+    elif indice > 1500: label, colore = 'Zasiceno',     '#f59e0b'
+    else:               label, colore = 'Prezasiceno',  '#ef4444'
+    return {'indice': indice, 'label': label, 'colore': colore, 'n_lavatrici_zona': n_lavatrici_zona}
