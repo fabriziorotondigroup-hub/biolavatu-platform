@@ -454,6 +454,31 @@ label, .form-label, .col-form-label { color: #cbd5e1 !important; font-weight: 60
       <i class="bi bi-journal-text"></i> Normativa RO
     </a>
     {% endif %}
+    <!-- ── Albania ── -->
+    <div style="margin:16px 0 6px 12px;font-size:9px;font-weight:700;
+                color:#e11d48;letter-spacing:1.2px;text-transform:uppercase">
+      Albania
+    </div>
+    <a href="{{ url_for('albania.dashboard') }}"
+       class="nav-link {% if request.endpoint and 'albania' in request.endpoint %}active{% endif %}"
+       style="color:{% if request.endpoint and 'albania' in request.endpoint %}#e11d48{% else %}#94a3b8{% endif %}">
+      <i class="bi bi-grid"></i> Dashboard AL
+    </a>
+    <a href="{{ url_for('albania.nuovo_preventivo') }}"
+       class="nav-link"
+       style="color:#94a3b8">
+      <i class="bi bi-plus-circle"></i> Nuovo AL
+    </a>
+    <a href="{{ url_for('albania.pratiche') }}"
+       class="nav-link"
+       style="color:#94a3b8">
+      <i class="bi bi-folder2-open"></i> Dosaret AL
+    </a>
+    <a href="{{ url_for('albania.normativa') }}"
+       class="nav-link {% if request.endpoint == 'albania.normativa' %}active{% endif %}"
+       style="color:#94a3b8">
+      <i class="bi bi-journal-text"></i> Normativa AL
+    </a>
     {% if current_user.is_admin %}
     <div class="nav-section" style="margin-top:8px">Admin</div>
     <a href="{{ url_for('admin.index') }}" class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
