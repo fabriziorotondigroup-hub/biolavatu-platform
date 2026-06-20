@@ -180,6 +180,8 @@ def nuovo_venditore():
 @admin_required
 def toggle_venditore(id):
     u = User.query.get_or_404(id)
+    if u.is_owner:
+        return jsonify({'error': 'Il proprietario non può essere disattivato.'}), 403
     u.attivo = not u.attivo
     db.session.commit()
     return jsonify({'attivo': u.attivo})
@@ -230,7 +232,11 @@ def cambia_ruolo(id):
 @login_required
 @admin_required
 def reset_password(id):
+    from flask_login import current_user
     u = User.query.get_or_404(id)
+    if u.is_owner and u.id != current_user.id:
+        flash('Solo il proprietario può modificare la propria password.', 'error')
+        return redirect(url_for('admin.index'))
     nuova_pw = request.form.get('password', '')
     if nuova_pw:
         u.set_password(nuova_pw)
