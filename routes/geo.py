@@ -22,6 +22,7 @@ from services.analisi_competitiva import (
     stima_traffico_veicolare,
     calcola_score_ponderato,
 )
+from services.istat import calcola_vulnerabilita_media_zona  # [ADD-ON commerciale]
 
 def ricerca_info_struttura_militare(nome: str, citta: str) -> dict:
     """
@@ -880,6 +881,7 @@ def zona_analisi():
 
         # Analisi punti deboli concorrenza
         _punti_deboli = analizza_punti_deboli(competitors_detail)
+        _vuln_zona = calcola_vulnerabilita_media_zona(competitors_detail)  # [ADD-ON]
 
         # Traffico veicolare/pedonale stimato
         _traffico = stima_traffico_veicolare(
@@ -969,6 +971,7 @@ def zona_analisi():
             'concorrenza_avanzata': {
                 **_comp_analisi,
                 'punti_deboli': _punti_deboli,
+                'vulnerabilita_zona': _vuln_zona,  # [ADD-ON commerciale]
             },
             'score_ponderato':    _score_pond,
         })
