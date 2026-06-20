@@ -579,12 +579,14 @@ calcolaBusinessPlan = function() {
 function aggiornaVocazioneTuristica() {
   var box = document.getElementById('vocazione-turistica-box');
   if (!box) return;
-  var vt = window._ultimaVocazioneTuristica;
+  var vt   = window._ultimaVocazioneTuristica;
+  var itz  = window._ultimaIntensitaTuristicaZona;  // [ADD-ON] dato combinato comune+zona
   if (!vt) { box.style.display = 'none'; return; }
 
   box.style.display = 'block';
   var indiceEl = document.getElementById('vt-indice');
   var sottoEl  = document.getElementById('vt-sottotitolo');
+  var notaEl   = document.getElementById('vt-nota-scenario');
 
   if (vt.in_top50_istat) {
     indiceEl.textContent = vt.indice_vocazione;
@@ -597,6 +599,17 @@ function aggiornaVocazioneTuristica() {
     indiceEl.style.color = '#64748b';
     sottoEl.textContent = 'Non in Top 50 nazionale per volume presenze (Istat 2024)';
     sottoEl.style.color = '#64748b';
+  }
+
+  // [ADD-ON] Mostra il dato combinato comune+zona quando disponibile
+  if (itz && notaEl) {
+    notaEl.style.display = 'block';
+    notaEl.style.color = itz.colore || '#94a3b8';
+    notaEl.innerHTML = '🏨 <b>' + itz.n_strutture_turismo_zona + '</b> strutture (hotel/B&B/case vacanza) '
+      + 'rilevate in zona — densità ' + itz.densita_locale_label.toLowerCase()
+      + ' · indice combinato <b>' + itz.indice_combinato + '/100</b>';
+  } else if (notaEl) {
+    notaEl.style.display = 'none';
   }
 }
 
@@ -639,12 +652,17 @@ function aggiornaRiskScoreInvestimento() {
     else if (vulnZona.media_vulnerabilita < 15)  pezzoConc = Math.max(0, pezzoConc - 5);
   }
 
-  // [ADD-ON] Bonus vocazione turistica (Istat 2024) — max +5, riduce il rischio
-  // in zone con alto flusso turistico strutturale (es. B&B/Airbnb dense, soggiorni brevi)
-  var vt = window._ultimaVocazioneTuristica;
+  // [ADD-ON] Bonus turistico — max +6, usa l'indice combinato comune+zona
+  // (più preciso del solo dato comunale: una zona residenziale in città turistica
+  // non riceve bonus; una zona densa di B&B in città minore lo riceve)
+  var vt  = window._ultimaVocazioneTuristica;
+  var itz = window._ultimaIntensitaTuristicaZona;
   var bonusTuristico = 0;
-  if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
-    bonusTuristico = vt.indice_vocazione >= 80 ? 5 : 3;
+  if (itz && itz.indice_combinato != null) {
+    if      (itz.indice_combinato >= 75) bonusTuristico = 6;
+    else if (itz.indice_combinato >= 50) bonusTuristico = 3;
+  } else if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
+    bonusTuristico = vt.indice_vocazione >= 80 ? 5 : 3;  // fallback se non c'è dato zona
   }
 
   var riskScore = Math.max(0, Math.min(100, Math.round(pezzoZona + pezzoPayback + pezzoConc + bonusTuristico)));
@@ -677,7 +695,12 @@ function aggiornaRiskScoreInvestimento() {
   if (conc500 === 0) {
     argomenti.push('✅ Nessun concorrente diretto entro 500 metri — zona ancora libera.');
   }
-  if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
+  if (itz && itz.indice_combinato >= 50) {
+    // Dato combinato disponibile e significativo — usa il messaggio specifico per scenario
+    argomenti.push('✅ ' + itz.n_strutture_turismo_zona + ' hotel/B&B/case vacanza rilevati in zona — '
+      + itz.nota_vendita);
+  } else if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
+    // Fallback: solo dato comunale disponibile
     argomenti.push('✅ Zona #' + vt.posizione_classifica + ' in Italia per presenze turistiche ('
       + Number(vt.presenze_2024).toLocaleString('it') + '/anno, Istat 2024) — domanda strutturale '
       + 'da turisti e B&B/case vacanza, non solo da residenti.');
@@ -700,6 +723,7 @@ function aggiornaRiskScoreInvestimento() {
                   concorrenza: pezzoConc, bonus_turismo: bonusTuristico },
     vulnerabilita_zona: vulnZona,
     vocazione_turistica: vt,
+    intensita_turistica_zona: itz,
     argomenti_vendita: argomenti.map(function(a){ return a.replace(/<\/?b>/g,''); }),
   }));
 }
@@ -1227,6 +1251,7 @@ body { background: var(--bg); color: var(--text); }
                   </div>
                   <span id="vt-indice" style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">—</span>
                 </div>
+                <div id="vt-nota-scenario" style="font-size:9px;color:#94a3b8;margin-top:4px;display:none"></div>
               </div>
             </div>
           </div>
@@ -3426,6 +3451,7 @@ function eseguiAnalisi(lat, lng) {
         window._ultimoPop5min   = d.pop_5min || 0;
         window._ultimaVulnZona  = (d.concorrenza_avanzata && d.concorrenza_avanzata.vulnerabilita_zona) || null;
         window._ultimaVocazioneTuristica = d.vocazione_turistica || null;  // [ADD-ON] dati Istat 2024
+        window._ultimaIntensitaTuristicaZona = d.intensita_turistica_zona || null;  // [ADD-ON] comune+zona
         try { aggiornaRiskScoreInvestimento(); } catch(e) {}
         try { aggiornaVocazioneTuristica(); } catch(e) {}
 
