@@ -572,7 +572,85 @@ var _origCalcBP = calcolaBusinessPlan;
 calcolaBusinessPlan = function() {
   _origCalcBP();
   try { verificaCapacita(); } catch(e) {}
+  try { aggiornaRiskScoreInvestimento(); } catch(e) { console.warn('[risk-score]', e); }
 };
+
+// [ADD-ON COMMERCIALE] Risk Score Investimento — combina zona + payback + concorrenza
+function aggiornaRiskScoreInvestimento() {
+  var box = document.getElementById('risk-investimento-box');
+  if (!box) return;
+
+  var inv = calcolaInvestimenti();
+  var ce  = calcolaContoEco(inv);
+  if (!ce || !inv) return;
+
+  var redditoOp   = ce.reddito_op || 0;
+  var totIva      = (inv.tot_iva!=null ? inv.tot_iva : (inv.tot||0));
+  var payback_mesi = redditoOp > 0 ? (totIva / redditoOp * 12) : null;
+
+  var scoreZona = parseFloat(window._ultimoScoreZona || 0);     // popolato da analizzaZona()
+  var conc500   = parseInt(window._ultimoConc500 || 0, 10);
+  var vulnZona  = window._ultimaVulnZona || null;                // {media_vulnerabilita, label, ...}
+
+  // Stesso schema pesi della logica server-side: zona 40% / payback 35% / concorrenza 25%
+  var pezzoZona = (scoreZona / 100) * 40;
+
+  var pezzoPayback = 0;
+  if (payback_mesi != null) {
+    if      (payback_mesi <= 24) pezzoPayback = 35;
+    else if (payback_mesi <= 36) pezzoPayback = 28;
+    else if (payback_mesi <= 48) pezzoPayback = 18;
+    else if (payback_mesi <= 60) pezzoPayback = 10;
+    else                          pezzoPayback = 3;
+  }
+
+  var pezzoConc = 25;
+  if      (conc500 >= 4) pezzoConc = 5;
+  else if (conc500 === 3) pezzoConc = 10;
+  else if (conc500 === 2) pezzoConc = 15;
+  else if (conc500 === 1) pezzoConc = 20;
+  if (vulnZona && vulnZona.media_vulnerabilita != null && conc500 > 0) {
+    if      (vulnZona.media_vulnerabilita >= 55) pezzoConc = Math.min(25, pezzoConc + 8);
+    else if (vulnZona.media_vulnerabilita < 15)  pezzoConc = Math.max(0, pezzoConc - 5);
+  }
+
+  var riskScore = Math.max(0, Math.min(100, Math.round(pezzoZona + pezzoPayback + pezzoConc)));
+
+  var label, colore;
+  if      (riskScore >= 75) { label = 'Rischio basso — investimento solido';        colore = '#10b981'; }
+  else if (riskScore >= 55) { label = 'Rischio contenuto — buona opportunità';       colore = '#3b82f6'; }
+  else if (riskScore >= 35) { label = 'Rischio medio — valutare con cautela';        colore = '#f59e0b'; }
+  else                       { label = 'Rischio alto — servono correttivi';          colore = '#ef4444'; }
+
+  box.style.display = 'block';
+  setEl('risk-score-num', riskScore);
+  document.getElementById('risk-score-num').style.color = colore;
+  setEl('risk-score-label', label);
+  document.getElementById('risk-score-label').style.color = colore;
+  var bar = document.getElementById('risk-score-bar');
+  if (bar) { bar.style.width = riskScore + '%'; bar.style.background = colore; }
+
+  // Argomenti di vendita pronti — linguaggio diretto per il commerciale
+  var argomenti = [];
+  if (payback_mesi != null && payback_mesi <= 30) {
+    argomenti.push('✅ Rientro investimento stimato in <b>' + payback_mesi.toFixed(1) + ' mesi</b> — tra i più rapidi del settore.');
+  }
+  if (window._ultimoPop5min && window._ultimoPop5min > 3000) {
+    argomenti.push('✅ Bacino di <b>' + Number(window._ultimoPop5min).toLocaleString('it') + ' abitanti</b> raggiungibili in 5 minuti a piedi.');
+  }
+  if (vulnZona && vulnZona.media_vulnerabilita != null && vulnZona.media_vulnerabilita >= 55) {
+    argomenti.push('✅ I concorrenti in zona mostrano segnali di debolezza: spazio per acquisire quota rapidamente.');
+  }
+  if (conc500 === 0) {
+    argomenti.push('✅ Nessun concorrente diretto entro 500 metri — zona ancora libera.');
+  }
+  if (argomenti.length === 0) {
+    argomenti.push('⚠️ Valutare attentamente i numeri prima di procedere: zona con segnali misti.');
+  }
+  document.getElementById('risk-argomenti').innerHTML = argomenti.map(function(a){
+    return '<div style="margin-bottom:4px">' + a + '</div>';
+  }).join('');
+}
 
 // Auto-popola i cicli dalla stima zona quando disponibile
 window._popolaAdvDaZona = function(bp) {
@@ -2481,6 +2559,25 @@ body { background: var(--bg); color: var(--text); }
       </tbody>
     </table>
   </div>
+
+  <!-- [ADD-ON COMMERCIALE] Risk Score Investimento — strumento esclusivo vendita -->
+  <div id="risk-investimento-box" style="margin-top:16px;padding:16px;border-radius:10px;
+       background:#0f172a;border:1px solid #1e2d45;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#e2e8f0">
+        🎯 Risk Score Investimento
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="risk-score-num" style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#64748b">—</span>
+        <span id="risk-score-label" style="font-size:12px;font-weight:600;color:#64748b">—</span>
+      </div>
+    </div>
+    <div style="height:6px;border-radius:3px;background:#1e2d45;overflow:hidden;margin-bottom:12px">
+      <div id="risk-score-bar" style="height:100%;width:0%;border-radius:3px;transition:width 0.4s,background 0.4s;background:#64748b"></div>
+    </div>
+    <div id="risk-argomenti" style="font-size:12px;color:#94a3b8;line-height:1.6"></div>
+  </div>
+
 </div>
 </div><!-- fine tab ce -->
 
@@ -3256,6 +3353,13 @@ function eseguiAnalisi(lat, lng) {
         setTxt('d_pop5', (d.pop_5min||0).toLocaleString('it'));
         setTxt('d_pop10', (d.pop_10min||0).toLocaleString('it'));
         setTxt('d_pop1km', (d.pop_1km||0).toLocaleString('it'));  // [ADD-ON] raggio fisso 1km
+
+        // [ADD-ON COMMERCIALE] Salva dati zona per il Risk Score Investimento
+        window._ultimoScoreZona = d.score || 0;
+        window._ultimoConc500   = d.concorrenti_500m || 0;
+        window._ultimoPop5min   = d.pop_5min || 0;
+        window._ultimaVulnZona  = (d.concorrenza_avanzata && d.concorrenza_avanzata.vulnerabilita_zona) || null;
+        try { aggiornaRiskScoreInvestimento(); } catch(e) {}
 
         // Bacino pesato
         var bacino = Math.round((d.pop_5min||0)*0.60 + Math.max(0,(d.pop_10min||0)-(d.pop_5min||0))*0.25);
