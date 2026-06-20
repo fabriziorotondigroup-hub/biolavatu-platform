@@ -575,6 +575,31 @@ calcolaBusinessPlan = function() {
   try { aggiornaRiskScoreInvestimento(); } catch(e) { console.warn('[risk-score]', e); }
 };
 
+// [ADD-ON COMMERCIALE] Vocazione Turistica — dati Istat 2024, Top 50 comuni
+function aggiornaVocazioneTuristica() {
+  var box = document.getElementById('vocazione-turistica-box');
+  if (!box) return;
+  var vt = window._ultimaVocazioneTuristica;
+  if (!vt) { box.style.display = 'none'; return; }
+
+  box.style.display = 'block';
+  var indiceEl = document.getElementById('vt-indice');
+  var sottoEl  = document.getElementById('vt-sottotitolo');
+
+  if (vt.in_top50_istat) {
+    indiceEl.textContent = vt.indice_vocazione;
+    indiceEl.style.color = vt.colore || '#f59e0b';
+    sottoEl.textContent = '#' + vt.posizione_classifica + ' in Italia — '
+      + Number(vt.presenze_2024).toLocaleString('it') + ' presenze/anno (Istat 2024)';
+    sottoEl.style.color = vt.colore || '#f59e0b';
+  } else {
+    indiceEl.textContent = '—';
+    indiceEl.style.color = '#64748b';
+    sottoEl.textContent = 'Non in Top 50 nazionale per volume presenze (Istat 2024)';
+    sottoEl.style.color = '#64748b';
+  }
+}
+
 // [ADD-ON COMMERCIALE] Risk Score Investimento — combina zona + payback + concorrenza
 function aggiornaRiskScoreInvestimento() {
   var box = document.getElementById('risk-investimento-box');
@@ -614,7 +639,15 @@ function aggiornaRiskScoreInvestimento() {
     else if (vulnZona.media_vulnerabilita < 15)  pezzoConc = Math.max(0, pezzoConc - 5);
   }
 
-  var riskScore = Math.max(0, Math.min(100, Math.round(pezzoZona + pezzoPayback + pezzoConc)));
+  // [ADD-ON] Bonus vocazione turistica (Istat 2024) — max +5, riduce il rischio
+  // in zone con alto flusso turistico strutturale (es. B&B/Airbnb dense, soggiorni brevi)
+  var vt = window._ultimaVocazioneTuristica;
+  var bonusTuristico = 0;
+  if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
+    bonusTuristico = vt.indice_vocazione >= 80 ? 5 : 3;
+  }
+
+  var riskScore = Math.max(0, Math.min(100, Math.round(pezzoZona + pezzoPayback + pezzoConc + bonusTuristico)));
 
   var label, colore;
   if      (riskScore >= 75) { label = 'Rischio basso — investimento solido';        colore = '#10b981'; }
@@ -644,12 +677,31 @@ function aggiornaRiskScoreInvestimento() {
   if (conc500 === 0) {
     argomenti.push('✅ Nessun concorrente diretto entro 500 metri — zona ancora libera.');
   }
+  if (vt && vt.in_top50_istat && vt.indice_vocazione >= 60) {
+    argomenti.push('✅ Zona #' + vt.posizione_classifica + ' in Italia per presenze turistiche ('
+      + Number(vt.presenze_2024).toLocaleString('it') + '/anno, Istat 2024) — domanda strutturale '
+      + 'da turisti e B&B/case vacanza, non solo da residenti.');
+  }
   if (argomenti.length === 0) {
     argomenti.push('⚠️ Valutare attentamente i numeri prima di procedere: zona con segnali misti.');
   }
   document.getElementById('risk-argomenti').innerHTML = argomenti.map(function(a){
     return '<div style="margin-bottom:4px">' + a + '</div>';
   }).join('');
+
+  // [ADD-ON] Salva nei campi hidden per l'invio al backend e l'uso nel PDF
+  setVal('f_risk_score', riskScore);
+  setVal('f_risk_label', label);
+  setVal('f_risk_assessment_json', JSON.stringify({
+    risk_score: riskScore,
+    risk_label: label,
+    payback_mesi: payback_mesi,
+    componenti: { zona: Math.round(pezzoZona*10)/10, payback: pezzoPayback,
+                  concorrenza: pezzoConc, bonus_turismo: bonusTuristico },
+    vulnerabilita_zona: vulnZona,
+    vocazione_turistica: vt,
+    argomenti_vendita: argomenti.map(function(a){ return a.replace(/<\/?b>/g,''); }),
+  }));
 }
 
 // Auto-popola i cicli dalla stima zona quando disponibile
@@ -822,6 +874,10 @@ body { background: var(--bg); color: var(--text); }
 <input type="hidden" name="score_zona" id="f_score" value="{{ pratica.score_zona if pratica else 0 }}">
 <input type="hidden" name="score_label" id="f_label" value="{{ pratica.score_label if pratica else '' }}">
 <input type="hidden" name="pois_raw" id="f_pois" value="">
+<!-- [ADD-ON COMMERCIALE] Risk Score Investimento -->
+<input type="hidden" name="risk_score" id="f_risk_score" value="">
+<input type="hidden" name="risk_label" id="f_risk_label" value="">
+<input type="hidden" name="risk_assessment_json" id="f_risk_assessment_json" value="">
 <input type="hidden" name="macchine_json" id="f_macchine" value="[]">
 <input type="hidden" name="incasso_mese" id="f_incasso" value="0">
 <input type="hidden" name="costi_mese" id="f_costi" value="0">
@@ -1160,6 +1216,16 @@ body { background: var(--bg); color: var(--text); }
                     <div style="font-size:9px;color:#475569">zona di influenza allargata</div>
                   </div>
                   <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f472b6" id="d_pop1km">—</span>
+                </div>
+              </div>
+              <!-- [ADD-ON COMMERCIALE] Vocazione Turistica — dati Istat 2024 -->
+              <div id="vocazione-turistica-box" class="mt-2 pt-2" style="border-top:1px solid #1e2d45;display:none">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span style="font-size:11px;color:#64748b">🧳 Vocazione turistica</span>
+                    <div id="vt-sottotitolo" style="font-size:9px;color:#475569">—</div>
+                  </div>
+                  <span id="vt-indice" style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">—</span>
                 </div>
               </div>
             </div>
@@ -3359,7 +3425,9 @@ function eseguiAnalisi(lat, lng) {
         window._ultimoConc500   = d.concorrenti_500m || 0;
         window._ultimoPop5min   = d.pop_5min || 0;
         window._ultimaVulnZona  = (d.concorrenza_avanzata && d.concorrenza_avanzata.vulnerabilita_zona) || null;
+        window._ultimaVocazioneTuristica = d.vocazione_turistica || null;  // [ADD-ON] dati Istat 2024
         try { aggiornaRiskScoreInvestimento(); } catch(e) {}
+        try { aggiornaVocazioneTuristica(); } catch(e) {}
 
         // Bacino pesato
         var bacino = Math.round((d.pop_5min||0)*0.60 + Math.max(0,(d.pop_10min||0)-(d.pop_5min||0))*0.25);
