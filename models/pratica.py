@@ -205,3 +205,15 @@ class Pratica(db.Model):
             try: return json.loads(self.analisi_investitore_json)
             except: return {}
         return {}
+
+    # ── [ADD-ON COMMERCIALE] Risk Score Investimento + Vulnerabilità ─────────
+    risk_score          = db.Column(db.Integer, default=None)   # 0-100
+    risk_label           = db.Column(db.String(80))
+    risk_assessment_json = db.Column(db.Text)  # argomenti vendita + componenti + vulnerabilità zona
+
+    def get_risk_assessment(self):
+        if self.risk_assessment_json:
+            try: return json.loads(self.risk_assessment_json)
+            except Exception: return {}
+        return {}
+
