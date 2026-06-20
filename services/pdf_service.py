@@ -817,6 +817,96 @@ def build_pdf(pratica, settings):
         story.append(_ai_box('ANALISI RISCHI', p.ai_risk, '#FFFBEB', '#D97706'))
 
     # ══════════════════════════════════════════════════════════════════════════
+    # [ADD-ON COMMERCIALE] RISK SCORE INVESTIMENTO — esclusivo BIOLavaTU
+    # ══════════════════════════════════════════════════════════════════════════
+    if getattr(p, 'risk_score', None) is not None:
+        story.append(sp(12))
+        story.append(_section_bar('🎯  RISK SCORE INVESTIMENTO — Valutazione Esclusiva BIOLavaTU',
+                                   bg=colors.HexColor('#1E3A5F')))
+        story.append(sp(8))
+
+        _risk_data = {}
+        if getattr(p, 'risk_assessment_json', None):
+            try:
+                _risk_data = json.loads(p.risk_assessment_json)
+            except Exception:
+                _risk_data = {}
+
+        _rs = p.risk_score or 0
+        _rs_color = (colors.HexColor('#059669') if _rs >= 75 else
+                     colors.HexColor('#2563EB') if _rs >= 55 else
+                     colors.HexColor('#D97706') if _rs >= 35 else
+                     colors.HexColor('#EF4444'))
+
+        # Box punteggio grande + etichetta
+        _risk_tab = Table([[
+            Paragraph(str(_rs), _s('rs_num', fontName='Helvetica-Bold', fontSize=42,
+                                    textColor=_rs_color, alignment=TA_CENTER)),
+            Paragraph((p.risk_label or '—') + '<br/><font size=8 color="#6B7280">'
+                      'Punteggio combinato: qualità zona · velocità rientro · forza concorrenza</font>',
+                      _s('rs_lbl', fontName='Helvetica-Bold', fontSize=12,
+                         textColor=_rs_color, leading=16)),
+        ]], colWidths=[CW*0.25, CW*0.75])
+        _risk_tab.setStyle(TableStyle([
+            ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+            ('BOX',           (0,0),(-1,-1), 1, _rs_color),
+            ('ROUNDEDCORNERS',[8,8,8,8]),
+            ('TOPPADDING',    (0,0),(-1,-1), 12),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 12),
+            ('LEFTPADDING',   (0,0),(-1,-1), 16),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 16),
+            ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#F8FAFC')),
+        ]))
+        story.append(_risk_tab)
+        story.append(sp(10))
+
+        # Vulnerabilità concorrenza (se disponibile)
+        _vz = _risk_data.get('vulnerabilita_zona')
+        if _vz and _vz.get('commento_vendita'):
+            story.append(_ai_box('ANALISI CONCORRENZA — Vulnerabilità rilevata',
+                                  _vz['commento_vendita'], '#FEF3F2', '#DC2626'))
+            story.append(sp(8))
+
+        # Argomenti di vendita pronti
+        _argomenti = _risk_data.get('argomenti_vendita', [])
+        if _argomenti:
+            _arg_rows = [[Paragraph(a, _s('rsa', fontSize=9.5, textColor=C_DARK, leading=13))]
+                         for a in _argomenti]
+            _arg_tab = Table(_arg_rows, colWidths=[CW])
+            _arg_tab.setStyle(TableStyle([
+                ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#F0FDF4')),
+                ('BOX',           (0,0),(-1,-1), 0.5, colors.HexColor('#86EFAC')),
+                ('TOPPADDING',    (0,0),(-1,-1), 6),
+                ('BOTTOMPADDING', (0,0),(-1,-1), 6),
+                ('LEFTPADDING',   (0,0),(-1,-1), 10),
+                ('RIGHTPADDING',  (0,0),(-1,-1), 10),
+                ('LINEBELOW',     (0,0),(-1,-2), 0.5, colors.HexColor('#D1FAE5')),
+            ]))
+            story.append(_arg_tab)
+            story.append(sp(10))
+
+    # Mappa zona con concorrenti — riusa il meccanismo foto_mappa già esistente
+    if getattr(p, 'foto_mappa', None) and os.path.exists(p.foto_mappa):
+        story.append(_section_bar('🗺️  MAPPA ZONA — Posizione e Concorrenti Rilevati',
+                                   bg=colors.HexColor('#7C3AED')))
+        story.append(sp(8))
+        try:
+            _map_img2 = Image(p.foto_mappa, width=CW, height=8*cm, kind='proportional')
+            _map_wrap2 = Table([[_map_img2]], colWidths=[CW])
+            _map_wrap2.setStyle(TableStyle([
+                ('ALIGN', (0,0),(-1,-1), 'CENTER'),
+                ('BOX',   (0,0),(-1,-1), 0.5, C_LGRAY),
+                ('ROUNDEDCORNERS', [4,4,4,4]),
+            ]))
+            story.append(_map_wrap2)
+            story.append(Paragraph(
+                '<font size=7.5 color="#6B7280">📍 Blu: sede proposta &nbsp;&nbsp; 🔴 Rosso: concorrenti self-service rilevati</font>',
+                _s('rsmapcap', alignment=TA_CENTER)))
+            story.append(sp(10))
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════════════════════════
     # PAG 6 — ORDINE MACCHINE
     # ══════════════════════════════════════════════════════════════════════════
     story.append(PageBreak())
