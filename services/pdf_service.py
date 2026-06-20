@@ -869,17 +869,40 @@ def build_pdf(pratica, settings):
 
         # [ADD-ON COMMERCIALE] Vocazione Turistica — dati Istat 2024
         _vt = _risk_data.get('vocazione_turistica')
+        _itz = _risk_data.get('intensita_turistica_zona')
+
         if _vt and _vt.get('in_top50_istat'):
             _vt_testo = (
                 f"Questo Comune si colloca al #{_vt.get('posizione_classifica','—')} posto in Italia "
                 f"per numero di presenze turistiche, con {_vt.get('presenze_2024',0):,} pernottamenti "
                 f"registrati nel 2024 ({_vt.get('quota_pct_nazionale',0)}% del totale nazionale). "
-                f"Fonte: Istat, Movimento dei clienti negli esercizi ricettivi. "
-                f"La forte presenza turistica (B&B, case vacanza, soggiorni brevi) rappresenta una "
-                f"componente di domanda aggiuntiva rispetto alla sola popolazione residente."
+                f"Fonte: Istat, Movimento dei clienti negli esercizi ricettivi."
             ).replace(',', '.')
-            story.append(_ai_box('VOCAZIONE TURISTICA — Dati ufficiali Istat 2024',
+            if _itz and _itz.get('n_strutture_turismo_zona') is not None:
+                _vt_testo += (
+                    f" Nella zona specifica analizzata sono stati rilevati "
+                    f"{_itz['n_strutture_turismo_zona']} hotel/B&B/case vacanza "
+                    f"(densità locale: {_itz.get('densita_locale_label','—')}). "
+                    f"{_itz.get('nota_vendita','')}"
+                )
+            else:
+                _vt_testo += (
+                    " La forte presenza turistica (B&B, case vacanza, soggiorni brevi) rappresenta "
+                    "una componente di domanda aggiuntiva rispetto alla sola popolazione residente."
+                )
+            story.append(_ai_box('VOCAZIONE TURISTICA — Dati ufficiali Istat 2024 + rilevazione zona',
                                   _vt_testo, '#FFF7ED', '#EA580C'))
+            story.append(sp(8))
+        elif _itz and _itz.get('n_strutture_turismo_zona', 0) >= 4:
+            # Comune fuori Top50 ma zona localmente densa di B&B — caso interessante da segnalare
+            _itz_testo = (
+                f"Questo Comune non rientra tra i 50 a maggior volume turistico nazionale, ma "
+                f"la zona specifica analizzata mostra {_itz['n_strutture_turismo_zona']} "
+                f"hotel/B&B/case vacanza rilevati (densità locale: {_itz.get('densita_locale_label','—')}). "
+                f"{_itz.get('nota_vendita','')}"
+            )
+            story.append(_ai_box('MICRO-CLUSTER TURISTICO LOCALE — Rilevazione zona',
+                                  _itz_testo, '#FFF7ED', '#EA580C'))
             story.append(sp(8))
 
         # Argomenti di vendita pronti
