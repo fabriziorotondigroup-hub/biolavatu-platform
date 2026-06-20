@@ -714,6 +714,33 @@ def zona_analisi():
             else:
                 sat, cerchio_col, cerchio_fill = 'bassa', '#10b981', 'rgba(16,185,129,0.12)'
 
+            # [ADD-ON] indice di vulnerabilità concorrente — non altera logica esistente
+            _rating_c   = poi.get('rating') or 0
+            _nrec_c     = poi.get('user_ratings_total') or 0
+            _open_now_c = poi.get('open_now')
+            if _nrec_c == 0:
+                _vuln_label, _vuln_score = 'Dato insufficiente', None
+            elif _rating_c == 0:
+                _vuln_label, _vuln_score = 'Dato insufficiente', None
+            else:
+                # Punteggio 0-100: più alto = concorrente più vulnerabile (debole)
+                _vs = 0
+                if   _rating_c < 3.0:  _vs += 45
+                elif _rating_c < 3.5:  _vs += 32
+                elif _rating_c < 4.0:  _vs += 18
+                elif _rating_c < 4.3:  _vs += 8
+                else:                   _vs += 0
+                if   _nrec_c < 10:   _vs += 30
+                elif _nrec_c < 30:   _vs += 18
+                elif _nrec_c < 80:   _vs += 8
+                else:                 _vs += 0
+                if _open_now_c is False: _vs += 10
+                _vuln_score = min(100, _vs)
+                if   _vuln_score >= 60: _vuln_label = 'Alta — concorrente debole'
+                elif _vuln_score >= 35: _vuln_label = 'Media'
+                elif _vuln_score >= 15: _vuln_label = 'Bassa'
+                else:                    _vuln_label = 'Concorrente solido'
+
             competitors_detail.append({
                 'lat': poi['lat'], 'lng': poi['lng'],
                 'nome': poi['nome'],
@@ -726,6 +753,11 @@ def zona_analisi():
                 'saturazione': sat,
                 'cerchio_colore': cerchio_col,
                 'cerchio_fill':   cerchio_fill,
+                # [ADD-ON] campi extra — non rimuovono né alterano i precedenti
+                'user_ratings_total': _nrec_c,
+                'open_now':           _open_now_c,
+                'vulnerabilita_score': _vuln_score,
+                'vulnerabilita_label': _vuln_label,
             })
 
         # ── DATI DEMOGRAFICI ──────────────────────────────────────────────────────
