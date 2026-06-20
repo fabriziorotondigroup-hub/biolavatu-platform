@@ -794,14 +794,41 @@ Mostra: incasso stimato, costi fissi e variabili, margine, break-even.
 Indica a quanti clienti/giorno corrisponde il break-even rispetto alla stima zona.
 Mostra i tre scenari (pessimistico/realistico/ottimistico) con i valori assoluti.
 
-Tono: report analitico, asciutto, numeri precisi, zero aggettivi valutativi,
-zero raccomandazioni, zero conclusioni su apertura/non apertura.
+## 5.5 CONFRONTO CON LA CONCORRENZA DIRETTA
+Identifica tra i concorrenti rilevati quello più vicino e quello con rating/recensioni
+più alti (anche se non coincidono). Confrontali esplicitamente: distanza, rating,
+numero recensioni. Indica se il concorrente più vicino è vulnerabile (rating basso
+o poche recensioni) o solido. Confronto fattuale, non giudizio sull'apertura.
+
+## 6. VALUTAZIONE TARIFFE PROPOSTE
+Confronta le tariffe inserite nel business plan con il contesto demografico rilevato
+(reddito medio zona, presenza studentesca/turistica). Indica se le tariffe appaiono
+in linea, sopra o sotto la sensibilità al prezzo tipica del profilo di zona descritto,
+motivando con i dati già riportati sopra, senza inventare nuovi dati.
+
+## 7. SENSIBILITA DEL RISK SCORE
+Sulla base dei dati raccolti (payback, concorrenza, turismo/studenti), indica una o
+due leve concrete che, se attivate, cambierebbero il quadro di rischio in modo
+significativo (es. tariffa dedicata a un segmento specifico, orari estesi,
+convenzione con una struttura nelle vicinanze). Resta su leve plausibili dai dati
+disponibili, non generiche.
+
+## 8. RACCOMANDAZIONE OPERATIVA
+Questa e l'unica sezione con giudizio esplicito del documento. In 3-4 punti elenco,
+indica azioni concrete per questa zona, basate sui dati sopra riportati (target di
+clientela da privilegiare, leva competitiva contro il concorrente piu vicino,
+eventuali accordi B2B da valutare). Ogni punto deve derivare da un dato specifico
+gia citato in questo report, niente generico applicabile a qualsiasi zona.
+
+Tono: dalle sezioni 1 a 7, report analitico, asciutto, numeri precisi, zero
+aggettivi valutativi, zero raccomandazioni. Solo nella sezione 8 e ammesso un
+tono diretto e consulenziale.
 Rispondi in italiano. Usa intestazioni Markdown (##). Sii conciso ma completo."""
 
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=2000,
+            max_tokens=2800,
             messages=[{"role": "user", "content": prompt}]
         )
         return jsonify({'testo': message.content[0].text})
