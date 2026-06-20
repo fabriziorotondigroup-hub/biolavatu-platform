@@ -25,6 +25,10 @@ with app.app_context():
         ('pratiche', 'ai_risk',          'TEXT'),
         ('pratiche', 'allegati_json',    'TEXT'),
         ('pratiche', 'foto_mappa',       'TEXT'),
+        # ── [ADD-ON COMMERCIALE] Risk Score Investimento ────────────────────────
+        ('pratiche', 'risk_score',                'INTEGER'),
+        ('pratiche', 'risk_label',                'VARCHAR(80)'),
+        ('pratiche', 'risk_assessment_json',      'TEXT'),
     ]
     for _tbl, _col, _typ in _new_cols:
         try:
