@@ -800,6 +800,23 @@ più alti (anche se non coincidono). Confrontali esplicitamente: distanza, ratin
 numero recensioni. Indica se il concorrente più vicino è vulnerabile (rating basso
 o poche recensioni) o solido. Confronto fattuale, non giudizio sull'apertura.
 
+## 5.6 OPPORTUNITA DI DIFFERENZIAZIONE
+Sulla base dei dati concorrenza (rating, numero recensioni, distanza) e del profilo
+di zona (presenza universitaria, turistica, demografica), identifica concretamente:
+- quali servizi tipicamente assenti in lavanderie self-service con rating/recensioni
+  basse potrebbero mancare ai concorrenti rilevati (es. pagamento app/contactless,
+  capacita di carico extra-large per piumoni/tappeti, asciugatura rapida, orari 24/7,
+  pulizia/igiene percepita) — deducendolo dal rating, non inventando dati specifici
+  sul singolo concorrente che non sono stati forniti;
+- quale segmento di clientela rilevato in zona (studenti, turisti/B&B, residenti
+  senza lavatrice, professionisti) e oggi probabilmente sotto-servito dai concorrenti
+  esistenti, in base a distanza e numerosità;
+- 2-3 azioni concrete per intercettare clienti che oggi vanno dal concorrente più
+  vicino o più numeroso (es. convenzione con una struttura specifica gia citata nel
+  report, fascia oraria scoperta, servizio assente plausibile).
+Resta sui dati gia raccolti in questo report (concorrenti, attractor points, profilo
+zona): non inventare informazioni sui concorrenti che non sono state fornite.
+
 ## 6. VALUTAZIONE TARIFFE PROPOSTE
 Confronta le tariffe inserite nel business plan con il contesto demografico rilevato
 (reddito medio zona, presenza studentesca/turistica). Indica se le tariffe appaiono
@@ -821,14 +838,14 @@ eventuali accordi B2B da valutare). Ogni punto deve derivare da un dato specific
 gia citato in questo report, niente generico applicabile a qualsiasi zona.
 
 Tono: dalle sezioni 1 a 7, report analitico, asciutto, numeri precisi, zero
-aggettivi valutativi, zero raccomandazioni. Solo nella sezione 8 e ammesso un
+aggettivi valutativi, zero raccomandazioni. Nelle sezioni 5.6 e 8 e ammesso un
 tono diretto e consulenziale.
 Rispondi in italiano. Usa intestazioni Markdown (##). Sii conciso ma completo."""
 
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=2800,
+            max_tokens=3200,
             messages=[{"role": "user", "content": prompt}]
         )
         return jsonify({'testo': message.content[0].text})
