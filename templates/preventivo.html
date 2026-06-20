@@ -3916,6 +3916,10 @@ function generaAI() {
     perc_asciugatura:     fd.get('perc_asciugatura')     || 65,
     affitto_mese:         fd.get('affitto_mese')         || 0,
     macchine: Object.values(selectedMacchine),
+    // [ADD-ON COMMERCIALE] Vocazione turistica, vulnerabilità concorrenza, Risk Score
+    vocazione_turistica: window._ultimaVocazioneTuristica || null,
+    intensita_turistica_zona: window._ultimaIntensitaTuristicaZona || null,
+    vulnerabilita_zona: window._ultimaVulnZona || null,
   };
 
   const aiText = document.getElementById('ai-zona-text');
