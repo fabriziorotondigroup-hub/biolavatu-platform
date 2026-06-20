@@ -222,6 +222,51 @@ def salva():
             p.foto_sede = fn
             db.session.commit()
 
+    # [ADD-ON COMMERCIALE] Salva Risk Score Investimento (se calcolato dal frontend)
+    try:
+        _risk_score_in = data.get('risk_score', '')
+        if _risk_score_in:
+            p.risk_score = int(float(_risk_score_in))
+            p.risk_label = data.get('risk_label', '')
+            p.risk_assessment_json = data.get('risk_assessment_json', '')
+            db.session.commit()
+    except Exception:
+        pass
+
+    # [ADD-ON COMMERCIALE] Scarica e salva mappa statica con concorrenti per il PDF
+    try:
+        if p.lat and p.lng:
+            _gmaps_key2 = os.environ.get('GMAPS_KEY', '')
+            if _gmaps_key2:
+                import urllib.parse as _upl2, urllib.request as _ugr2
+                _markers = f"color:0x1B4F72|label:S|{p.lat},{p.lng}"
+                try:
+                    _pois_list = json.loads(p.pois_raw) if p.pois_raw else []
+                except Exception:
+                    _pois_list = []
+                _conc_markers = ''
+                for _poi in _pois_list[:8]:
+                    if _poi.get('categoria') == 'concorrente' and _poi.get('lat') and _poi.get('lng'):
+                        _conc_markers += f"&markers=color:0xC0392B|{_poi['lat']},{_poi['lng']}"
+                _static_url = (
+                    "https://maps.googleapis.com/maps/api/staticmap?"
+                    f"center={p.lat},{p.lng}&zoom=15&size=900x500&scale=2"
+                    f"&markers={_upl2.quote(_markers)}"
+                    f"{_conc_markers}"
+                    f"&key={_gmaps_key2}"
+                )
+                from flask import current_app
+                _map_fn  = secure_filename(f'mappa_{p.id}.png')
+                _map_path = os.path.join(current_app.config['UPLOAD_FOLDER'], _map_fn)
+                _mreq = _ugr2.Request(_static_url, headers={"User-Agent": "BIOLavaTU"})
+                with _ugr2.urlopen(_mreq, timeout=10) as _mresp:
+                    with open(_map_path, 'wb') as _mf:
+                        _mf.write(_mresp.read())
+                p.foto_mappa = _map_path
+                db.session.commit()
+    except Exception:
+        pass
+
     flash(f'Preventivo {p.numero} creato con successo!', 'success')
     return redirect(url_for('pratiche.dettaglio', id=p.id))
 
@@ -789,3 +834,4 @@ FORMATO RICHIESTO:
         return jsonify({'lettera': lettera_text, 'cached': False})
     except Exception as e:
         return jsonify({'errore': str(e)}), 500
+
