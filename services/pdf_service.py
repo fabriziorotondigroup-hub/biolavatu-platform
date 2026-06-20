@@ -867,6 +867,21 @@ def build_pdf(pratica, settings):
                                   _vz['commento_vendita'], '#FEF3F2', '#DC2626'))
             story.append(sp(8))
 
+        # [ADD-ON COMMERCIALE] Vocazione Turistica — dati Istat 2024
+        _vt = _risk_data.get('vocazione_turistica')
+        if _vt and _vt.get('in_top50_istat'):
+            _vt_testo = (
+                f"Questo Comune si colloca al #{_vt.get('posizione_classifica','—')} posto in Italia "
+                f"per numero di presenze turistiche, con {_vt.get('presenze_2024',0):,} pernottamenti "
+                f"registrati nel 2024 ({_vt.get('quota_pct_nazionale',0)}% del totale nazionale). "
+                f"Fonte: Istat, Movimento dei clienti negli esercizi ricettivi. "
+                f"La forte presenza turistica (B&B, case vacanza, soggiorni brevi) rappresenta una "
+                f"componente di domanda aggiuntiva rispetto alla sola popolazione residente."
+            ).replace(',', '.')
+            story.append(_ai_box('VOCAZIONE TURISTICA — Dati ufficiali Istat 2024',
+                                  _vt_testo, '#FFF7ED', '#EA580C'))
+            story.append(sp(8))
+
         # Argomenti di vendita pronti
         _argomenti = _risk_data.get('argomenti_vendita', [])
         if _argomenti:
