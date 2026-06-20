@@ -800,7 +800,7 @@ Rispondi in italiano. Usa intestazioni Markdown (##). Sii conciso ma completo.""
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-sonnet-4-6",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -874,7 +874,7 @@ FORMATO RICHIESTO:
 
     try:
         message = client.messages.create(
-            model='claude-sonnet-4-5',
+            model='claude-sonnet-4-6',
             max_tokens=800,
             messages=[{'role': 'user', 'content': prompt}]
         )
@@ -886,4 +886,5 @@ FORMATO RICHIESTO:
         return jsonify({'lettera': lettera_text, 'cached': False})
     except Exception as e:
         return jsonify({'errore': str(e)}), 500
+
 
