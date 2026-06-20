@@ -98,6 +98,10 @@ def _run_migrations():
         ('pratiche', 'confidenza_label',          'VARCHAR(20)'),
         ('pratiche', 'raccomandazione',           'VARCHAR(20)'),
         ('pratiche', 'analisi_investitore_json',  'TEXT'),
+        # ── [ADD-ON COMMERCIALE] Risk Score Investimento ────────────────────────
+        ('pratiche', 'risk_score',                'INTEGER'),
+        ('pratiche', 'risk_label',                'VARCHAR(80)'),
+        ('pratiche', 'risk_assessment_json',      'TEXT'),
         ('pratiche', 'visibilita_vetrina',        'INTEGER DEFAULT 0'),
         ('pratiche', 'parcheggio_diretto',        'BOOLEAN DEFAULT FALSE'),
         ('pratiche', 'n_posti_parcheggio',        'INTEGER DEFAULT 0'),
