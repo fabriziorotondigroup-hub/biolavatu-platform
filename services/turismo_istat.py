@@ -150,3 +150,72 @@ def get_vocazione_turistica(comune: str) -> dict:
         'fonte': FONTE,
         'nota': None,
     }
+
+
+def calcola_intensita_turistica_zona(n_strutture_turismo_zona: int,
+                                      vocazione_comunale: dict,
+                                      raggio_m: int = 800) -> dict:
+    """
+    [ADD-ON] Combina due livelli di precisione:
+    1) vocazione_comunale — quanto è turistica la CITTÀ nel suo complesso (dati Istat ufficiali)
+    2) n_strutture_turismo_zona — quanti hotel/B&B/affittacamere ci sono SPECIFICAMENTE
+       in quella zona/raggio (rilevati da Google Places in tempo reale)
+
+    Una città può avere vocazione turistica alta ma la zona specifica essere residenziale
+    (es. Roma centro storico vs Roma periferia EUR), e viceversa una città piccola può
+    avere una zona densissima di B&B anche se non emerge nella Top 50 nazionale.
+
+    Risponde alla domanda concreta: "qui, in questo punto esatto, quanta domanda
+    turistica strutturale (B&B/case vacanza/affitti brevi) posso aspettarmi?"
+    """
+    indice_comunale = (vocazione_comunale or {}).get('indice_vocazione', 0) or 0
+
+    # Densità locale: soglia empirica — oltre 8 strutture in 800m è zona satura di turismo
+    if   n_strutture_turismo_zona >= 15: densita_locale, densita_label = 100, 'Altissima'
+    elif n_strutture_turismo_zona >= 8:  densita_locale, densita_label = 75,  'Alta'
+    elif n_strutture_turismo_zona >= 4:  densita_locale, densita_label = 50,  'Media'
+    elif n_strutture_turismo_zona >= 1:  densita_locale, densita_label = 25,  'Bassa'
+    else:                                  densita_locale, densita_label = 0,   'Assente'
+
+    # Indice combinato: 60% peso alla densità locale reale, 40% al contesto città
+    # (la zona specifica conta più del dato aggregato comunale)
+    indice_combinato = round(densita_locale * 0.60 + indice_comunale * 0.40)
+    indice_combinato = max(0, min(100, indice_combinato))
+
+    # Classificazione del mismatch città/zona — utile per il commerciale
+    if indice_comunale >= 60 and densita_locale < 25:
+        scenario = 'citta_turistica_zona_residenziale'
+        nota_vendita = ('Città ad alta vocazione turistica, ma questa zona specifica è '
+                         'prevalentemente residenziale: la domanda turistica qui è marginale, '
+                         'puntare su clientela locale.')
+    elif indice_comunale < 40 and densita_locale >= 50:
+        scenario = 'zona_turistica_in_citta_minore'
+        nota_vendita = ('Questa zona ha una concentrazione di B&B/case vacanza sorprendente '
+                         'per una città che non rientra tra le grandi destinazioni nazionali: '
+                         'probabile micro-cluster turistico locale, opportunità da B&B fissi.')
+    elif indice_comunale >= 60 and densita_locale >= 50:
+        scenario = 'massima_intensita_turistica'
+        nota_vendita = ('Zona doppiamente validata: città ad alta vocazione turistica nazionale '
+                         'E forte concentrazione locale di B&B/case vacanza. Domanda turistica '
+                         'strutturale molto solida, indipendente dal turista occasionale di passaggio.')
+    else:
+        scenario = 'turismo_non_determinante'
+        nota_vendita = ('Il fattore turistico non è determinante in questa zona: la domanda '
+                         'principale resterà quella residenziale/locale.')
+
+    if   indice_combinato >= 75: colore = '#dc2626'
+    elif indice_combinato >= 50: colore = '#f59e0b'
+    elif indice_combinato >= 25: colore = '#3b82f6'
+    else:                          colore = '#64748b'
+
+    return {
+        'n_strutture_turismo_zona': n_strutture_turismo_zona,
+        'densita_locale_score': densita_locale,
+        'densita_locale_label': densita_label,
+        'indice_comunale': indice_comunale,
+        'indice_combinato': indice_combinato,
+        'colore': colore,
+        'scenario': scenario,
+        'nota_vendita': nota_vendita,
+        'raggio_m': raggio_m,
+    }
