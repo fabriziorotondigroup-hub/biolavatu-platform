@@ -3452,6 +3452,8 @@ function eseguiAnalisi(lat, lng) {
         window._ultimaVulnZona  = (d.concorrenza_avanzata && d.concorrenza_avanzata.vulnerabilita_zona) || null;
         window._ultimaVocazioneTuristica = d.vocazione_turistica || null;  // [ADD-ON] dati Istat 2024
         window._ultimaIntensitaTuristicaZona = d.intensita_turistica_zona || null;  // [ADD-ON] comune+zona
+        window._ultimiCompetitorsDetail = d.competitors_detail || [];  // [FIX] mancava nel payload AI
+        window._ultimiAttractorPoints   = d.attractor_points   || [];  // [FIX] mancava nel payload AI
         try { aggiornaRiskScoreInvestimento(); } catch(e) {}
         try { aggiornaVocazioneTuristica(); } catch(e) {}
 
@@ -3921,6 +3923,9 @@ function generaAI() {
     vocazione_turistica: window._ultimaVocazioneTuristica || null,
     intensita_turistica_zona: window._ultimaIntensitaTuristicaZona || null,
     vulnerabilita_zona: window._ultimaVulnZona || null,
+    // [FIX] competitors_detail e attractor_points mancavano — l'AI riceveva sempre "nessun dato"
+    competitors_detail: window._ultimiCompetitorsDetail || [],
+    attractor_points:   window._ultimiAttractorPoints   || [],
   };
 
   const aiText = document.getElementById('ai-zona-text');
