@@ -771,6 +771,9 @@ def zona_analisi():
         pop_3min   = int(densita * area_3min)
         pop_5min   = int(densita * area_5min)
         pop_10min  = int(densita * area_10min)
+        # [ADD-ON non distruttivo] popolazione raggiungibile in un raggio fisso di 1km
+        area_1km_fix = math.pi * 1.0 ** 2
+        pop_1km    = int(densita * area_1km_fix)
 
         assessment = get_market_assessment(
             eta_media, reddito_medio, densita,
@@ -880,6 +883,7 @@ def zona_analisi():
             'pop_3min':           pop_3min,
             'pop_5min':           pop_5min,
             'pop_10min':          pop_10min,
+            'pop_1km':            pop_1km,  # [ADD-ON] popolazione in raggio fisso 1km
             'score':              assessment['score'],
             'score_label':        assessment['label'],
             'score_colore':       assessment['colore'],
