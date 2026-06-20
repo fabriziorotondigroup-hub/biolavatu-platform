@@ -659,6 +659,43 @@ def analisi_ai():
     if not attractor_txt:
         attractor_txt = '  Nessun generatore di domanda strutturale rilevato nel raggio'
 
+    # [ADD-ON COMMERCIALE] Vocazione turistica + vulnerabilità concorrenza per il prompt AI
+    _vt_ai  = data.get('vocazione_turistica') or {}
+    _itz_ai = data.get('intensita_turistica_zona') or {}
+    _vz_ai  = data.get('vulnerabilita_zona') or {}
+
+    if _vt_ai.get('in_top50_istat'):
+        turismo_txt = (
+            f"Comune in posizione #{_vt_ai.get('posizione_classifica','N/D')} nella classifica "
+            f"nazionale Istat per presenze turistiche, con {int(_vt_ai.get('presenze_2024',0) or 0):,} "
+            f"pernottamenti registrati nel 2024 ({_vt_ai.get('quota_pct_nazionale','N/D')}% del totale Italia)."
+        )
+        if _itz_ai.get('n_strutture_turismo_zona') is not None:
+            turismo_txt += (
+                f"\nNella zona specifica analizzata: {_itz_ai.get('n_strutture_turismo_zona')} "
+                f"strutture turistiche (hotel/B&B/case vacanza) rilevate, densità locale "
+                f"'{_itz_ai.get('densita_locale_label','N/D')}', indice combinato comune+zona: "
+                f"{_itz_ai.get('indice_combinato','N/D')}/100."
+            )
+    elif _itz_ai.get('n_strutture_turismo_zona', 0) > 0:
+        turismo_txt = (
+            f"Comune fuori dalla Top50 nazionale Istat per volume turistico, ma nella zona "
+            f"specifica risultano {_itz_ai.get('n_strutture_turismo_zona')} strutture turistiche "
+            f"(hotel/B&B/case vacanza) rilevate — densità locale '{_itz_ai.get('densita_locale_label','N/D')}'."
+        )
+    else:
+        turismo_txt = 'Nessun dato significativo di vocazione turistica rilevato per questa zona/comune.'
+
+    if _vz_ai.get('media_vulnerabilita') is not None:
+        vulnerabilita_txt = (
+            f"Vulnerabilità media dei concorrenti rilevati: {_vz_ai.get('media_vulnerabilita')}/100 "
+            f"({_vz_ai.get('n_concorrenti_deboli',0)} concorrenti con segnali di debolezza — rating basso "
+            f"o poche recensioni — su {_vz_ai.get('n_concorrenti_valutati',0)} valutati; "
+            f"{_vz_ai.get('n_concorrenti_solidi',0)} concorrenti ben radicati)."
+        )
+    else:
+        vulnerabilita_txt = 'Dato insufficiente per calcolare la vulnerabilità media dei concorrenti.'
+
     # Lista concorrenti
     conc_list = data.get('competitors_detail', [])
     conc_txt = ''
@@ -703,6 +740,12 @@ Strutture che generano domanda strutturale per lavanderie self-service
 (personale su turni, residenti senza lavatrice, utenti fissi):
 {attractor_txt}
 
+═══ VOCAZIONE TURISTICA (dati Istat 2024 + rilevazione zona) ═══
+{turismo_txt}
+
+═══ VULNERABILITÀ CONCORRENZA ═══
+{vulnerabilita_txt}
+
 ═══ STRUTTURA ECONOMICA ═══
 Configurazione macchine: {mac_txt}
 Investimento: €{cap:,.0f} + IVA 22% = €{cap*1.22:,.0f}
@@ -735,6 +778,15 @@ Elenca e descrivi gli attractor points trovati nel raggio.
 Per ognuno indica: tipo di struttura, distanza, impatto atteso sui flussi
 (es. ospedale = personale su turni, caserma = reclute, università = studenti fuori sede).
 Quantifica dove possibile il numero di persone coinvolte.
+
+## 4.5 TURISMO E VULNERABILITÀ CONCORRENZA
+Riporta il dato di vocazione turistica del comune e della zona specifica (dati Istat 2024).
+Se rilevante, spiega l'impatto di hotel/B&B/case vacanza sulla domanda potenziale
+(turisti con bagagli minimi che necessitano lavaggio durante il soggiorno, gestori
+di strutture ricettive che lavano biancheria con regolarità — domanda B2B ricorrente).
+Riporta il dato di vulnerabilità media della concorrenza: spiega se i concorrenti rilevati
+mostrano segnali di debolezza (rating basso, poche recensioni) o solidità (ben radicati).
+Solo dati e misurazioni, nessuna raccomandazione.
 
 ## 5. LETTURA ECONOMICA
 Riporta i numeri del business plan senza commentarli in termini di fattibilità.
