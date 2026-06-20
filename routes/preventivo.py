@@ -620,7 +620,7 @@ def analisi_ai():
     if not api_key:
         return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata'}), 500
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=1)
     except Exception as e:
         return jsonify({'errore': f'Errore init client: {str(e)}'}), 500
 
@@ -832,7 +832,7 @@ def genera_lettera():
         return jsonify({'errore': 'ANTHROPIC_API_KEY non configurata'}), 500
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=1)
     except Exception as e:
         return jsonify({'errore': f'Errore init client: {str(e)}'}), 500
 
