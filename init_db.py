@@ -27,6 +27,11 @@ with app.app_context():
         ('pratiche', 'foto_mappa',       'TEXT'),
         # ── [ADD-ON COMMERCIALE] Risk Score Investimento ────────────────────────
         ('pratiche', 'risk_score',                'INTEGER'),
+        # ── [FIX CRITICO] Campi mercato mai migrati — causavano UndefinedColumn ──
+        ('pratiche', 'market',                    "VARCHAR(5) DEFAULT 'IT'"),
+        ('pratiche', 'valuta',                     "VARCHAR(5) DEFAULT 'EUR'"),
+        ('pratiche', 'cambio_ron',                 'FLOAT DEFAULT 4.97'),
+        ('pratiche', 'judet_cod',                  'VARCHAR(10)'),
         ('pratiche', 'risk_label',                'VARCHAR(80)'),
         ('pratiche', 'risk_assessment_json',      'TEXT'),
     ]
