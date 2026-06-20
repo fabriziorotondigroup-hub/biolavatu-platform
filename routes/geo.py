@@ -23,7 +23,7 @@ from services.analisi_competitiva import (
     calcola_score_ponderato,
 )
 from services.istat import calcola_vulnerabilita_media_zona  # [ADD-ON commerciale]
-from services.turismo_istat import get_vocazione_turistica  # [ADD-ON commerciale]
+from services.turismo_istat import get_vocazione_turistica, calcola_intensita_turistica_zona  # [ADD-ON commerciale]
 
 def ricerca_info_struttura_militare(nome: str, citta: str) -> dict:
     """
@@ -884,6 +884,11 @@ def zona_analisi():
         _punti_deboli = analizza_punti_deboli(competitors_detail)
         _vuln_zona = calcola_vulnerabilita_media_zona(competitors_detail)  # [ADD-ON]
         _vocazione_turistica = get_vocazione_turistica(citta)  # [ADD-ON commerciale]
+        _intensita_turistica_zona = calcola_intensita_turistica_zona(
+            n_strutture_turismo_zona=len(raw_turismo or []),
+            vocazione_comunale=_vocazione_turistica,
+            raggio_m=r10,
+        )  # [ADD-ON commerciale] combina dato comunale + densita locale B&B
 
         # Traffico veicolare/pedonale stimato
         _traffico = stima_traffico_veicolare(
@@ -976,6 +981,7 @@ def zona_analisi():
                 'vulnerabilita_zona': _vuln_zona,  # [ADD-ON commerciale]
             },
             'vocazione_turistica': _vocazione_turistica,  # [ADD-ON commerciale] dati Istat 2024
+            'intensita_turistica_zona': _intensita_turistica_zona,  # [ADD-ON commerciale] combinato
             'score_ponderato':    _score_pond,
         })
 
