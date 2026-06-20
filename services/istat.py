@@ -523,3 +523,60 @@ def get_canone_stimato(citta: str, mq: int, zona: str = 'semicentrale') -> dict:
         'citta': citta,
         'fonte': fonte,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [ADD-ON COMMERCIALE] — Risk Assessment Investimento + Vulnerabilità Concorrenza
+# Aggiunto come modulo indipendente. NON modifica nessuna funzione esistente.
+# Obiettivo: dare al commerciale argomenti di vendita data-driven unici sul mercato.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def calcola_vulnerabilita_media_zona(competitors_detail: list) -> dict:
+    """
+    Aggrega l'indice di vulnerabilità (già calcolato per singolo concorrente
+    in routes/geo.py) in un quadro complessivo della zona.
+    Risponde alla domanda: "i concorrenti qui sono forti o deboli?"
+    """
+    validi = [c for c in (competitors_detail or [])
+              if c.get('vulnerabilita_score') is not None]
+
+    if not validi:
+        return {
+            'media_vulnerabilita': None,
+            'n_concorrenti_valutati': 0,
+            'n_concorrenti_deboli': 0,
+            'n_concorrenti_solidi': 0,
+            'label': 'Dato insufficiente',
+            'colore': '#64748b',
+            'commento_vendita': 'Nessun dato sufficiente sui concorrenti per valutarne la forza.',
+        }
+
+    media = sum(c['vulnerabilita_score'] for c in validi) / len(validi)
+    deboli  = len([c for c in validi if c['vulnerabilita_score'] >= 60])
+    solidi  = len([c for c in validi if c['vulnerabilita_score'] < 15])
+
+    if media >= 55:
+        label, colore = 'Concorrenza debole', '#10b981'
+        commento = (f'{deboli} concorrent{"e" if deboli==1 else "i"} su {len(validi)} '
+                    'mostrano segnali di debolezza (rating basso, poche recensioni, '
+                    'orari limitati). È il momento giusto per entrare e prendere quota.')
+    elif media >= 30:
+        label, colore = 'Concorrenza mista', '#f59e0b'
+        commento = ('La concorrenza è eterogenea: alcuni operatori sono vulnerabili, '
+                    'altri solidi. Conviene posizionarsi puntando su un segmento o '
+                    'servizio che i concorrenti più forti non coprono bene.')
+    else:
+        label, colore = 'Concorrenza solida', '#ef4444'
+        commento = (f'{solidi} concorrent{"e" if solidi==1 else "i"} su {len(validi)} '
+                    'risultano ben radicati (rating alto, molte recensioni). '
+                    'Servirà una proposta differenziata, non un confronto diretto.')
+
+    return {
+        'media_vulnerabilita': round(media, 1),
+        'n_concorrenti_valutati': len(validi),
+        'n_concorrenti_deboli': deboli,
+        'n_concorrenti_solidi': solidi,
+        'label': label,
+        'colore': colore,
+        'commento_vendita': commento,
+    }
